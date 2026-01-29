@@ -1,4 +1,33 @@
 import { useEffect, useState } from 'react'
+// ... imports ...
+import { Login } from './TelaLogin' // <--- IMPORT NOVO
+
+export function App() {
+  // Tenta recuperar o usuário salvo na memória do navegador
+  const [usuario, setUsuario] = useState(() => {
+    const salvo = localStorage.getItem('usuario_vila_verde')
+    return salvo ? JSON.parse(salvo) : null
+  })
+
+  // Função que salva o login
+  function fazerLogin(dadosUsuario: any) {
+    setUsuario(dadosUsuario)
+    localStorage.setItem('usuario_vila_verde', JSON.stringify(dadosUsuario))
+  }
+
+  // Função de Logout (Sair)
+  function sair() {
+    setUsuario(null)
+    localStorage.removeItem('usuario_vila_verde')
+  }
+
+  // SE NÃO TIVER USUÁRIO, MOSTRA TELA DE LOGIN
+  if (!usuario) {
+    return <Login onLogin={fazerLogin} />
+  }
+
+  // SE TIVER, SEGUE O BAILE (MOSTRA O PDV)
+  // ... resto do seu código antigo (produtos, carrinho, etc)...
 
 // --- TIPOS ---
 interface Produto {
@@ -192,17 +221,51 @@ function App() {
     <div style={{ fontFamily: 'Arial', backgroundColor: '#f4f4f9', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
       {/* 1. BARRA SUPERIOR (DASHBOARD) */}
+      {/* 1. BARRA SUPERIOR COMPLETA (Título + Stats + Usuário) */}
       <div style={{ backgroundColor: '#2c3e50', color: 'white', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        
+        {/* ESQUERDA: Título */}
         <h2 style={{ margin: 0 }}>🏗️ PDV Vila Verde</h2>
-        <div style={{ display: 'flex', gap: '20px' }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>VENDAS HOJE</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>R$ {totalHoje.toFixed(2)}</div>
+
+        {/* DIREITA: Tudo agrupado (Stats + User) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
+          
+          {/* Seus Contadores Originais */}
+          <div style={{ display: 'flex', gap: '20px', textAlign: 'right' }}>
+             <div>
+               <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>VENDAS HOJE</div>
+               <div style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>R$ {totalHoje.toFixed(2)}</div>
+             </div>
+             <div>
+               <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>PRODUTOS</div>
+               <div style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{produtos.length}</div>
+             </div>
           </div>
+
+          {/* Risquinho separador */}
+          <div style={{ height: '30px', borderLeft: '1px solid rgba(255,255,255,0.3)' }}></div>
+
+          {/* Novo: Área do Usuário */}
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>TOTAL PRODUTOS</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{produtos.length}</div>
+             <div style={{ fontSize: '0.9rem' }}>Olá, <strong>{usuario.nome}</strong></div>
+             <button 
+               onClick={sair}
+               style={{ 
+                 marginTop: '4px',
+                 backgroundColor: '#e74c3c', // Vermelho
+                 border: 'none',
+                 color: 'white',
+                 padding: '4px 10px',
+                 borderRadius: '4px',
+                 cursor: 'pointer',
+                 fontSize: '0.8rem',
+                 fontWeight: 'bold'
+               }}
+             >
+               SAIR 🚪
+             </button>
           </div>
+
         </div>
       </div>
 
@@ -338,5 +401,5 @@ function App() {
     </div>
   )
 }
-
+}
 export default App

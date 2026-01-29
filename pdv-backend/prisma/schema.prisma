@@ -49,3 +49,12 @@ model ItemVenda {
 
   @@map("itens_venda")
 }
+// Tabela de Usuários do Sistema
+model User {
+  id       String @id @default(uuid())
+  nome     String
+  email    String @unique
+  senha    String // Aqui guardaremos a senha criptografada
+  cargo    String // "GERENTE", "SUPERVISOR", "VENDEDOR"
+  criadoEm DateTime @default(now())
+}

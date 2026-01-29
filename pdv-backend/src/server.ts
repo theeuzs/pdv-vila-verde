@@ -1,6 +1,9 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { PrismaClient } from '@prisma/client'
+import { compare } from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+import { z } from 'zod'
 
 const app = Fastify()
 const prisma = new PrismaClient()
@@ -10,6 +13,49 @@ app.register(cors, {
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Libera explicitamente o DELETE
   allowedHeaders: ['Content-Type'] // Libera cabeçalhos padrões
 })
+
+// Rota de Login (A Portaria)
+  app.post('/login', async (request, reply) => {
+    // 1. Valida se mandou email e senha
+    const loginSchema = z.object({
+      email: z.string().email(),
+      senha: z.string(),
+    })
+
+    const { email, senha } = loginSchema.parse(request.body)
+
+    // 2. Busca o usuário no banco
+    const user = await prisma.user.findUnique({
+      where: { email },
+    })
+
+    if (!user) {
+      return reply.status(400).send({ erro: 'Email ou senha inválidos' })
+    }
+
+    // 3. Confere se a senha bate (descriptografa e compara)
+    const senhaBate = await compare(senha, user.senha)
+
+    if (!senhaBate) {
+      return reply.status(400).send({ erro: 'Email ou senha inválidos' })
+    }
+
+    // 4. Gera o Crachá (Token)
+    const token = jwt.sign(
+      { id: user.id, cargo: user.cargo }, // O que vai escrito no crachá
+      process.env.JWT_SECRET || 'segredo', // O carimbo de segurança
+      { expiresIn: '30d' } // Validade de 30 dias
+    )
+
+    // 5. Devolve os dados para o Frontend
+    return {
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
+      cargo: user.cargo,
+      token: token,
+    }
+  })
 
 // --- ROTAS DE PRODUTOS ---
 
