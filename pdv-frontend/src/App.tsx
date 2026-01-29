@@ -49,10 +49,10 @@ function App() {
   // --- CARREGAMENTO DE DADOS ---
   async function carregarDados() {
     try {
-      const resProdutos = await fetch('http://localhost:3333/produtos')
+      const resProdutos = await fetch('https://api-vila-verde.onrender.com/produtos')
       setProdutos(await resProdutos.json())
 
-      const resVendas = await fetch('http://localhost:3333/vendas')
+      const resVendas = await fetch('https://api-vila-verde.onrender.com/vendas')
       setVendasRealizadas(await resVendas.json())
     } catch (erro) {
       console.error("Erro ao carregar dados", erro)
@@ -83,7 +83,7 @@ function App() {
     const total = carrinho.reduce((acc, item) => acc + (Number(item.produto.precoVenda) * item.quantidade), 0)
     
     try {
-      const res = await fetch('http://localhost:3333/vendas', {
+      const res = await fetch('https://api-vila-verde.onrender.com/vendas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itens: carrinho.map(i => ({ produtoId: i.produto.id, quantidade: i.quantidade })) })
@@ -138,8 +138,8 @@ function App() {
     }
 
     const url = produtoEmEdicao 
-      ? `http://localhost:3333/produtos/${produtoEmEdicao.id}` // URL de Editar
-      : 'http://localhost:3333/produtos' // URL de Criar
+      ? `https://api-vila-verde.onrender.com/produtos/${produtoEmEdicao.id}` // URL de Editar
+      : 'https://api-vila-verde.onrender.com/produtos' // URL de Criar
     
     const metodo = produtoEmEdicao ? 'PUT' : 'POST'
 
@@ -162,7 +162,7 @@ function App() {
   async function excluirProduto(id: number) {
     if(!confirm("Tem certeza que deseja excluir este produto?")) return
     try {
-      const res = await fetch(`http://localhost:3333/produtos/${id}`, { method: 'DELETE' })
+      const res = await fetch(`https://api-vila-verde.onrender.com/produtos/${id}`, { method: 'DELETE' })
       if (res.ok) {
         alert("Produto excluído.")
         carregarDados()
