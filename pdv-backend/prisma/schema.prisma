@@ -58,3 +58,5 @@ model User {
   cargo    String // "GERENTE", "SUPERVISOR", "VENDEDOR"
   criadoEm DateTime @default(now())
 }
+
+// Atualizando esquema para o Render
