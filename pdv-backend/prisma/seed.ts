@@ -10,12 +10,15 @@ async function main() {
   // Cria o usuário Programador (se já existir, ele só atualiza)
   const user = await prisma.user.upsert({
     where: { email: 'admin@vilaverde.com' },
-    update: {},
+    update: {
+        senha: passwordHash, // <--- ADICIONE ISSO! (Força atualizar a senha se o usuário já existir)
+        cargo: 'GERENTE'
+    },
     create: {
       nome: 'Programador Master',
       email: 'admin@vilaverde.com',
       senha: passwordHash,
-      cargo: 'GERENTE', // O Poderoso Chefão
+      cargo: 'GERENTE',
     },
   })
 
