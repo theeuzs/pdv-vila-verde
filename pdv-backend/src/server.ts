@@ -136,8 +136,11 @@ app.get('/vendas', async () => {
 
 const start = async () => {
   try {
-    await app.listen({ port: 3333 })
-    console.log('Servidor rodando em: http://localhost:3333')
+    await app.listen({ 
+      host: '0.0.0.0', // Isso libera o acesso externo (Render precisa disso)
+      port: process.env.PORT ? Number(process.env.PORT) : 3333 // Usa a porta do Render ou a 3333 se for local
+    })
+    console.log('Servidor rodando')
   } catch (err) {
     process.exit(1)
   }
