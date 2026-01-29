@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 // ... imports ...
 import { Login } from './TelaLogin' // <--- IMPORT NOVO
 
+ 
 export function App() {
-  // Tenta recuperar o usuário salvo na memória do navegador
+   // Tenta recuperar o usuário salvo na memória do navegador
   const [usuario, setUsuario] = useState(() => {
     const salvo = localStorage.getItem('usuario_vila_verde')
     return salvo ? JSON.parse(salvo) : null
@@ -58,7 +59,6 @@ interface Venda {
   }[]
 }
 
-function App() {
   // --- ESTADOS ---
   const [aba, setAba] = useState<'caixa' | 'historico'>('caixa')
   const [produtos, setProdutos] = useState<Produto[]>([])
@@ -247,7 +247,7 @@ function App() {
 
           {/* Novo: Área do Usuário */}
           <div style={{ textAlign: 'right' }}>
-             <div style={{ fontSize: '0.9rem' }}>Olá, <strong>{usuario.nome}</strong></div>
+             <div style={{ fontSize: '0.9rem' }}>Olá, <strong>{usuario?.nome || 'Usuário'}</strong></div>
              <button 
                onClick={sair}
                style={{ 
@@ -401,5 +401,5 @@ function App() {
     </div>
   )
 }
-}
+
 export default App
