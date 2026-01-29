@@ -5,21 +5,27 @@ import { Login } from './TelaLogin' // <--- IMPORT NOVO
  
 export function App() {
    // Tenta recuperar o usuário salvo na memória do navegador
-  const [usuario, setUsuario] = useState(() => {
+  const [usuario] = useState(() => {
     const salvo = localStorage.getItem('usuario_vila_verde')
     return salvo ? JSON.parse(salvo) : null
   })
 
   // Função que salva o login
   function fazerLogin(dadosUsuario: any) {
-    setUsuario(dadosUsuario)
+    // 1. Salva no navegador
     localStorage.setItem('usuario_vila_verde', JSON.stringify(dadosUsuario))
+    
+    // 2. Recarrega a página para destravar o sistema (O F5 Automático)
+    window.location.reload()
   }
 
   // Função de Logout (Sair)
   function sair() {
-    setUsuario(null)
+    // 1. Limpa o navegador
     localStorage.removeItem('usuario_vila_verde')
+    
+    // 2. Recarrega a página para voltar pro login limpo
+    window.location.reload()
   }
 
   // SE NÃO TIVER USUÁRIO, MOSTRA TELA DE LOGIN
