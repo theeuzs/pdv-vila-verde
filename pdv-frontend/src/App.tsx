@@ -48,7 +48,6 @@ interface Venda {
   }[]
 }
 
-// NOVO TIPO: CONTA A RECEBER
 interface ContaReceber {
   id: number
   valor: string
@@ -66,8 +65,8 @@ const estiloInput = {
   boxSizing: 'border-box' as const
 }
 
-// ⚠️ ATENÇÃO: SE FOR SUBIR PRO RENDER, TROQUE PELO LINK DA SUA API!
-const API_URL = 'https://api-vila-verde.onrender.com' 
+// ⚠️ SEU LINK DO RENDER AQUI (Troque se necessário)
+const API_URL = 'https://api-vila-verde.onrender.com'
 
 export function App() {
   // --- LOGIN ---
@@ -86,28 +85,25 @@ export function App() {
     window.location.reload()
   }
 
-  // --- ESTADOS GERAIS ---
-  // Agora temos a aba 'financeiro'
+  // --- ESTADOS ---
   const [aba, setAba] = useState<'caixa' | 'historico' | 'clientes' | 'financeiro'>('caixa') 
   
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [vendasRealizadas, setVendasRealizadas] = useState<Venda[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
-  
-  // NOVO ESTADO: CONTAS A RECEBER
   const [contasReceber, setContasReceber] = useState<ContaReceber[]>([])
 
   // Caixa
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
   const [busca, setBusca] = useState('')
   const [clienteSelecionado, setClienteSelecionado] = useState('') 
-  const [formaPagamento, setFormaPagamento] = useState('DINHEIRO') // <--- NOVO
+  const [formaPagamento, setFormaPagamento] = useState('DINHEIRO') 
 
   // Modais
   const [modalAberto, setModalAberto] = useState(false)
   const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null)
   
-  // Clientes
+  // Clientes & Histórico
   const [modalClienteAberto, setModalClienteAberto] = useState(false)
   const [clienteEmEdicao, setClienteEmEdicao] = useState<Cliente | null>(null)
   const [modalHistoricoCliente, setModalHistoricoCliente] = useState(false)
@@ -136,10 +132,8 @@ export function App() {
       const resClientes = await fetch(`${API_URL}/clientes`)
       setClientes(await resClientes.json())
       
-      // Carrega o Financeiro
       const resContas = await fetch(`${API_URL}/contas-receber`)
       setContasReceber(await resContas.json())
-
     } catch (erro) {
       console.error("Erro ao carregar dados", erro)
     }
@@ -210,10 +204,9 @@ export function App() {
     } catch (error) { alert("Erro ao excluir") }
   }
 
-  // --- FUNÇÕES DO FINANCEIRO (NOVO) ---
+  // --- FUNÇÕES FINANCEIRO ---
   async function baixarConta(id: number) {
     if(!confirm("Confirmar recebimento deste valor?")) return
-    
     try {
       const res = await fetch(`${API_URL}/contas-receber/${id}/pagar`, { method: 'PUT' })
       if(res.ok) {
@@ -225,7 +218,7 @@ export function App() {
     } catch (e) { alert("Erro de conexão") }
   }
 
-  // --- FUNÇÕES DO CAIXA ---
+  // --- FUNÇÕES CAIXA ---
   function adicionarAoCarrinho(produto: Produto) {
     if (Number(produto.estoque) <= 0) {
       alert("Produto sem estoque!")
@@ -242,10 +235,8 @@ export function App() {
 
   async function finalizarVenda() {
     if (carrinho.length === 0) return
-
-    // VALIDAÇÃO DO FIADO
     if (formaPagamento === 'A PRAZO' && !clienteSelecionado) {
-      alert("⚠️ Para vender FIADO, você precisa selecionar um CLIENTE!")
+      alert("⚠️ Para vender FIADO, selecione um CLIENTE!")
       return
     }
 
@@ -258,22 +249,20 @@ export function App() {
         body: JSON.stringify({ 
           itens: carrinho.map(i => ({ produtoId: i.produto.id, quantidade: i.quantidade })),
           clienteId: clienteSelecionado || null,
-          formaPagamento: formaPagamento // <--- MANDA COMO PAGOU
+          formaPagamento: formaPagamento 
         })
       })
 
       if (res.ok) {
         const venda = await res.json()
         const nomeCliente = clientes.find(c => c.id === Number(clienteSelecionado))?.nome || 'Consumidor Final'
-        
-        // Se for fiado, avisa no cupom
         const obs = formaPagamento === 'A PRAZO' ? '(PENDENTE DE PAGAMENTO)' : ''
         
         imprimirCupom(carrinho, total, venda.id, nomeCliente + ' ' + obs)
         setCarrinho([])
         setClienteSelecionado('') 
-        setFormaPagamento('DINHEIRO') // Reseta para dinheiro
-        alert(formaPagamento === 'A PRAZO' ? "Venda registrada no FIADO!" : "Venda Sucesso!")
+        setFormaPagamento('DINHEIRO') 
+        alert(formaPagamento === 'A PRAZO' ? "Venda FIADO registrada!" : "Venda Sucesso!")
         carregarDados() 
       } else {
         alert("Erro ao vender")
@@ -286,7 +275,7 @@ export function App() {
     const win = window.open('', '', 'width=300,height=500'); win?.document.write(html);
   }
 
-  // --- FUNÇÕES DE PRODUTO ---
+  // --- FUNÇÕES PRODUTO ---
   function abrirModalCadastro() {
     setProdutoEmEdicao(null)
     setFormProduto({ nome: '', codigoBarra: '', precoCusto: '', precoVenda: '', estoque: '', unidade: 'UN', categoria: 'Geral', fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '', ncm: '', cest: '', cfop: '' })
@@ -317,18 +306,13 @@ export function App() {
 
   if (!usuario) return <Login onLogin={fazerLogin} />
 
-  // --- CÁLCULOS DO DASHBOARD ---
-  // Vendas Hoje (SÓ O QUE ENTROU DE DINHEIRO/PIX/CARTÃO) - FIADO NÃO ENTRA AQUI!
   const vendasHoje = vendasRealizadas.filter(v => {
     const dataVenda = new Date(v.data).toLocaleDateString()
     const hoje = new Date().toLocaleDateString()
     return dataVenda === hoje && v.formaPagamento !== 'A PRAZO'
   })
   const totalHoje = vendasHoje.reduce((acc, v) => acc + Number(v.total), 0)
-
-  // Total a Receber (Fiado)
   const totalReceber = contasReceber.reduce((acc, c) => acc + Number(c.valor), 0)
-
   const produtosFiltrados = produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigoBarra || '').includes(busca))
   const totalCarrinho = carrinho.reduce((acc, item) => acc + (Number(item.produto.precoVenda) * item.quantidade), 0)
 
@@ -361,14 +345,14 @@ export function App() {
       <div style={{ display: 'flex', backgroundColor: 'white', padding: '0 20px', borderBottom: '1px solid #ddd', gap: '10px' }}>
         <button onClick={() => setAba('caixa')} style={{ padding: '15px', background: 'none', border: 'none', borderBottom: aba === 'caixa' ? '3px solid #007bff' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'caixa' ? '#007bff' : '#666' }}>🛒 CAIXA</button>
         <button onClick={() => setAba('clientes')} style={{ padding: '15px', background: 'none', border: 'none', borderBottom: aba === 'clientes' ? '3px solid #007bff' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'clientes' ? '#007bff' : '#666' }}>👥 CLIENTES</button>
-        <button onClick={() => setAba('financeiro')} style={{ padding: '15px', background: 'none', border: 'none', borderBottom: aba === 'financeiro' ? '3px solid #007bff' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'financeiro' ? '#e74c3c' : '#666' }}>💲 FINANCEIRO (Fiado)</button>
+        <button onClick={() => setAba('financeiro')} style={{ padding: '15px', background: 'none', border: 'none', borderBottom: aba === 'financeiro' ? '3px solid #007bff' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'financeiro' ? '#e74c3c' : '#666' }}>💲 FINANCEIRO</button>
         <button onClick={() => setAba('historico')} style={{ padding: '15px', background: 'none', border: 'none', borderBottom: aba === 'historico' ? '3px solid #007bff' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'historico' ? '#007bff' : '#666' }}>📜 VENDAS</button>
       </div>
 
       {/* 3. CONTEÚDO PRINCIPAL */}
       <div style={{ flex: 1, padding: '20px', overflow: 'hidden' }}>
         
-        {/* === TELA DO CAIXA === */}
+        {/* === CAIXA === */}
         {aba === 'caixa' && (
           <div style={{ display: 'flex', height: '100%', gap: '20px' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -398,24 +382,20 @@ export function App() {
               </div>
             </div>
             
-            {/* --- CARRINHO COM OPÇÕES DE PAGAMENTO --- */}
             <div style={{ width: '350px', backgroundColor: 'white', borderRadius: '10px', padding: '20px', display: 'flex', flexDirection: 'column', boxShadow: '-2px 0 10px rgba(0,0,0,0.05)' }}>
               <h2 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', margin: '0 0 10px 0' }}>🛒 Carrinho</h2>
-              
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#555' }}>Cliente:</label>
               <select value={clienteSelecionado} onChange={e => setClienteSelecionado(e.target.value)} style={{ marginBottom: '10px', padding: '10px', borderRadius: '5px', border: '1px solid #ddd', width: '100%', fontSize: '0.9rem' }}>
                 <option value="">👤 Consumidor Final</option>
                 {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
-
-              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#555' }}>Forma de Pagamento:</label>
+              <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#555' }}>Pagamento:</label>
               <select value={formaPagamento} onChange={e => setFormaPagamento(e.target.value)} style={{ marginBottom: '15px', padding: '10px', borderRadius: '5px', border: '1px solid #ddd', width: '100%', fontSize: '0.9rem', backgroundColor: formaPagamento === 'A PRAZO' ? '#ffebee' : 'white', color: formaPagamento === 'A PRAZO' ? '#c0392b' : 'black', fontWeight: formaPagamento === 'A PRAZO' ? 'bold' : 'normal' }}>
                 <option value="DINHEIRO">💵 Dinheiro</option>
                 <option value="PIX">💠 PIX</option>
                 <option value="CARTAO">💳 Cartão</option>
                 <option value="A PRAZO">📒 A PRAZO (FIADO)</option>
               </select>
-
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {carrinho.map((item, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid #f9f9f9', paddingBottom: '5px' }}>
@@ -434,7 +414,7 @@ export function App() {
           </div>
         )}
 
-        {/* === TELA FINANCEIRO (NOVO) === */}
+        {/* === FINANCEIRO === */}
         {aba === 'financeiro' && (
           <div style={{ backgroundColor: 'white', borderRadius: '10px', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', overflowY: 'auto', height: '100%' }}>
             <h2>💲 Contas a Receber (Fiado)</h2>
@@ -467,7 +447,7 @@ export function App() {
           </div>
         )}
 
-        {/* === TELA DE CLIENTES === */}
+        {/* === CLIENTES (CORRIGIDO: COM CPF E ENDEREÇO) === */}
         {aba === 'clientes' && (
           <div style={{ backgroundColor: 'white', borderRadius: '10px', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', overflowY: 'auto', height: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -478,7 +458,9 @@ export function App() {
               <thead>
                 <tr style={{ textAlign: 'left', borderBottom: '2px solid #eee', color: '#555' }}>
                   <th style={{ padding: '10px' }}>Nome</th>
+                  <th style={{ padding: '10px' }}>CPF / CNPJ</th> {/* VOLTOU */}
                   <th style={{ padding: '10px' }}>Celular</th>
+                  <th style={{ padding: '10px' }}>Endereço</th> {/* VOLTOU */}
                   <th style={{ padding: '10px' }}>Ações</th>
                 </tr>
               </thead>
@@ -486,11 +468,13 @@ export function App() {
                 {clientes.map(cliente => (
                   <tr key={cliente.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
                     <td style={{ padding: '12px 10px', fontWeight: 'bold' }}>{cliente.nome}</td>
+                    <td style={{ padding: '12px 10px' }}>{cliente.cpfCnpj || '-'}</td> {/* VOLTOU */}
                     <td style={{ padding: '12px 10px' }}>{cliente.celular || '-'}</td>
+                    <td style={{ padding: '12px 10px', fontSize: '0.9rem' }}>{cliente.endereco || '-'}</td> {/* VOLTOU */}
                     <td style={{ padding: '12px 10px', display: 'flex', gap: '10px' }}>
-                      <button onClick={() => verHistoricoCliente(cliente)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>📜</button>
-                      <button onClick={() => abrirModalEditarCliente(cliente)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✏️</button>
-                      <button onClick={() => excluirCliente(cliente.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>🗑️</button>
+                      <button onClick={() => verHistoricoCliente(cliente)} title="Ver Histórico" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>📜</button>
+                      <button onClick={() => abrirModalEditarCliente(cliente)} title="Editar" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✏️</button>
+                      <button onClick={() => excluirCliente(cliente.id)} title="Excluir" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>🗑️</button>
                     </td>
                   </tr>
                 ))}
@@ -499,7 +483,7 @@ export function App() {
           </div>
         )}
 
-        {/* === TELA DE HISTÓRICO GERAL === */}
+        {/* === HISTÓRICO GERAL === */}
         {aba === 'historico' && (
           <div style={{ backgroundColor: 'white', borderRadius: '10px', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', overflowY: 'auto', height: '100%' }}>
             <h2>📜 Vendas Recentes</h2>
@@ -509,7 +493,7 @@ export function App() {
                   <th style={{ padding: '10px' }}>ID</th>
                   <th style={{ padding: '10px' }}>Data</th>
                   <th style={{ padding: '10px' }}>Cliente</th>
-                  <th style={{ padding: '10px' }}>Pagamento</th> {/* NOVO */}
+                  <th style={{ padding: '10px' }}>Pagamento</th>
                   <th style={{ padding: '10px' }}>Total</th>
                 </tr>
               </thead>
@@ -529,7 +513,7 @@ export function App() {
         )}
       </div>
 
-      {/* === MODAIS (PRODUTO, CLIENTE, HISTORICO) === */}
+      {/* === MODAIS === */}
       {modalAberto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '10px', width: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -541,7 +525,6 @@ export function App() {
                  <input placeholder="Venda" type="number" value={formProduto.precoVenda} onChange={e => setFormProduto({...formProduto, precoVenda: e.target.value})} style={{...estiloInput, flex:1}} required />
               </div>
               <input placeholder="Estoque" type="number" value={formProduto.estoque} onChange={e => setFormProduto({...formProduto, estoque: e.target.value})} style={estiloInput} required />
-              
               <hr/>
               <strong>Fiscais</strong>
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -558,13 +541,13 @@ export function App() {
         </div>   
       )} 
       
-      {/* MODAL CLIENTE */}
       {modalClienteAberto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '10px', width: '400px' }}>
             <h2>{clienteEmEdicao ? 'Editar' : 'Novo'} Cliente</h2>
             <form onSubmit={salvarCliente} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <input placeholder="Nome" value={formCliente.nome} onChange={e => setFormCliente({...formCliente, nome: e.target.value})} style={estiloInput} required />
+              <input placeholder="CPF / CNPJ" value={formCliente.cpfCnpj} onChange={e => setFormCliente({...formCliente, cpfCnpj: e.target.value})} style={estiloInput} />
               <input placeholder="Celular" value={formCliente.celular} onChange={e => setFormCliente({...formCliente, celular: e.target.value})} style={estiloInput} />
               <input placeholder="Endereço" value={formCliente.endereco} onChange={e => setFormCliente({...formCliente, endereco: e.target.value})} style={estiloInput} />
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'flex-end' }}>
@@ -576,20 +559,30 @@ export function App() {
         </div>
       )}
 
-      {/* MODAL HISTORICO CLIENTE */}
+      {/* MODAL HISTORICO CLIENTE (CORRIGIDO: COM TOTAL) */}
       {modalHistoricoCliente && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '10px', width: '500px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-               <h2>Histórico: {clienteDoHistorico?.nome}</h2>
-               <button onClick={() => setModalHistoricoCliente(false)}>X</button>
+          <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '10px', width: '500px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+               <h2 style={{margin: 0}}>Histórico: {clienteDoHistorico?.nome}</h2>
+               <button onClick={() => setModalHistoricoCliente(false)} style={{cursor: 'pointer'}}>X</button>
             </div>
-            {historicoCliente.map(v => (
-               <div key={v.id} style={{ borderBottom: '1px solid #eee', padding: '10px 0' }}>
-                 <div>Data: {new Date(v.data).toLocaleDateString()}</div>
-                 <div style={{fontWeight: 'bold'}}>Total: R$ {Number(v.total).toFixed(2)}</div>
-               </div>
-            ))}
+            
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {historicoCliente.map(v => (
+                 <div key={v.id} style={{ borderBottom: '1px solid #eee', padding: '10px 0' }}>
+                   <div>Data: {new Date(v.data).toLocaleDateString()}</div>
+                   <div>Itens: {v.itens.map(i => `${i.quantidade}x ${i.produto.nome}`).join(', ')}</div>
+                   <div style={{fontWeight: 'bold', color: '#007bff'}}>Total: R$ {Number(v.total).toFixed(2)}</div>
+                 </div>
+              ))}
+            </div>
+
+            {/* VOLTEI O TOTAL AQUI EMBAIXO 👇 */}
+            <div style={{ marginTop: '15px', borderTop: '2px solid #ddd', paddingTop: '10px', textAlign: 'right', fontSize: '1.2rem' }}>
+              <strong>TOTAL GASTO: R$ {historicoCliente.reduce((acc, v) => acc + Number(v.total), 0).toFixed(2)}</strong>
+            </div>
+
           </div>
         </div>
       )}
