@@ -116,10 +116,9 @@ app.delete('/produtos/:id', async (request, reply) => {
 
 // --- ROTAS DE VENDAS ---
 
-// NOVA VENDA (Agora com Financeiro)
+// NOVA VENDA (ATUALIZADA COM HAVER)
 app.post('/vendas', async (request, reply) => {
   const dados = request.body as any 
-  // Espera: { itens: [], clienteId: 1, formaPagamento: 'DINHEIRO' ou 'A PRAZO' }
 
   let totalVenda = 0
   const itensParaSalvar = []
@@ -128,48 +127,50 @@ app.post('/vendas', async (request, reply) => {
   for (const item of dados.itens) {
     const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } })
     if (!produto) return reply.status(400).send({ erro: "Produto não existe" })
-    
-    // Opcional: Bloquear venda se não tiver estoque (comente se quiser vender negativo)
     if (Number(produto.estoque) < item.quantidade) return reply.status(400).send({ erro: `Sem estoque para ${produto.nome}` })
 
-    const totalItem = Number(produto.precoVenda) * item.quantidade
-    totalVenda += totalItem
+    totalVenda += Number(produto.precoVenda) * item.quantidade
+    itensParaSalvar.push({ produtoId: item.produtoId, quantidade: item.quantidade, precoUnit: produto.precoVenda })
+  }
 
-    itensParaSalvar.push({
-      produtoId: item.produtoId,
-      quantidade: item.quantidade,
-      precoUnit: produto.precoVenda
+  // --- LÓGICA DO HAVER (NOVO) ---
+  if (dados.formaPagamento === 'HAVER') {
+    if (!dados.clienteId) return reply.status(400).send({ erro: "Precisa identificar o cliente para usar Haver!" })
+    
+    const cliente = await prisma.cliente.findUnique({ where: { id: Number(dados.clienteId) } })
+    
+    if (!cliente || Number(cliente.saldoHaver) < totalVenda) {
+      return reply.status(400).send({ erro: "Saldo de Haver insuficiente!" })
+    }
+
+    // Desconta do saldo do cliente
+    await prisma.cliente.update({
+      where: { id: Number(dados.clienteId) },
+      data: { saldoHaver: { decrement: totalVenda } }
     })
   }
+  // ------------------------------
 
   // 2. Criar a Venda
   const venda = await prisma.venda.create({
     data: {
       total: totalVenda,
       clienteId: dados.clienteId ? Number(dados.clienteId) : null,
-      formaPagamento: dados.formaPagamento || 'DINHEIRO', // Salva como pagou
+      formaPagamento: dados.formaPagamento,
       itens: { create: itensParaSalvar }
     }
   })
 
-  // 3. Se for FIADO (A PRAZO), gera a Conta a Receber
+  // 3. Se for FIADO (A PRAZO)
   if (dados.formaPagamento === 'A PRAZO' && dados.clienteId) {
     await prisma.contaReceber.create({
-      data: {
-        valor: totalVenda,
-        clienteId: Number(dados.clienteId),
-        vendaId: venda.id,
-        status: 'PENDENTE'
-      }
+      data: { valor: totalVenda, clienteId: Number(dados.clienteId), vendaId: venda.id, status: 'PENDENTE' }
     })
   }
 
   // 4. Baixar Estoque
   for (const item of itensParaSalvar) {
-    await prisma.produto.update({
-      where: { id: item.produtoId },
-      data: { estoque: { decrement: item.quantidade } }
-    })
+    await prisma.produto.update({ where: { id: item.produtoId }, data: { estoque: { decrement: item.quantidade } } })
   }
 
   return reply.status(201).send(venda)
@@ -295,4 +296,17 @@ app.put('/contas-receber/:id/pagar', async (request, reply) => {
   })
   
   return reply.send({ message: "Conta recebida com sucesso!" })
+})
+
+// --- HAVER: ADICIONAR CRÉDITO (DEVOLUÇÃO) ---
+app.post('/clientes/:id/haver', async (request, reply) => {
+  const { id } = request.params as any
+  const { valor } = request.body as any // Valor para somar
+
+  const cliente = await prisma.cliente.update({
+    where: { id: Number(id) },
+    data: { saldoHaver: { increment: Number(valor) } }
+  })
+
+  return reply.send(cliente)
 })

@@ -45,6 +45,7 @@ model Cliente {
   celular   String?
   endereco  String?
   criadoEm  DateTime @default(now())
+  saldoHaver Decimal @default(0)
 
   vendas    Venda[]
   contas    ContaReceber[] // <--- NOVO: Cliente tem contas a pagar
