@@ -9,14 +9,13 @@ const app = Fastify()
 const prisma = new PrismaClient()
 
 app.register(cors, { 
-  origin: true, // Permite qualquer origem (Frontend)
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Libera explicitamente o DELETE
-  allowedHeaders: ['Content-Type'] // Libera cabeçalhos padrões
+  origin: true, 
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+  allowedHeaders: ['Content-Type'] 
 })
 
-// Rota de Login (A Portaria)
-  app.post('/login', async (request, reply) => {
-    // 1. Valida se mandou email e senha
+// --- AUTENTICAÇÃO ---
+app.post('/login', async (request, reply) => {
     const loginSchema = z.object({
       email: z.string().email(),
       senha: z.string(),
@@ -24,30 +23,24 @@ app.register(cors, {
 
     const { email, senha } = loginSchema.parse(request.body)
 
-    // 2. Busca o usuário no banco
-    const user = await prisma.user.findUnique({
-      where: { email },
-    })
+    const user = await prisma.user.findUnique({ where: { email } })
 
     if (!user) {
       return reply.status(400).send({ erro: 'Email ou senha inválidos' })
     }
 
-    // 3. Confere se a senha bate (descriptografa e compara)
     const senhaBate = await compare(senha, user.senha)
 
     if (!senhaBate) {
       return reply.status(400).send({ erro: 'Email ou senha inválidos' })
     }
 
-    // 4. Gera o Crachá (Token)
     const token = jwt.sign(
-      { id: user.id, cargo: user.cargo }, // O que vai escrito no crachá
-      process.env.JWT_SECRET || 'segredo', // O carimbo de segurança
-      { expiresIn: '30d' } // Validade de 30 dias
+      { id: user.id, cargo: user.cargo }, 
+      process.env.JWT_SECRET || 'segredo', 
+      { expiresIn: '30d' } 
     )
 
-    // 5. Devolve os dados para o Frontend
     return {
       id: user.id,
       nome: user.nome,
@@ -55,23 +48,18 @@ app.register(cors, {
       cargo: user.cargo,
       token: token,
     }
-  })
+})
 
-// --- ROTAS DE PRODUTOS ---
-
-// Listar
+// --- PRODUTOS ---
 app.get('/produtos', async () => {
   return await prisma.produto.findMany({ orderBy: { nome: 'asc' } })
 })
 
-// CADASTRAR PRODUTO (Versão Completa)
 app.post('/produtos', async (request, reply) => {
   const dados = request.body as any
-
   try {
     const produto = await prisma.produto.create({
       data: {
-        // --- Campos Básicos ---
         nome: dados.nome,
         codigoBarra: dados.codigoBarra,
         precoCusto: dados.precoCusto,
@@ -79,78 +67,61 @@ app.post('/produtos', async (request, reply) => {
         estoque: dados.estoque,
         unidade: dados.unidade,
         categoria: dados.categoria,
-
-        // --- Campos Extras (Fornecedor/Logística) ---
         fornecedor: dados.fornecedor,
         localizacao: dados.localizacao,
         frete: dados.frete,
-
-        // --- Impostos ---
         ipi: dados.ipi,
         icms: dados.icms,
-
-        // --- Campos Fiscais (NCM/CFOP) ---
         ncm: dados.ncm,
         cest: dados.cest,
         cfop: dados.cfop
       }
     })
     return reply.status(201).send(produto)
-
   } catch (error) {
-    console.error(error)
     return reply.status(500).send({ error: "Erro ao criar produto" })
   }
 })
-// Excluir (NOVO)
+
 app.delete('/produtos/:id', async (request, reply) => {
   const { id } = request.params as { id: string }
   try {
     await prisma.produto.delete({ where: { id: Number(id) } })
     return reply.status(204).send()
   } catch (erro) {
-    // Se o produto já foi vendido, o banco não deixa apagar para não quebrar o histórico
-    return reply.status(400).send({ erro: "Não é possível excluir um produto que já possui vendas registradas." })
+    return reply.status(400).send({ erro: "Não é possível excluir um produto com vendas registradas." })
   }
 })
 
-// --- ROTAS DE VENDAS ---
-
-// NOVA VENDA COM PAGAMENTO MISTO
+// --- VENDAS ---
 app.post('/vendas', async (request, reply) => {
-  const dados = request.body as any 
-  // Espera: { itens: [...], clienteId: 1, pagamentos: [{ forma: 'DINHEIRO', valor: 50 }, { forma: 'CARTAO', valor: 20 }] }
+  const dados = request.body as any;
+  let totalVenda = 0;
+  const itensParaSalvar = [];
 
-  let totalVenda = 0
-  const itensParaSalvar = []
-
-  // 1. Calcular total dos produtos e Estoque
+  // 1. Processar itens e calcular total
   for (const item of dados.itens) {
-    const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } })
-    if (!produto) return reply.status(400).send({ erro: "Produto não existe" })
-    if (Number(produto.estoque) < item.quantidade) return reply.status(400).send({ erro: `Sem estoque para ${produto.nome}` })
+    const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
+    if (!produto) return reply.status(400).send({ erro: "Produto não existe" });
+    if (produto.estoque < item.quantidade) return reply.status(400).send({ erro: `Sem estoque para ${produto.nome}` });
 
-    totalVenda += Number(produto.precoVenda) * item.quantidade
-    itensParaSalvar.push({ produtoId: item.produtoId, quantidade: item.quantidade, precoUnit: produto.precoVenda })
+    totalVenda += Number(produto.precoVenda) * item.quantidade;
+    itensParaSalvar.push({
+      produtoId: item.produtoId,
+      quantidade: item.quantidade,
+      precoUnit: produto.precoVenda
+    });
   }
 
-  // 2. Validar se a soma dos pagamentos bate com o total
-  const totalPagamentos = dados.pagamentos.reduce((acc: number, p: any) => acc + Number(p.valor), 0)
-  
-  // Aceita uma diferença de centavos (arredondamento)
+  // 2. Validar pagamentos
+  const totalPagamentos = dados.pagamentos.reduce((acc: number, p: any) => acc + Number(p.valor), 0);
   if (Math.abs(totalVenda - totalPagamentos) > 0.05) {
-    return reply.status(400).send({ erro: `Pagamento incorreto! Total Venda: ${totalVenda.toFixed(2)}, Pago: ${totalPagamentos.toFixed(2)}` })
+    return reply.status(400).send({ erro: "Pagamento incorreto!" });
   }
 
-  // 3. Processar Pagamentos Especiais (Haver e Fiado)
+  // 3. Processar Pagamentos Especiais (Haver)
   for (const pgto of dados.pagamentos) {
-    // Se usar HAVER, desconta do cliente
     if (pgto.forma === 'HAVER') {
-      if (!dados.clienteId) return reply.status(400).send({ erro: "Cliente obrigatório para usar Haver" })
-      const cliente = await prisma.cliente.findUnique({ where: { id: Number(dados.clienteId) } })
-      if (!cliente || Number(cliente.saldoHaver) < Number(pgto.valor)) {
-        return reply.status(400).send({ erro: "Saldo de Haver insuficiente!" })
-      }
       await prisma.cliente.update({
         where: { id: Number(dados.clienteId) },
         data: { saldoHaver: { decrement: Number(pgto.valor) } }
@@ -164,13 +135,11 @@ app.post('/vendas', async (request, reply) => {
       total: totalVenda,
       clienteId: dados.clienteId ? Number(dados.clienteId) : null,
       itens: { create: itensParaSalvar },
-      pagamentos: { 
-        create: dados.pagamentos.map((p: any) => ({ forma: p.forma, valor: p.valor })) 
-      }
+      pagamentos: { create: dados.pagamentos }
     }
-  })
+  });
 
-  // 5. Gerar Dívida (Se houver parte FIADO)
+  // 5. Gerar Dívida (A PRAZO)
   const pagtoPrazo = dados.pagamentos.find((p: any) => p.forma === 'A PRAZO')
   if (pagtoPrazo && dados.clienteId) {
     await prisma.contaReceber.create({
@@ -180,37 +149,59 @@ app.post('/vendas', async (request, reply) => {
 
   // 6. Baixar Estoque
   for (const item of itensParaSalvar) {
-    await prisma.produto.update({ where: { id: item.produtoId }, data: { estoque: { decrement: item.quantidade } } })
+    await prisma.produto.update({ 
+      where: { id: item.produtoId }, 
+      data: { estoque: { decrement: item.quantidade } } 
+    })
   }
 
   return reply.status(201).send(venda)
 })
 
-// LISTAR VENDAS (Agora traz o cliente junto)
 app.get('/vendas', async () => {
   return await prisma.venda.findMany({
     include: { 
       itens: { include: { produto: true } }, 
       cliente: true,
-      pagamentos: true // <--- Incluir isso
+      pagamentos: true 
     },
     orderBy: { data: 'desc' }
   })
 })
 
-// --- ROTAS DE CLIENTES ---
+app.delete('/vendas/:id', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const vendaId = Number(id);
 
-// 1. Listar todos os clientes
+  const venda = await prisma.venda.findUnique({
+    where: { id: vendaId },
+    include: { itens: true }
+  });
+
+  if (!venda) return reply.status(404).send({ error: "Venda não encontrada" });
+
+  for (const item of venda.itens) {
+    await prisma.produto.update({
+      where: { id: item.produtoId },
+      data: { estoque: { increment: Number(item.quantidade) } }
+    });
+  }
+
+  await prisma.itemVenda.deleteMany({ where: { vendaId } });
+  await prisma.pagamento.deleteMany({ where: { vendaId } });
+  await prisma.contaReceber.deleteMany({ where: { vendaId } });
+  await prisma.venda.delete({ where: { id: vendaId } });
+
+  return { message: "Venda cancelada e estoque devolvido!" };
+});
+
+// --- CLIENTES ---
 app.get('/clientes', async () => {
-  return await prisma.cliente.findMany({
-    orderBy: { nome: 'asc' } // Já traz em ordem alfabética
-  })
+  return await prisma.cliente.findMany({ orderBy: { nome: 'asc' } })
 })
 
-// 2. Cadastrar novo cliente
 app.post('/clientes', async (request, reply) => {
   const dados = request.body as any
-  
   try {
     const novoCliente = await prisma.cliente.create({
       data: {
@@ -226,25 +217,9 @@ app.post('/clientes', async (request, reply) => {
   }
 })
 
-// 3. Excluir cliente
-app.delete('/clientes/:id', async (request, reply) => {
-  const { id } = request.params as any
-  
-  try {
-    await prisma.cliente.delete({
-      where: { id: Number(id) }
-    })
-    return reply.send({ message: "Cliente deletado com sucesso" })
-  } catch (erro) {
-    return reply.status(500).send({ erro: "Não foi possível deletar" })
-  }
-})
-
-// --- ATUALIZAR CLIENTE (PUT) ---
 app.put('/clientes/:id', async (request, reply) => {
   const { id } = request.params as any
   const dados = request.body as any
-  
   try {
     const clienteAtualizado = await prisma.cliente.update({
       where: { id: Number(id) },
@@ -261,28 +236,22 @@ app.put('/clientes/:id', async (request, reply) => {
   }
 })
 
-// --- HISTÓRICO DE COMPRAS DO CLIENTE ---
-app.get('/clientes/:id/vendas', async (request, reply) => {
+app.delete('/clientes/:id', async (request, reply) => {
   const { id } = request.params as any
-  
-  const vendas = await prisma.venda.findMany({
-    where: { clienteId: Number(id) },
-    include: { 
-      itens: { include: { produto: true } } 
-    },
-    orderBy: { data: 'desc' }
-  })
-  return reply.send(vendas)
+  try {
+    await prisma.cliente.delete({ where: { id: Number(id) } })
+    return reply.send({ message: "Cliente deletado" })
+  } catch (erro) {
+    return reply.status(500).send({ erro: "Não foi possível deletar" })
+  }
 })
 
-// --- ORÇAMENTOS: CRIAR ---
+// --- ORÇAMENTOS ---
 app.post('/orcamentos', async (request, reply) => {
   const dados = request.body as any
-  
   let total = 0
   const itensParaSalvar = []
 
-  // Calcula total (sem mexer em estoque)
   for (const item of dados.itens) {
     const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } })
     if (!produto) return reply.status(400).send({ erro: "Produto não existe" })
@@ -291,7 +260,7 @@ app.post('/orcamentos', async (request, reply) => {
     itensParaSalvar.push({
       produtoId: item.produtoId,
       quantidade: item.quantidade,
-      precoUnit: produto.precoVenda
+      precoUnit: Number(produto.precoVenda)
     })
   }
 
@@ -302,11 +271,9 @@ app.post('/orcamentos', async (request, reply) => {
       itens: { create: itensParaSalvar }
     }
   })
-
   return reply.status(201).send(orcamento)
 })
 
-// --- ORÇAMENTOS: LISTAR ---
 app.get('/orcamentos', async () => {
   return await prisma.orcamento.findMany({
     include: { itens: { include: { produto: true } }, cliente: true },
@@ -314,18 +281,46 @@ app.get('/orcamentos', async () => {
   })
 })
 
-// --- ORÇAMENTOS: EXCLUIR ---
 app.delete('/orcamentos/:id', async (request, reply) => {
   const { id } = request.params as any
   await prisma.orcamento.delete({ where: { id: Number(id) } })
   return reply.send({ message: "Orçamento excluído" })
 })
 
+// --- FINANCEIRO ---
+app.get('/contas-receber', async () => {
+  return await prisma.contaReceber.findMany({
+    where: { status: 'PENDENTE' },
+    include: { cliente: true, venda: true },
+    orderBy: { data: 'asc' }
+  })
+})
+
+app.put('/contas-receber/:id/pagar', async (request, reply) => {
+  const { id } = request.params as any
+  await prisma.contaReceber.update({
+    where: { id: Number(id) },
+    data: { status: 'PAGO' }
+  })
+  return reply.send({ message: "Conta recebida!" })
+})
+
+app.post('/clientes/:id/haver', async (request, reply) => {
+  const { id } = request.params as any
+  const { valor } = request.body as any
+  const cliente = await prisma.cliente.update({
+    where: { id: Number(id) },
+    data: { saldoHaver: { increment: Number(valor) } }
+  })
+  return reply.send(cliente)
+})
+
+// --- INICIALIZAÇÃO ---
 const start = async () => {
   try {
     await app.listen({ 
-      host: '0.0.0.0', // ISSO É O SEGREDO: Libera o acesso externo para o Render
-      port: process.env.PORT ? Number(process.env.PORT) : 3333 // Usa a porta que o Render mandar ou a 3333 se for no seu PC
+      host: '0.0.0.0', 
+      port: process.env.PORT ? Number(process.env.PORT) : 3333 
     })
     console.log('Servidor rodando')
   } catch (err) {
@@ -333,37 +328,3 @@ const start = async () => {
   }
 }
 start()
-
-// --- FINANCEIRO: LISTAR DÍVIDAS ---
-app.get('/contas-receber', async () => {
-  return await prisma.contaReceber.findMany({
-    where: { status: 'PENDENTE' }, // Só traz quem deve
-    include: { cliente: true, venda: true },
-    orderBy: { data: 'asc' } // As mais antigas primeiro
-  })
-})
-
-// --- FINANCEIRO: RECEBER (BAIXAR CONTA) ---
-app.put('/contas-receber/:id/pagar', async (request, reply) => {
-  const { id } = request.params as any
-  
-  await prisma.contaReceber.update({
-    where: { id: Number(id) },
-    data: { status: 'PAGO' }
-  })
-  
-  return reply.send({ message: "Conta recebida com sucesso!" })
-})
-
-// --- HAVER: ADICIONAR CRÉDITO (DEVOLUÇÃO) ---
-app.post('/clientes/:id/haver', async (request, reply) => {
-  const { id } = request.params as any
-  const { valor } = request.body as any // Valor para somar
-
-  const cliente = await prisma.cliente.update({
-    where: { id: Number(id) },
-    data: { saldoHaver: { increment: Number(valor) } }
-  })
-
-  return reply.send(cliente)
-})

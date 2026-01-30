@@ -395,6 +395,12 @@ export function App() {
     alert("Recebido com sucesso!")
   }
   
+function removerItemCarrinho(index: number) {
+  const novoCarrinho = [...carrinho];
+  novoCarrinho.splice(index, 1);
+  setCarrinho(novoCarrinho);
+}
+
   async function salvarProduto(e: React.FormEvent) {
     e.preventDefault()
     
@@ -427,6 +433,22 @@ export function App() {
     }
   }
   
+async function cancelarVenda(id: number) {
+    if (confirm("Tem certeza que deseja cancelar esta venda? O estoque será devolvido.")) {
+        try {
+            const res = await fetch(`${API_URL}/vendas/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                alert("Venda cancelada com sucesso!");
+                carregarDados(); // Atualiza a lista e o estoque na tela
+            } else {
+                alert("Erro ao cancelar venda no servidor.");
+            }
+        } catch (error) {
+            alert("Erro de conexão ao tentar cancelar.");
+        }
+    }
+}
+
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault()
     const url = clienteEmEdicao ?(`${API_URL}/clientes/${clienteEmEdicao.id}`):(`${API_URL}/clientes`)
@@ -618,10 +640,21 @@ export function App() {
               
               <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #edf2f7', borderRadius: 8, padding: 10, marginBottom: 10, maxHeight: 200 }}>
                 {carrinho.map((item, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <div>{item.produto.nome} ({item.quantidade}x)</div>
-                    <b>R$ {(item.quantidade * Number(item.produto.precoVenda)).toFixed(2)}</b>
-                  </div>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+    <div>{item.produto.nome} ({item.quantidade}x)</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <b>R$ {(item.quantidade * Number(item.produto.precoVenda)).toFixed(2)}</b>
+        
+        {/* BOTÃO DE LIXEIRA AQUI 👇 */}
+        <button 
+            onClick={() => removerItemCarrinho(i)} 
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: 0 }}
+            title="Remover item"
+        >
+            🗑️
+        </button>
+    </div>
+</div>
                 ))}
               </div>
 
@@ -812,7 +845,8 @@ export function App() {
                     <td style={{padding:15}}><b>{v.cliente?.nome||'Consumidor'}</b></td>
                     <td style={{padding:15}}><small>{v.pagamentos?.map(p=>p.forma).join(' + ')}</small></td>
                     <td style={{padding:15,fontWeight:'bold'}}>R$ {Number(v.total).toFixed(2)}</td>
-                    <td><button onClick={()=>reimprimirVenda(v)} style={{cursor:'pointer',background:'none',border:'none',fontSize:'1.2rem'}}>🖨️</button></td>
+                    <button onClick={() => reimprimirVenda(v)} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem' }}>🖨️</button>
+<button onClick={() => cancelarVenda(v.id)} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem', marginLeft: 10 }} title="Estornar Venda">🚫</button>
                   </tr>
                 ))}
               </tbody>
