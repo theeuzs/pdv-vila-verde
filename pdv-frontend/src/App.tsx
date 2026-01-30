@@ -341,10 +341,18 @@ export function App() {
     });
 
     if (res.ok) {
+      const vendaSalva = await res.json(); // Pega a venda completa que o servidor mandou
+      
+      // Tenta imprimir. Se a função se chamar 'reimprimirVenda', use ela.
+      try {
+          reimprimirVenda(vendaSalva); 
+      } catch (e) {
+          console.error("Erro ao tentar imprimir:", e);
+      }
+
       alert("Venda realizada com sucesso!");
       setCarrinho([]);
-      // 3. O VS Code confirmou que o nome correto é 'setListaPagamentos'
-      setListaPagamentos([]); 
+      setListaPagamentos([]);
       setClienteSelecionado("");
       carregarDados(); 
     } else {
@@ -992,24 +1000,40 @@ async function cancelarVenda(id: number) {
             </div>
             
             <div style={{overflowY:'auto', flex:1}}>
-               {historicoCliente.length === 0 ? <p style={{textAlign:'center', color:'#a0aec0'}}>Nenhuma compra encontrada.</p> : 
-                 historicoCliente.map(v => (
-                   <div key={v.id} style={{ borderBottom: '1px solid #edf2f7', padding: '15px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                     <div>
-                        <div style={{ fontSize: '0.9rem', color: '#718096', marginBottom: 3 }}>
-                          {new Date(v.data).toLocaleDateString()} • <small>{v.pagamentos?.map(p => p.forma).join('+') || 'ANTIGO'}</small>
-                        </div>
-                        <div style={{ fontSize: '0.95rem', color: '#2d3748', fontWeight:'bold' }}>
-                          {v.itens.map(i => `${i.quantidade}x ${i.produto.nome}`).join(', ')}
-                        </div>
-                     </div>
-                     <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-                        <span style={{ fontWeight: 'bold', color: '#2b6cb0', fontSize: '1.1rem' }}>R$ {Number(v.total).toFixed(2)}</span>
-                        <button onClick={() => reimprimirVenda(v)} title="Imprimir 2ª Via" style={{ cursor: 'pointer', border: '1px solid #e2e8f0', background: 'white', borderRadius: 6, padding: '5px 8px' }}>🖨️</button>
-                     </div>
-                   </div>
-                 ))
-               }
+               {/* Substitua da linha 1004 até o fechamento do map */}
+{Array.isArray(historicoCliente) && historicoCliente.length > 0 ? (
+  historicoCliente.map((v: any) => (
+    <div key={v.id} style={{ borderBottom: '1px solid #edf2f7', padding: '15px 0', display: 'flex', justifyContent: 'space-between', flexDirection: 'column' }}>
+      
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+         <div style={{ fontSize: '0.9rem', color: '#718096' }}>
+            {v.data ? new Date(v.data).toLocaleString() : 'Data desconhecida'}
+         </div>
+         <small>{v.pagamentos?.map((p: any) => p.forma).join(' + ') || 'ANTIGO'}</small>
+      </div>
+
+      <div style={{ fontSize: '0.95rem', color: '#2d3748', fontWeight: 'bold' }}>
+         {/* Proteção para itens antigos ou excluídos */}
+         {v.itens && v.itens.map((i: any) => 
+            `${i.quantidade}x ${i.produto ? i.produto.nome : 'Item excluído'}`
+         ).join(', ')}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 15, marginTop: 5 }}>
+        <span style={{ fontWeight: 'bold', color: '#2b6cb0', fontSize: '1.1rem' }}>
+            R$ {Number(v.total).toFixed(2)}
+        </span>
+        {/* Botão de Reimprimir que já existe no seu código */}
+        <button onClick={() => reimprimirVenda(v)} title="Imprimir 2ª Via" style={{ cursor: 'pointer', border: '1px solid #ccc', background: 'white', borderRadius: 4, padding: '2px 8px' }}>
+            🖨️
+        </button>
+      </div>
+
+    </div>
+  ))
+) : (
+  <p style={{ textAlign: 'center', color: '#a0aec0', padding: 20 }}>Nenhuma compra encontrada.</p>
+)}
             </div>
             
             <div style={{marginTop:20, borderTop:'2px solid #e2e8f0', paddingTop:15, textAlign:'right'}}>

@@ -136,7 +136,13 @@ app.post('/vendas', async (request, reply) => {
       clienteId: dados.clienteId ? Number(dados.clienteId) : null,
       itens: { create: itensParaSalvar },
       pagamentos: { create: dados.pagamentos }
+    },
+    include: { // <--- ADICIONE ESTE BLOCO
+      itens: { include: { produto: true } },
+      cliente: true,
+      pagamentos: true
     }
+    
   });
 
   // 5. Gerar Dívida (A PRAZO)
