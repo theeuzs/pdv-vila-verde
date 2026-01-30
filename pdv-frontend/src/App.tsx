@@ -11,7 +11,6 @@ interface Produto {
   estoque: number
   unidade?: string
   categoria?: string
-  // Fiscais
   fornecedor?: string
   localizacao?: string
   ipi?: number
@@ -22,7 +21,6 @@ interface Produto {
   cfop?: string
 }
 
-// NOVO TIPO: CLIENTE
 interface Cliente {
   id: number
   nome: string
@@ -40,6 +38,7 @@ interface Venda {
   id: number
   data: string
   total: string
+  cliente?: Cliente
   itens: {
     id: number
     quantidade: string
@@ -55,6 +54,8 @@ const estiloInput = {
   outline: 'none',
   boxSizing: 'border-box' as const
 }
+
+const API_URL = 'https://api-vila-verde.onrender.com' // SE JÁ SUBIU, TROQUE PELO LINK DO RENDER AQUI!
 
 export function App() {
   // --- LOGIN ---
@@ -74,28 +75,29 @@ export function App() {
   }
 
   // --- ESTADOS GERAIS ---
-  // Agora a aba pode ser 'clientes' também
   const [aba, setAba] = useState<'caixa' | 'historico' | 'clientes'>('caixa') 
   
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [vendasRealizadas, setVendasRealizadas] = useState<Venda[]>([])
-  
-  // NOVO ESTADO: CLIENTES
   const [clientes, setClientes] = useState<Cliente[]>([])
-
-  // ... outros estados ...
-  const [modalClienteAberto, setModalClienteAberto] = useState(false)
-  
-  // NOVO: Cliente selecionado no caixa
-  const [clienteSelecionado, setClienteSelecionado] = useState('')
 
   // Caixa
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
   const [busca, setBusca] = useState('')
+  const [clienteSelecionado, setClienteSelecionado] = useState('') 
 
   // Modais
   const [modalAberto, setModalAberto] = useState(false)
   const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null)
+  
+  // CLIENTES (NOVO: Estados para Edição e Histórico)
+  const [modalClienteAberto, setModalClienteAberto] = useState(false)
+  const [clienteEmEdicao, setClienteEmEdicao] = useState<Cliente | null>(null)
+  
+  const [modalHistoricoCliente, setModalHistoricoCliente] = useState(false)
+  const [historicoCliente, setHistoricoCliente] = useState<Venda[]>([])
+  const [clienteDoHistorico, setClienteDoHistorico] = useState<Cliente | null>(null)
+
 
   // --- FORMULÁRIOS ---
   const [formProduto, setFormProduto] = useState({
@@ -103,7 +105,6 @@ export function App() {
     fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '', ncm: '', cest: '', cfop: '' 
   })
 
-  // NOVO FORMULÁRIO: CLIENTE
   const [formCliente, setFormCliente] = useState({
     nome: '', cpfCnpj: '', celular: '', endereco: ''
   })
@@ -111,14 +112,13 @@ export function App() {
   // --- CARREGAMENTO DE DADOS ---
   async function carregarDados() {
     try {
-      const resProdutos = await fetch('https://api-vila-verde.onrender.com/produtos')
+      const resProdutos = await fetch(`${API_URL}/produtos`)
       setProdutos(await resProdutos.json())
 
-      const resVendas = await fetch('https://api-vila-verde.onrender.com/vendas')
+      const resVendas = await fetch(`${API_URL}/vendas`)
       setVendasRealizadas(await resVendas.json())
 
-      // Carrega Clientes Também
-      const resClientes = await fetch('https://api-vila-verde.onrender.com/clientes')
+      const resClientes = await fetch(`${API_URL}/clientes`)
       setClientes(await resClientes.json())
 
     } catch (erro) {
@@ -130,34 +130,66 @@ export function App() {
     if (usuario) carregarDados()
   }, [usuario])
 
-  // --- FUNÇÕES DE CLIENTES (NOVAS) ---
-  function abrirModalCliente() {
+  // --- FUNÇÕES DE CLIENTES (ATUALIZADAS) ---
+  function abrirModalNovoCliente() {
+    setClienteEmEdicao(null)
     setFormCliente({ nome: '', cpfCnpj: '', celular: '', endereco: '' })
     setModalClienteAberto(true)
   }
 
+  function abrirModalEditarCliente(cliente: Cliente) {
+    setClienteEmEdicao(cliente)
+    setFormCliente({
+      nome: cliente.nome,
+      cpfCnpj: cliente.cpfCnpj || '',
+      celular: cliente.celular || '',
+      endereco: cliente.endereco || ''
+    })
+    setModalClienteAberto(true)
+  }
+
+  async function verHistoricoCliente(cliente: Cliente) {
+    try {
+      const res = await fetch(`${API_URL}/clientes/${cliente.id}/vendas`)
+      if (res.ok) {
+        setHistoricoCliente(await res.json())
+        setClienteDoHistorico(cliente)
+        setModalHistoricoCliente(true)
+      } else {
+        alert("Erro ao buscar histórico.")
+      }
+    } catch (e) { alert("Erro de conexão") }
+  }
+
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault()
+    
+    const url = clienteEmEdicao 
+      ? `${API_URL}/clientes/${clienteEmEdicao.id}`
+      : `${API_URL}/clientes`
+    
+    const metodo = clienteEmEdicao ? 'PUT' : 'POST'
+
     try {
-      const res = await fetch('https://api-vila-verde.onrender.com/clientes', {
-        method: 'POST',
+      const res = await fetch(url, {
+        method: metodo,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formCliente)
       })
       if (res.ok) {
         setModalClienteAberto(false)
         carregarDados()
-        alert("Cliente cadastrado com sucesso!")
+        alert(clienteEmEdicao ? "Cliente atualizado!" : "Cliente cadastrado!")
       } else {
-        alert("Erro ao cadastrar cliente.")
+        alert("Erro ao salvar cliente.")
       }
     } catch (error) { alert("Erro de conexão") }
   }
 
   async function excluirCliente(id: number) {
-    if(!confirm("Tem certeza que deseja excluir este cliente?")) return
+    if(!confirm("Tem certeza? Isso apaga o histórico de compras dele também!")) return
     try {
-      await fetch(`https://api-vila-verde.onrender.com/clientes/${id}`, { method: 'DELETE' })
+      await fetch(`${API_URL}/clientes/${id}`, { method: 'DELETE' })
       carregarDados()
       alert("Cliente removido.")
     } catch (error) { alert("Erro ao excluir") }
@@ -183,25 +215,21 @@ export function App() {
     const total = carrinho.reduce((acc, item) => acc + (Number(item.produto.precoVenda) * item.quantidade), 0)
     
     try {
-      const res = await fetch('https://api-vila-verde.onrender.com/vendas', {
+      const res = await fetch(`${API_URL}/vendas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           itens: carrinho.map(i => ({ produtoId: i.produto.id, quantidade: i.quantidade })),
-          clienteId: clienteSelecionado || null // <--- MANDA O CLIENTE PRO SERVIDOR
+          clienteId: clienteSelecionado || null 
         })
       })
 
       if (res.ok) {
         const venda = await res.json()
-        
-        // Se tiver cliente, imprime o nome dele no cupom
         const nomeCliente = clientes.find(c => c.id === Number(clienteSelecionado))?.nome || 'Consumidor Final'
-        
         imprimirCupom(carrinho, total, venda.id, nomeCliente)
-        
         setCarrinho([])
-        setClienteSelecionado('') // Limpa o cliente depois da venda
+        setClienteSelecionado('') 
         alert("Venda Sucesso!")
         carregarDados() 
       } else {
@@ -272,8 +300,8 @@ export function App() {
     }
 
     const url = produtoEmEdicao 
-      ? `https://api-vila-verde.onrender.com/produtos/${produtoEmEdicao.id}` 
-      : 'https://api-vila-verde.onrender.com/produtos' 
+      ? `${API_URL}/produtos/${produtoEmEdicao.id}` 
+      : `${API_URL}/produtos`
     
     const metodo = produtoEmEdicao ? 'PUT' : 'POST'
 
@@ -296,7 +324,7 @@ export function App() {
   async function excluirProduto(id: number) {
     if(!confirm("Tem certeza que deseja excluir este produto?")) return
     try {
-      const res = await fetch(`https://api-vila-verde.onrender.com/produtos/${id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_URL}/produtos/${id}`, { method: 'DELETE' })
       if (res.ok) {
         alert("Produto excluído.")
         carregarDados()
@@ -307,10 +335,8 @@ export function App() {
     } catch (e: any) { alert(`Erro de Conexão: ${e.message}`) }
   }
 
-  // SE NÃO TIVER USUÁRIO
   if (!usuario) return <Login onLogin={fazerLogin} />
 
-  // CÁLCULOS DO DASHBOARD
   const vendasHoje = vendasRealizadas.filter(v => {
     const dataVenda = new Date(v.data).toLocaleDateString()
     const hoje = new Date().toLocaleDateString()
@@ -321,7 +347,6 @@ export function App() {
   const produtosFiltrados = produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigoBarra || '').includes(busca))
   const totalCarrinho = carrinho.reduce((acc, item) => acc + (Number(item.produto.precoVenda) * item.quantidade), 0)
 
-  // --- RENDERIZAÇÃO DO APP ---
   return (
     <div style={{ fontFamily: 'Arial', backgroundColor: '#f4f4f9', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
@@ -360,19 +385,11 @@ export function App() {
         {/* === TELA DO CAIXA === */}
         {aba === 'caixa' && (
           <div style={{ display: 'flex', height: '100%', gap: '20px' }}>
-            {/* Lista de Produtos */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                <input 
-                  autoFocus
-                  placeholder="🔍 Buscar produto..." 
-                  value={busca} 
-                  onChange={e => setBusca(e.target.value)}
-                  style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }}
-                />
+                <input autoFocus placeholder="🔍 Buscar produto..." value={busca} onChange={e => setBusca(e.target.value)} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }} />
                 <button onClick={abrirModalCadastro} style={{ padding: '0 20px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>+ NOVO</button>
               </div>
-
               <div style={{ overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '15px', paddingBottom: '20px' }}>
                 {produtosFiltrados.map(prod => (
                   <div key={prod.id} style={{ backgroundColor: 'white', padding: '15px', borderRadius: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -394,53 +411,35 @@ export function App() {
                 ))}
               </div>
             </div>
-
-            {/* Carrinho Lateral */}
             <div style={{ width: '350px', backgroundColor: 'white', borderRadius: '10px', padding: '20px', display: 'flex', flexDirection: 'column', boxShadow: '-2px 0 10px rgba(0,0,0,0.05)' }}>
               <h2 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', margin: '0 0 10px 0' }}>🛒 Carrinho</h2>
-              
-              {/* --- NOVO SELETOR DE CLIENTE --- */}
-              <select 
-                value={clienteSelecionado} 
-                onChange={e => setClienteSelecionado(e.target.value)}
-                style={{ marginBottom: '15px', padding: '10px', borderRadius: '5px', border: '1px solid #ddd', width: '100%' }}
-              >
+              <select value={clienteSelecionado} onChange={e => setClienteSelecionado(e.target.value)} style={{ marginBottom: '15px', padding: '10px', borderRadius: '5px', border: '1px solid #ddd', width: '100%', fontSize: '0.9rem' }}>
                 <option value="">👤 Consumidor Final (Sem cadastro)</option>
-                {clientes.map(c => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
-                ))}
+                {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
-              
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {carrinho.map((item, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid #f9f9f9', paddingBottom: '5px' }}>
-                    <div>
-                      <b>{item.produto.nome}</b>
-                      <div style={{ fontSize: '0.8rem', color: '#666' }}>{item.quantidade}x R$ {Number(item.produto.precoVenda).toFixed(2)}</div>
-                    </div>
+                    <div><b>{item.produto.nome}</b><div style={{ fontSize: '0.8rem', color: '#666' }}>{item.quantidade}x R$ {Number(item.produto.precoVenda).toFixed(2)}</div></div>
                     <b>R$ {(item.quantidade * Number(item.produto.precoVenda)).toFixed(2)}</b>
                   </div>
                 ))}
               </div>
               <div style={{ borderTop: '2px solid #333', paddingTop: '15px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '15px' }}>
-                  <span>Total</span>
-                  <span>R$ {totalCarrinho.toFixed(2)}</span>
-                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '15px' }}><span>Total</span><span>R$ {totalCarrinho.toFixed(2)}</span></div>
                 <button onClick={finalizarVenda} disabled={carrinho.length === 0} style={{ width: '100%', padding: '15px', backgroundColor: carrinho.length > 0 ? '#28a745' : '#ccc', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: carrinho.length > 0 ? 'pointer' : 'not-allowed' }}>FINALIZAR (F5)</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* === TELA DE CLIENTES (NOVA!) === */}
+        {/* === TELA DE CLIENTES (ATUALIZADA) === */}
         {aba === 'clientes' && (
           <div style={{ backgroundColor: 'white', borderRadius: '10px', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', overflowY: 'auto', height: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                <h2>👥 Cadastro de Clientes</h2>
-               <button onClick={abrirModalCliente} style={{ padding: '10px 20px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>+ Cadastrar Cliente</button>
+               <button onClick={abrirModalNovoCliente} style={{ padding: '10px 20px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>+ Cadastrar Cliente</button>
             </div>
-            
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ textAlign: 'left', borderBottom: '2px solid #eee', color: '#555' }}>
@@ -458,30 +457,28 @@ export function App() {
                     <td style={{ padding: '12px 10px' }}>{cliente.cpfCnpj || '-'}</td>
                     <td style={{ padding: '12px 10px', color: '#007bff' }}>{cliente.celular || '-'}</td>
                     <td style={{ padding: '12px 10px', fontSize: '0.9rem' }}>{cliente.endereco || '-'}</td>
-                    <td style={{ padding: '12px 10px' }}>
-                      <button onClick={() => excluirCliente(cliente.id)} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Excluir</button>
+                    <td style={{ padding: '12px 10px', display: 'flex', gap: '10px' }}>
+                      <button onClick={() => verHistoricoCliente(cliente)} title="Ver Histórico de Compras" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>📜</button>
+                      <button onClick={() => abrirModalEditarCliente(cliente)} title="Editar Cliente" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✏️</button>
+                      <button onClick={() => excluirCliente(cliente.id)} title="Excluir" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>🗑️</button>
                     </td>
                   </tr>
                 ))}
-                {clientes.length === 0 && (
-                  <tr>
-                    <td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#999' }}>Nenhum cliente cadastrado ainda.</td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
         )}
 
-        {/* === TELA DE HISTÓRICO === */}
+        {/* === TELA DE HISTÓRICO GERAL === */}
         {aba === 'historico' && (
           <div style={{ backgroundColor: 'white', borderRadius: '10px', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', overflowY: 'auto', height: '100%' }}>
-            <h2>📜 Últimas Vendas</h2>
+            <h2>📜 Últimas Vendas (Geral)</h2>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ textAlign: 'left', borderBottom: '2px solid #eee' }}>
                   <th style={{ padding: '10px' }}>#ID</th>
                   <th style={{ padding: '10px' }}>Data/Hora</th>
+                  <th style={{ padding: '10px' }}>Cliente</th>
                   <th style={{ padding: '10px' }}>Itens</th>
                   <th style={{ padding: '10px' }}>Total</th>
                   <th style={{ padding: '10px' }}>Ação</th>
@@ -492,11 +489,10 @@ export function App() {
                   <tr key={venda.id} style={{ borderBottom: '1px solid #eee' }}>
                     <td style={{ padding: '10px' }}>#{venda.id}</td>
                     <td style={{ padding: '10px' }}>{new Date(venda.data).toLocaleString()}</td>
+                    <td style={{ padding: '10px', color: '#007bff' }}>{venda.cliente?.nome || 'Consumidor'}</td>
                     <td style={{ padding: '10px' }}>{venda.itens.map(i => `${i.quantidade}x ${i.produto.nome}`).join(', ')}</td>
                     <td style={{ padding: '10px', fontWeight: 'bold', color: '#28a745' }}>R$ {Number(venda.total).toFixed(2)}</td>
-                    <td style={{ padding: '10px' }}>
-                      <button onClick={() => alert("Reimpressão em breve!")} style={{ padding: '5px 10px', cursor: 'pointer', border: 'none', background: 'transparent' }}>🖨️</button>
-                    </td>
+                    <td style={{ padding: '10px' }}><button onClick={() => alert("Reimpressão em breve!")} style={{ padding: '5px 10px', cursor: 'pointer', border: 'none', background: 'transparent' }}>🖨️</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -505,46 +501,38 @@ export function App() {
         )}
       </div>
 
-      {/* === MODAL DE CADASTRO PRODUTO === */}
+      {/* === MODAL PRODUTO === */}
       {modalAberto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '10px', width: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ marginTop: 0 }}>{produtoEmEdicao ? 'Editar Produto' : 'Novo Produto'}</h2>
             <form onSubmit={salvarProduto} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              
               <input placeholder="Nome do Produto" value={formProduto.nome || ''} onChange={e => setFormProduto({ ...formProduto, nome: e.target.value })} style={estiloInput} required />
               <input placeholder="Código de Barras" value={formProduto.codigoBarra || ''} onChange={e => setFormProduto({ ...formProduto, codigoBarra: e.target.value })} style={estiloInput} />
-
               <div style={{ display: 'flex', gap: '10px' }}>
                 <input placeholder="Custo (R$)" type="number" step="0.01" value={formProduto.precoCusto || ''} onChange={e => setFormProduto({ ...formProduto, precoCusto: e.target.value })} style={{ ...estiloInput, flex: 1 }} />
                 <input placeholder="Venda (R$)" type="number" step="0.01" value={formProduto.precoVenda || ''} onChange={e => setFormProduto({ ...formProduto, precoVenda: e.target.value })} style={{ ...estiloInput, flex: 1 }} required />
               </div>
-
               <div style={{ display: 'flex', gap: '10px' }}>
                 <input placeholder="Estoque Atual" type="number" value={formProduto.estoque || ''} onChange={e => setFormProduto({ ...formProduto, estoque: e.target.value })} style={{ ...estiloInput, flex: 2 }} required />
                 <input placeholder="UN (Ex: CX)" value={formProduto.unidade || ''} onChange={e => setFormProduto({ ...formProduto, unidade: e.target.value })} style={{ ...estiloInput, flex: 1 }} />
               </div>
-
               <hr style={{ margin: '15px 0', border: '0', borderTop: '1px solid #eee' }} />
               <strong style={{ fontSize: '14px', color: '#666' }}>Dados Fiscais & Fornecedor</strong>
-
               <div style={{ display: 'flex', gap: '10px' }}>
                 <input placeholder="Fornecedor" value={formProduto.fornecedor || ''} onChange={e => setFormProduto({ ...formProduto, fornecedor: e.target.value })} style={{ ...estiloInput, flex: 2 }} />
                 <input placeholder="Local (Ex: Corredor B)" value={formProduto.localizacao || ''} onChange={e => setFormProduto({ ...formProduto, localizacao: e.target.value })} style={{ ...estiloInput, flex: 1 }} />
               </div>
-
               <div style={{ display: 'flex', gap: '10px' }}>
                 <input placeholder="% IPI" type="number" value={formProduto.ipi || ''} onChange={e => setFormProduto({ ...formProduto, ipi: e.target.value })} style={{ ...estiloInput, flex: 1 }} />
                 <input placeholder="% ICMS" type="number" value={formProduto.icms || ''} onChange={e => setFormProduto({ ...formProduto, icms: e.target.value })} style={{ ...estiloInput, flex: 1 }} />
                 <input placeholder="R$ Frete" type="number" value={formProduto.frete || ''} onChange={e => setFormProduto({ ...formProduto, frete: e.target.value })} style={{ ...estiloInput, flex: 1 }} />
               </div>
-
               <div style={{ display: 'flex', gap: '10px' }}>
                  <input placeholder="NCM" value={formProduto.ncm || ''} onChange={e => setFormProduto({...formProduto, ncm: e.target.value})} style={{ ...estiloInput, flex: 1 }} />
                  <input placeholder="CEST" value={formProduto.cest || ''} onChange={e => setFormProduto({...formProduto, cest: e.target.value})} style={{ ...estiloInput, flex: 1 }} />
                  <input placeholder="CFOP" value={formProduto.cfop || ''} onChange={e => setFormProduto({...formProduto, cfop: e.target.value})} style={{ ...estiloInput, flex: 1 }} />
               </div>
-
               <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setModalAberto(false)} style={{ padding: '10px 20px', border: 'none', background: '#ccc', borderRadius: '5px', cursor: 'pointer' }}>Cancelar</button>
                 <button type="submit" style={{ padding: '10px 20px', border: 'none', background: '#007bff', color: 'white', borderRadius: '5px', cursor: 'pointer' }}>Salvar</button>
@@ -554,29 +542,64 @@ export function App() {
         </div>   
       )} 
 
-      {/* === NOVO MODAL: CADASTRO DE CLIENTE === */}
+      {/* === MODAL CLIENTE (CADASTRO E EDIÇÃO) === */}
       {modalClienteAberto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '10px', width: '400px' }}>
-            <h2 style={{ marginTop: 0 }}>Novo Cliente</h2>
+            <h2 style={{ marginTop: 0 }}>{clienteEmEdicao ? 'Editar Cliente' : 'Novo Cliente'}</h2>
             <form onSubmit={salvarCliente} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              
               <input placeholder="Nome Completo" value={formCliente.nome} onChange={e => setFormCliente({ ...formCliente, nome: e.target.value })} style={estiloInput} required />
               <input placeholder="CPF ou CNPJ" value={formCliente.cpfCnpj} onChange={e => setFormCliente({ ...formCliente, cpfCnpj: e.target.value })} style={estiloInput} />
               <input placeholder="Celular / WhatsApp" value={formCliente.celular} onChange={e => setFormCliente({ ...formCliente, celular: e.target.value })} style={estiloInput} />
-              
-              <textarea 
-                placeholder="Endereço Completo (Rua, Número, Bairro)" 
-                value={formCliente.endereco} 
-                onChange={e => setFormCliente({ ...formCliente, endereco: e.target.value })} 
-                style={{ ...estiloInput, height: '80px', resize: 'none' }} 
-              />
-
+              <textarea placeholder="Endereço Completo (Rua, Número, Bairro)" value={formCliente.endereco} onChange={e => setFormCliente({ ...formCliente, endereco: e.target.value })} style={{ ...estiloInput, height: '80px', resize: 'none' }} />
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setModalClienteAberto(false)} style={{ padding: '10px 20px', border: 'none', background: '#ccc', borderRadius: '5px', cursor: 'pointer' }}>Cancelar</button>
-                <button type="submit" style={{ padding: '10px 20px', border: 'none', background: '#28a745', color: 'white', borderRadius: '5px', cursor: 'pointer' }}>Cadastrar Cliente</button>
+                <button type="submit" style={{ padding: '10px 20px', border: 'none', background: '#28a745', color: 'white', borderRadius: '5px', cursor: 'pointer' }}>{clienteEmEdicao ? 'Salvar Alterações' : 'Cadastrar Cliente'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* === MODAL HISTÓRICO DO CLIENTE (NOVO) === */}
+      {modalHistoricoCliente && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '10px', width: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h2 style={{ margin: 0 }}>Histórico: {clienteDoHistorico?.nome}</h2>
+              <button onClick={() => setModalHistoricoCliente(false)} style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>✖️</button>
+            </div>
+            
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {historicoCliente.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#888', padding: '20px' }}>Nenhuma compra realizada ainda.</p>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#f5f5f5', textAlign: 'left' }}>
+                      <th style={{ padding: '8px' }}>Data</th>
+                      <th style={{ padding: '8px' }}>Itens</th>
+                      <th style={{ padding: '8px' }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historicoCliente.map(venda => (
+                      <tr key={venda.id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '8px' }}>{new Date(venda.data).toLocaleDateString()}</td>
+                        <td style={{ padding: '8px', fontSize: '0.9rem' }}>
+                          {venda.itens.map(i => `${i.quantidade}x ${i.produto.nome}`).join(', ')}
+                        </td>
+                        <td style={{ padding: '8px', fontWeight: 'bold' }}>R$ {Number(venda.total).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            
+            <div style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '10px', textAlign: 'right' }}>
+               <strong>Total Gasto: R$ {historicoCliente.reduce((acc, v) => acc + Number(v.total), 0).toFixed(2)}</strong>
+            </div>
           </div>
         </div>
       )}

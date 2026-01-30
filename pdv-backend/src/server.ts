@@ -215,6 +215,41 @@ app.delete('/clientes/:id', async (request, reply) => {
   }
 })
 
+// --- ATUALIZAR CLIENTE (PUT) ---
+app.put('/clientes/:id', async (request, reply) => {
+  const { id } = request.params as any
+  const dados = request.body as any
+  
+  try {
+    const clienteAtualizado = await prisma.cliente.update({
+      where: { id: Number(id) },
+      data: {
+        nome: dados.nome,
+        cpfCnpj: dados.cpfCnpj,
+        celular: dados.celular,
+        endereco: dados.endereco
+      }
+    })
+    return reply.send(clienteAtualizado)
+  } catch (erro) {
+    return reply.status(500).send({ erro: "Erro ao atualizar cliente" })
+  }
+})
+
+// --- HISTÓRICO DE COMPRAS DO CLIENTE ---
+app.get('/clientes/:id/vendas', async (request, reply) => {
+  const { id } = request.params as any
+  
+  const vendas = await prisma.venda.findMany({
+    where: { clienteId: Number(id) },
+    include: { 
+      itens: { include: { produto: true } } 
+    },
+    orderBy: { data: 'desc' }
+  })
+  return reply.send(vendas)
+})
+
 const start = async () => {
   try {
     await app.listen({ 
