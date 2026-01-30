@@ -577,6 +577,9 @@ export function App() {
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{p.nome}</h3>
                         <button onClick={() => { setProdutoEmEdicao(p); setFormProduto({ ...formProduto, ...p, precoCusto: String(p.precoCusto), precoVenda: String(p.precoVenda), estoque: String(p.estoque), ipi:String(p.ipi||''), icms:String(p.icms||''), frete:String(p.frete||''), ncm:p.ncm||'', cest:p.cest||'', cfop:p.cfop||'' } as any); setModalAberto(true) }} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize:'1.2rem' }}>✏️</button>
+                        <button onClick={() => excluirProduto(p.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}>
+            🗑️
+        </button>
                       </div>
                       <p style={{ color: '#718096' }}>Est: {p.estoque}</p>
                     </div>
