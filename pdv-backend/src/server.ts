@@ -64,50 +64,44 @@ app.get('/produtos', async () => {
   return await prisma.produto.findMany({ orderBy: { nome: 'asc' } })
 })
 
-// Cadastrar
+// CADASTRAR PRODUTO (Versão Completa)
 app.post('/produtos', async (request, reply) => {
   const dados = request.body as any
+
   try {
     const produto = await prisma.produto.create({
       data: {
+        // --- Campos Básicos ---
         nome: dados.nome,
         codigoBarra: dados.codigoBarra,
         precoCusto: dados.precoCusto,
         precoVenda: dados.precoVenda,
         estoque: dados.estoque,
         unidade: dados.unidade,
-        categoria: dados.categoria
+        categoria: dados.categoria,
+
+        // --- Campos Extras (Fornecedor/Logística) ---
+        fornecedor: dados.fornecedor,
+        localizacao: dados.localizacao,
+        frete: dados.frete,
+
+        // --- Impostos ---
+        ipi: dados.ipi,
+        icms: dados.icms,
+
+        // --- Campos Fiscais (NCM/CFOP) ---
+        ncm: dados.ncm,
+        cest: dados.cest,
+        cfop: dados.cfop
       }
     })
     return reply.status(201).send(produto)
-  } catch (erro) {
-    return reply.status(400).send({ erro: "Erro ao cadastrar. Código de barras duplicado?" })
+
+  } catch (error) {
+    console.error(error)
+    return reply.status(500).send({ error: "Erro ao criar produto" })
   }
 })
-
-// Editar (NOVO)
-app.put('/produtos/:id', async (request, reply) => {
-  const { id } = request.params as { id: string }
-  const dados = request.body as any
-  try {
-    const produto = await prisma.produto.update({
-      where: { id: Number(id) },
-      data: {
-        nome: dados.nome,
-        codigoBarra: dados.codigoBarra,
-        precoCusto: dados.precoCusto,
-        precoVenda: dados.precoVenda,
-        estoque: dados.estoque,
-        unidade: dados.unidade,
-        categoria: dados.categoria
-      }
-    })
-    return produto
-  } catch (erro) {
-    return reply.status(400).send({ erro: "Erro ao atualizar produto." })
-  }
-})
-
 // Excluir (NOVO)
 app.delete('/produtos/:id', async (request, reply) => {
   const { id } = request.params as { id: string }
@@ -122,62 +116,103 @@ app.delete('/produtos/:id', async (request, reply) => {
 
 // --- ROTAS DE VENDAS ---
 
-// Realizar Venda
+// NOVA VENDA (Agora aceita o clienteId)
 app.post('/vendas', async (request, reply) => {
-  const dados = request.body as any
-  try {
-    const resultado = await prisma.$transaction(async (tx) => {
-      // 1. Criar Venda
-      const venda = await tx.venda.create({ data: { total: 0 } }) // O total será atualizado no final
+  const dados = request.body as any // { itens: [...], clienteId: 12 }
 
-      let totalVenda = 0
-      
-      for (const item of dados.itens) {
-        const produtoDb = await tx.produto.findUnique({ where: { id: item.produtoId } })
-        if (!produtoDb) throw new Error("Produto não encontrado")
-        if (Number(produtoDb.estoque) < item.quantidade) throw new Error(`Sem estoque para: ${produtoDb.nome}`)
+  let totalVenda = 0
+  const itensParaSalvar = []
 
-        const totalItem = Number(produtoDb.precoVenda) * item.quantidade
-        totalVenda += totalItem
+  // 1. Calcular total e verificar estoque
+  for (const item of dados.itens) {
+    const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } })
+    
+    if (!produto) return reply.status(400).send({ erro: "Produto não existe" })
+    if (Number(produto.estoque) < item.quantidade) return reply.status(400).send({ erro: `Sem estoque para ${produto.nome}` })
 
-        // 2. Criar Item
-        await tx.itemVenda.create({
-          data: {
-            vendaId: venda.id,
-            produtoId: produtoDb.id,
-            quantidade: item.quantidade,
-            precoUnit: produtoDb.precoVenda
-          }
-        })
+    const totalItem = Number(produto.precoVenda) * item.quantidade
+    totalVenda += totalItem
 
-        // 3. Baixar Estoque
-        await tx.produto.update({
-          where: { id: produtoDb.id },
-          data: { estoque: { decrement: item.quantidade } }
-        })
-      }
-
-      // 4. Atualizar Total da Venda
-      return await tx.venda.update({
-        where: { id: venda.id },
-        data: { total: totalVenda },
-        include: { itens: true }
-      })
+    itensParaSalvar.push({
+      produtoId: item.produtoId,
+      quantidade: item.quantidade,
+      precoUnit: produto.precoVenda
     })
-    return reply.status(201).send(resultado)
-  } catch (erro: any) {
-    return reply.status(400).send({ erro: erro.message })
+  }
+
+  // 2. Criar a Venda com o Cliente
+  const venda = await prisma.venda.create({
+    data: {
+      total: totalVenda,
+      clienteId: dados.clienteId ? Number(dados.clienteId) : null, // <--- AQUI ESTÁ O SEGREDO!
+      itens: {
+        create: itensParaSalvar
+      }
+    },
+    include: { cliente: true } // Retorna o cliente na resposta
+  })
+
+  // 3. Baixar Estoque
+  for (const item of itensParaSalvar) {
+    await prisma.produto.update({
+      where: { id: item.produtoId },
+      data: { estoque: { decrement: item.quantidade } }
+    })
+  }
+
+  return reply.status(201).send(venda)
+})
+// LISTAR VENDAS (Agora traz o cliente junto)
+app.get('/vendas', async () => {
+  return await prisma.venda.findMany({
+    include: { 
+      itens: { include: { produto: true } },
+      cliente: true // <--- Traz os dados do cliente
+    },
+    orderBy: { id: 'desc' }
+  })
+})
+
+// --- ROTAS DE CLIENTES ---
+
+// 1. Listar todos os clientes
+app.get('/clientes', async () => {
+  return await prisma.cliente.findMany({
+    orderBy: { nome: 'asc' } // Já traz em ordem alfabética
+  })
+})
+
+// 2. Cadastrar novo cliente
+app.post('/clientes', async (request, reply) => {
+  const dados = request.body as any
+  
+  try {
+    const novoCliente = await prisma.cliente.create({
+      data: {
+        nome: dados.nome,
+        cpfCnpj: dados.cpfCnpj,
+        celular: dados.celular,
+        endereco: dados.endereco
+      }
+    })
+    return reply.status(201).send(novoCliente)
+  } catch (erro) {
+    return reply.status(500).send({ erro: "Erro ao criar cliente" })
   }
 })
 
-// Histórico de Vendas (NOVO)
-app.get('/vendas', async () => {
-  // Pega as últimas 50 vendas, da mais recente para a mais antiga
-  return await prisma.venda.findMany({
-    take: 50,
-    orderBy: { data: 'desc' },
-    include: { itens: { include: { produto: true } } }
-  })
+// 3. Excluir cliente
+app.delete('/clientes/:id', async (request, reply) => {
+  const { id } = request.params as any
+  
+  try {
+    await prisma.cliente.delete({
+      where: { id: Number(id) }
+    })
+    return reply.send({ message: "Cliente deletado com sucesso" })
+  } catch (erro) {
+    return reply.status(500).send({ erro: "Não foi possível deletar" })
+  }
 })
 
 const start = async () => {

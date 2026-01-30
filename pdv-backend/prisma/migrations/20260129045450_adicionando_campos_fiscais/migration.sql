@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "produtos" ADD COLUMN     "estoqueMin" INTEGER DEFAULT 5,
+ADD COLUMN     "fornecedor" TEXT,
+ADD COLUMN     "frete" DOUBLE PRECISION DEFAULT 0,
+ADD COLUMN     "icms" DOUBLE PRECISION DEFAULT 0,
+ADD COLUMN     "ipi" DOUBLE PRECISION DEFAULT 0,
+ADD COLUMN     "localizacao" TEXT;

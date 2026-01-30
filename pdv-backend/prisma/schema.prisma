@@ -7,56 +7,70 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Produto {
-  id          Int      @id @default(autoincrement())
-  nome        String
-  codigoBarra String   @unique @map("codigo_barra")
-  precoCusto  Decimal  @map("preco_custo") @db.Decimal(10, 2)
-  precoVenda  Decimal  @map("preco_venda") @db.Decimal(10, 2)
-  estoque     Decimal  @db.Decimal(10, 3) 
-  unidade     String   
-  categoria   String?
-  criadoEm    DateTime @default(now()) @map("criado_em")
-
-  // Relação: Um produto pode estar em muitos itens de venda
-  itens       ItemVenda[] 
-
-  @@map("produtos")
-}
-
 model Venda {
-  id          Int      @id @default(autoincrement())
-  data        DateTime @default(now())
-  total       Decimal  @db.Decimal(10, 2)
+  id        Int      @id @default(autoincrement())
+  data      DateTime @default(now())
+  total     Decimal
   
-  // Relação: Uma venda tem vários itens
-  itens       ItemVenda[]
+  clienteId Int?     // <--- NOVO: ID do cliente (pode ser nulo/vazio)
+  cliente   Cliente? @relation(fields: [clienteId], references: [id]) // <--- A Conexão
+
+  itens     ItemVenda[]
 
   @@map("vendas")
 }
 
 model ItemVenda {
-  id          Int      @id @default(autoincrement())
-  quantidade  Decimal  @db.Decimal(10, 3) // Ex: 0.5 metros de areia
-  precoUnit   Decimal  @map("preco_unitario") @db.Decimal(10, 2)
-  
-  // Ligações (Foreign Keys)
-  vendaId     Int      @map("venda_id")
-  venda       Venda    @relation(fields: [vendaId], references: [id])
-  
-  produtoId   Int      @map("produto_id")
-  produto     Produto  @relation(fields: [produtoId], references: [id])
+  id         Int     @id @default(autoincrement())
+  quantidade Decimal @db.Decimal(10, 3)
+  precoUnit  Decimal @map("preco_unitario") @db.Decimal(10, 2)
+  vendaId    Int     @map("venda_id")
+  produtoId  Int     @map("produto_id")
+  produto    Produto @relation(fields: [produtoId], references: [id])
+  venda      Venda   @relation(fields: [vendaId], references: [id])
 
   @@map("itens_venda")
 }
-// Tabela de Usuários do Sistema
+
+// ... seus outros models (Produto, Venda, etc) ...
+
+model Cliente {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  cpfCnpj   String?
+  celular   String?
+  endereco  String?
+  criadoEm  DateTime @default(now())
+
+  vendas    Venda[]  // <--- NOVO: O cliente tem várias vendas
+  @@map("clientes")
+}
+
 model User {
-  id       String @id @default(uuid())
+  id       String   @id @default(uuid())
   nome     String
-  email    String @unique
-  senha    String // Aqui guardaremos a senha criptografada
-  cargo    String // "GERENTE", "SUPERVISOR", "VENDEDOR"
+  email    String   @unique
+  senha    String
+  cargo    String
   criadoEm DateTime @default(now())
 }
 
-// Atualizando esquema para o Render
+model Produto {
+  id          Int         @id @default(autoincrement())
+  nome        String
+  codigoBarra String?     @unique
+  precoCusto  Float
+  precoVenda  Float
+  estoque     Int
+  unidade     String?
+  categoria   String?
+  fornecedor  String?
+  localizacao String?
+  ipi         Float?      @default(0)
+  icms        Float?      @default(0)
+  frete       Float?      @default(0)
+  ncm         String?
+  cest        String?
+  cfop        String?
+  itens       ItemVenda[]
+}
