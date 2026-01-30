@@ -223,6 +223,21 @@ app.post('/clientes', async (request, reply) => {
   }
 })
 
+// --- HISTÓRICO DE COMPRAS DO CLIENTE ---
+app.get('/clientes/:id/vendas', async (request, reply) => {
+  const { id } = request.params as any
+  
+  const vendas = await prisma.venda.findMany({
+    where: { clienteId: Number(id) },
+    include: { 
+      itens: { include: { produto: true } },
+      pagamentos: true // <--- O SEGREDO PARA NÃO DAR TELA BRANCA
+    },
+    orderBy: { data: 'desc' }
+  })
+  return reply.send(vendas)
+})
+
 app.put('/clientes/:id', async (request, reply) => {
   const { id } = request.params as any
   const dados = request.body as any
