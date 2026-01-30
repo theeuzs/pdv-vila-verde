@@ -12,15 +12,15 @@ model Venda {
   data      DateTime @default(now())
   total     Decimal
   
-  // NOVO: Forma de Pagamento (Dinheiro, Pix, Fiado...)
-  formaPagamento String @default("DINHEIRO") 
-
+  // formaPagamento String? (Pode apagar ou deixar como opcional, não vamos mais usar ele como principal)
+  
   clienteId Int?     
   cliente   Cliente? @relation(fields: [clienteId], references: [id])
 
-  itens     ItemVenda[]
+  itens      ItemVenda[]
+  pagamentos Pagamento[] // <--- NOVO: Relação com pagamentos
   
-  contaReceber ContaReceber? // <--- NOVO: Venda pode gerar uma dívida
+  contaReceber ContaReceber?
   @@map("vendas")
 }
 
@@ -95,4 +95,16 @@ model ContaReceber {
   venda     Venda    @relation(fields: [vendaId], references: [id])
 
   @@map("contas_receber")
+}
+
+// --- NOVO MODELO: PAGAMENTO ---
+model Pagamento {
+  id        Int      @id @default(autoincrement())
+  valor     Decimal
+  forma     String   // DINHEIRO, PIX, CARTAO, HAVER, A PRAZO
+  
+  vendaId   Int
+  venda     Venda    @relation(fields: [vendaId], references: [id])
+
+  @@map("pagamentos")
 }

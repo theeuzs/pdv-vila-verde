@@ -1,53 +1,130 @@
 import { useEffect, useState } from 'react'
 import { Login } from './TelaLogin' 
 
-// --- TIPOS (IGUAL AO ANTES) ---
-interface Produto {
-  id: number; nome: string; codigoBarra?: string; precoCusto: number; precoVenda: number; estoque: number; unidade?: string; categoria?: string; fornecedor?: string; localizacao?: string; ipi?: number; icms?: number; frete?: number; ncm?: string; cest?: string; cfop?: string
-}
-interface Cliente {
-  id: number; nome: string; cpfCnpj?: string; celular?: string; endereco?: string; 
-  saldoHaver: string // Campo do Haver
-}
-interface ItemCarrinho { produto: Produto; quantidade: number }
-interface Venda {
-  id: number; data: string; total: string; formaPagamento: string; cliente?: Cliente;
-  itens: { id: number; quantidade: string; precoUnit: string; produto: Produto }[]
-}
-interface ContaReceber { id: number; valor: string; data: string; status: string; cliente: Cliente; venda: Venda }
+// ============================================================================
+// TIPAGEM DE DADOS (TYPES)
+// ============================================================================
 
-// ESTILOS COMUNS (Pra ficar bonito)
-const estiloInput = {
-  padding: '12px', borderRadius: '8px', border: '1px solid #ddd', outline: 'none', width: '100%', boxSizing: 'border-box' as const
+interface Produto {
+  id: number
+  nome: string
+  codigoBarra?: string
+  precoCusto: number
+  precoVenda: number
+  estoque: number
+  unidade?: string
+  categoria?: string
+  fornecedor?: string
+  localizacao?: string
+  ipi?: number
+  icms?: number
+  frete?: number
+  ncm?: string
+  cest?: string
+  cfop?: string
 }
+
+interface Cliente {
+  id: number
+  nome: string
+  cpfCnpj?: string
+  celular?: string
+  endereco?: string
+  saldoHaver: string 
+}
+
+interface ItemCarrinho {
+  produto: Produto
+  quantidade: number
+}
+
+// TIPO NOVO PARA O PAGAMENTO MISTO
+interface PagamentoVenda {
+  forma: string
+  valor: number
+}
+
+interface Venda {
+  id: number
+  data: string
+  total: string
+  cliente?: Cliente
+  // A venda agora tem uma lista de pagamentos
+  pagamentos: { forma: string; valor: string }[] 
+  itens: {
+    id: number
+    quantidade: string
+    precoUnit: string
+    produto: Produto
+  }[]
+}
+
+interface ContaReceber {
+  id: number
+  valor: string
+  data: string
+  status: string
+  cliente: Cliente
+  venda: Venda
+}
+
+// ============================================================================
+// ESTILOS (LAYOUT BONITO)
+// ============================================================================
+
+const estiloInput = {
+  padding: '12px',
+  borderRadius: '8px',
+  border: '1px solid #ddd',
+  outline: 'none',
+  width: '100%',
+  fontSize: '1rem',
+  boxSizing: 'border-box' as const
+}
+
 const estiloBotao = {
-  padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' as const
+  padding: '10px 20px',
+  borderRadius: '8px',
+  border: 'none',
+  cursor: 'pointer',
+  fontWeight: 'bold' as const,
+  transition: 'all 0.2s'
 }
 
 // ⚠️ SEU LINK DO RENDER AQUI
 const API_URL = 'https://api-vila-verde.onrender.com'
 
 export function App() {
-  // --- ESTADOS DE LOGIN ---
-  const [usuario] = useState(() => { const salvo = localStorage.getItem('usuario_vila_verde'); return salvo ? JSON.parse(salvo) : null })
-  function fazerLogin(dados: any) { localStorage.setItem('usuario_vila_verde', JSON.stringify(dados)); window.location.reload() }
-  function sair() { localStorage.removeItem('usuario_vila_verde'); window.location.reload() }
+  // ==========================================================================
+  // ESTADOS (STATES)
+  // ==========================================================================
+  
+  // Login
+  const [usuario] = useState(() => {
+    const salvo = localStorage.getItem('usuario_vila_verde')
+    return salvo ? JSON.parse(salvo) : null
+  })
 
-  // --- ESTADOS DO SISTEMA ---
+  // Navegação
   const [aba, setAba] = useState<'caixa' | 'historico' | 'clientes' | 'financeiro'>('caixa') 
   
+  // Dados do Sistema
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [vendasRealizadas, setVendasRealizadas] = useState<Venda[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [contasReceber, setContasReceber] = useState<ContaReceber[]>([])
 
-  // Caixa
+  // Caixa & Carrinho
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
   const [busca, setBusca] = useState('') 
   const [clienteSelecionado, setClienteSelecionado] = useState('') 
-  const [formaPagamento, setFormaPagamento] = useState('DINHEIRO') 
+  
+  // --- PAGAMENTO MISTO ---
+  const [listaPagamentos, setListaPagamentos] = useState<PagamentoVenda[]>([])
+  const [valorPagamentoInput, setValorPagamentoInput] = useState('')
+  const [formaPagamentoInput, setFormaPagamentoInput] = useState('DINHEIRO')
 
-  // Modais
+  // Modais (Janelas)
   const [modalAberto, setModalAberto] = useState(false)
   const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null)
   
@@ -59,10 +136,29 @@ export function App() {
   const [clienteDoHistorico, setClienteDoHistorico] = useState<Cliente | null>(null)
 
   // Formulários
-  const [formProduto, setFormProduto] = useState({ nome: '', codigoBarra: '', precoCusto: '', precoVenda: '', estoque: '', unidade: 'UN', categoria: 'Geral', fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '', ncm: '', cest: '', cfop: '' })
-  const [formCliente, setFormCliente] = useState({ nome: '', cpfCnpj: '', celular: '', endereco: '' })
+  const [formProduto, setFormProduto] = useState({
+    nome: '', codigoBarra: '', precoCusto: '', precoVenda: '', estoque: '', unidade: 'UN', categoria: 'Geral',
+    fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '', ncm: '', cest: '', cfop: '' 
+  })
 
-  // --- CARREGAR DADOS ---
+  const [formCliente, setFormCliente] = useState({
+    nome: '', cpfCnpj: '', celular: '', endereco: ''
+  })
+
+  // ==========================================================================
+  // FUNÇÕES DE LOGIN E CARREGAMENTO
+  // ==========================================================================
+
+  function fazerLogin(dadosUsuario: any) {
+    localStorage.setItem('usuario_vila_verde', JSON.stringify(dadosUsuario))
+    window.location.reload()
+  }
+
+  function sair() {
+    localStorage.removeItem('usuario_vila_verde')
+    window.location.reload()
+  }
+
   async function carregarDados() {
     try {
       const [resProd, resVend, resCli, resConta] = await Promise.all([
@@ -76,15 +172,23 @@ export function App() {
       setVendasRealizadas(await resVend.json())
       setClientes(await resCli.json())
       setContasReceber(await resConta.json())
-    } catch (erro) { console.error("Erro ao carregar", erro) }
+    } catch (erro) {
+      console.error("Erro ao carregar dados", erro)
+    }
   }
 
-  useEffect(() => { if (usuario) carregarDados() }, [usuario])
+  useEffect(() => {
+    if (usuario) carregarDados()
+  }, [usuario])
 
-  // --- FUNÇÕES DE HAVER (CRÉDITO) ---
+  // ==========================================================================
+  // FUNÇÕES DE HAVER (CRÉDITO)
+  // ==========================================================================
+
   async function gerarHaver(cliente: Cliente) {
-    const valorStr = prompt(`💰 Gerar HAVER (Devolução) para ${cliente.nome}.\n\nQual o valor? (Ex: 50.00)`)
+    const valorStr = prompt(`💰 Gerar HAVER (Devolução) para ${cliente.nome}.\n\nQual o valor da devolução? (Ex: 50.00)`)
     if (!valorStr) return
+    
     const valor = parseFloat(valorStr.replace(',', '.'))
     if (isNaN(valor) || valor <= 0) return alert("Valor inválido")
 
@@ -94,108 +198,245 @@ export function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ valor })
       })
-      if (res.ok) { alert(`Haver de R$ ${valor.toFixed(2)} gerado com sucesso!`); carregarDados() }
-      else alert("Erro ao gerar haver")
-    } catch (e) { alert("Erro conexão") }
+      if (res.ok) {
+        alert(`Haver de R$ ${valor.toFixed(2)} gerado com sucesso!`)
+        carregarDados()
+      } else {
+        alert("Erro ao gerar haver")
+      }
+    } catch (e) {
+      alert("Erro de conexão")
+    }
   }
 
-  // --- FUNÇÕES DO CAIXA ---
+  // ==========================================================================
+  // FUNÇÕES DO CAIXA
+  // ==========================================================================
+
   function adicionarAoCarrinho(p: Produto) {
-    if (Number(p.estoque) <= 0) return alert("Produto sem estoque!")
+    if (Number(p.estoque) <= 0) {
+      alert("Produto sem estoque!")
+      return
+    }
     setCarrinho(lista => {
       const existe = lista.find(item => item.produto.id === p.id)
-      if (existe) return lista.map(item => item.produto.id === p.id ? { ...item, quantidade: item.quantidade + 1 } : item)
+      if (existe) {
+        return lista.map(item => item.produto.id === p.id ? { ...item, quantidade: item.quantidade + 1 } : item)
+      }
       return [...lista, { produto: p, quantidade: 1 }]
     })
   }
 
-  async function finalizarVenda() {
-    if (carrinho.length === 0) return
-    const total = carrinho.reduce((acc, item) => acc + (Number(item.produto.precoVenda) * item.quantidade), 0)
+  // LÓGICA DE PAGAMENTO MISTO (PARCELADO, DINHEIRO + CARTÃO, ETC)
+  const totalCarrinho = carrinho.reduce((acc, item) => acc + (Number(item.produto.precoVenda) * item.quantidade), 0)
+  const totalPago = listaPagamentos.reduce((acc, p) => acc + p.valor, 0)
+  const faltaPagar = totalCarrinho - totalPago
 
-    // Validações
-    if ((formaPagamento === 'A PRAZO' || formaPagamento === 'HAVER') && !clienteSelecionado) {
-      return alert("⚠️ Para vender FIADO ou usar HAVER, selecione um CLIENTE!")
+  function adicionarPagamento() {
+    let valor = parseFloat(valorPagamentoInput.replace(',', '.'))
+    
+    // Se o usuário não digitar nada, assume que é o restante que falta
+    if (!valor || valor <= 0) {
+      valor = faltaPagar
     }
     
-    // Validação de Saldo Haver
-    if (formaPagamento === 'HAVER') {
-      const cli = clientes.find(c => c.id === Number(clienteSelecionado))
-      if (cli && Number(cli.saldoHaver) < total) {
-        return alert(`⚠️ Saldo Insuficiente!\nSaldo Haver: R$ ${Number(cli.saldoHaver).toFixed(2)}\nTotal da Venda: R$ ${total.toFixed(2)}`)
-      }
+    // Aceita 5 centavos de diferença pra não travar por arredondamento
+    if (valor > faltaPagar + 0.05) {
+      return alert(`Valor maior que o restante! Falta apenas: R$ ${faltaPagar.toFixed(2)}`)
+    }
+    
+    // Validações Específicas
+    if ((formaPagamentoInput === 'A PRAZO' || formaPagamentoInput === 'HAVER') && !clienteSelecionado) {
+      return alert("⚠️ Selecione um cliente para usar Fiado ou Haver!")
+    }
+    
+    if (formaPagamentoInput === 'HAVER') {
+       const cli = clientes.find(c => c.id === Number(clienteSelecionado))
+       if (cli && Number(cli.saldoHaver) < valor) {
+         return alert(`Saldo de Haver insuficiente! Disponível: R$ ${Number(cli.saldoHaver).toFixed(2)}`)
+       }
+    }
+
+    setListaPagamentos([...listaPagamentos, { forma: formaPagamentoInput, valor }])
+    setValorPagamentoInput('') // Limpa o campo pra digitar o próximo
+  }
+
+  function removerPagamento(index: number) {
+    setListaPagamentos(listaPagamentos.filter((_, i) => i !== index))
+  }
+
+  async function finalizarVenda() {
+    if (carrinho.length === 0) return
+    
+    // Verifica se pagou tudo (com margem de 5 centavos)
+    if (Math.abs(faltaPagar) > 0.05) {
+      return alert(`Ainda falta pagar R$ ${faltaPagar.toFixed(2)}!`)
     }
 
     try {
       const res = await fetch(`${API_URL}/vendas`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itens: carrinho.map(i => ({ produtoId: i.produto.id, quantidade: i.quantidade })), clienteId: clienteSelecionado || null, formaPagamento })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          itens: carrinho.map(i => ({ produtoId: i.produto.id, quantidade: i.quantidade })), 
+          clienteId: clienteSelecionado || null, 
+          pagamentos: listaPagamentos // Manda a lista completa
+        })
       })
       
       if (res.ok) {
         const v = await res.json()
-        reimprimirVenda(v) // Já imprime direto
+        reimprimirVenda(v) // Imprime o cupom
         
+        // Limpa tudo
         setCarrinho([])
         setClienteSelecionado('')
-        setFormaPagamento('DINHEIRO')
+        setListaPagamentos([])
         alert("Venda realizada com sucesso!")
         carregarDados()
-      } else { alert("Erro ao vender") }
-    } catch (e) { alert("Erro de Conexão") }
+      } else {
+        alert("Erro ao realizar venda")
+      }
+    } catch (e) {
+      alert("Erro de Conexão")
+    }
   }
 
-  // --- FUNÇÕES GERAIS ---
+  // ==========================================================================
+  // FUNÇÕES DE IMPRESSÃO
+  // ==========================================================================
+
   function reimprimirVenda(venda: Venda) {
-    const itensParaCupom = venda.itens.map(i => ({ produto: i.produto, quantidade: Number(i.quantidade) }))
+    const itensParaCupom = venda.itens.map(i => ({
+      produto: i.produto,
+      quantidade: Number(i.quantidade)
+    }))
+    
     const nome = venda.cliente?.nome || 'Consumidor'
-    const obs = venda.formaPagamento === 'A PRAZO' ? '(PENDENTE PGTO)' : `(${venda.formaPagamento})`
-    imprimirCupom(itensParaCupom, Number(venda.total), venda.id, `${nome} ${obs}`)
+    
+    // Cria um texto resumindo os pagamentos (Ex: "DINHEIRO: 50.00 | PIX: 20.00")
+    const resumoPagamentos = venda.pagamentos?.map(p => 
+      `${p.forma}: R$${Number(p.valor).toFixed(2)}`
+    ).join(' | ') || 'DINHEIRO'
+
+    imprimirCupom(itensParaCupom, Number(venda.total), venda.id, nome, resumoPagamentos)
   }
 
-  function imprimirCupom(itens: ItemCarrinho[], total: number, id: number, clienteNome: string) {
+  function imprimirCupom(itens: ItemCarrinho[], total: number, id: number, clienteNome: string, obs: string) {
     const win = window.open('', '', 'width=300,height=500'); 
-    win?.document.write(`<html><body style="font-family: monospace;"><h3>VILA VERDE #${id}</h3><p>Cli: ${clienteNome}</p><hr/>${itens.map(i => `<div>${i.produto.nome}<br/>${i.quantidade}x R$${Number(i.produto.precoVenda).toFixed(2)}</div>`).join('')}<hr/><b>TOTAL: R$ ${total.toFixed(2)}</b><script>window.print()</script></body></html>`);
+    win?.document.write(`
+      <html>
+        <body style="font-family: monospace;">
+          <h3 style="margin-bottom:5px">VILA VERDE #${id}</h3>
+          <p style="margin:0; font-size: 12px">Cli: ${clienteNome}</p>
+          <hr/>
+          ${itens.map(i => `<div>${i.produto.nome}<br/>${i.quantidade}x R$${Number(i.produto.precoVenda).toFixed(2)}</div>`).join('')}
+          <hr/>
+          <b>TOTAL: R$ ${total.toFixed(2)}</b>
+          <br/>
+          <small style="font-size: 10px">Pgto: ${obs}</small>
+          <script>window.print()</script>
+        </body>
+      </html>
+    `);
   }
+
+  // ==========================================================================
+  // FUNÇÕES AUXILIARES (CRUD)
+  // ==========================================================================
 
   async function baixarConta(id: number) {
     if(!confirm("Confirmar recebimento deste valor?")) return
-    await fetch(`${API_URL}/contas-receber/${id}/pagar`, { method: 'PUT' })
-    carregarDados(); alert("Recebido!")
+    try {
+      await fetch(`${API_URL}/contas-receber/${id}/pagar`, { method: 'PUT' })
+      carregarDados()
+      alert("Recebimento confirmado!")
+    } catch (e) { alert("Erro de conexão") }
   }
 
   async function salvarProduto(e: React.FormEvent) {
     e.preventDefault()
-    const payload = { ...formProduto, precoCusto: Number(formProduto.precoCusto), precoVenda: Number(formProduto.precoVenda), estoque: Number(formProduto.estoque), ipi: Number(formProduto.ipi||0), icms: Number(formProduto.icms||0), frete: Number(formProduto.frete||0) }
-    const url = produtoEmEdicao ?(`${API_URL}/produtos/${produtoEmEdicao.id}`):(`${API_URL}/produtos`); const met = produtoEmEdicao?'PUT':'POST'
-    if((await fetch(url,{method:met,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})).ok){setModalAberto(false);carregarDados();alert("Salvo!")}
+    const payload = {
+      ...formProduto,
+      precoCusto: Number(formProduto.precoCusto),
+      precoVenda: Number(formProduto.precoVenda),
+      estoque: Number(formProduto.estoque),
+      ipi: Number(formProduto.ipi||0),
+      icms: Number(formProduto.icms||0),
+      frete: Number(formProduto.frete||0)
+    }
+
+    const url = produtoEmEdicao ?(`${API_URL}/produtos/${produtoEmEdicao.id}`):(`${API_URL}/produtos`)
+    const met = produtoEmEdicao?'PUT':'POST'
+
+    const res = await fetch(url,{method:met,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    if(res.ok){
+      setModalAberto(false)
+      carregarDados()
+      alert("Produto salvo com sucesso!")
+    }
   }
 
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault()
-    const url = clienteEmEdicao ?(`${API_URL}/clientes/${clienteEmEdicao.id}`):(`${API_URL}/clientes`); const met = clienteEmEdicao?'PUT':'POST'
-    if((await fetch(url,{method:met,headers:{'Content-Type':'application/json'},body:JSON.stringify(formCliente)})).ok){setModalClienteAberto(false);carregarDados();alert("Salvo!")}
+    const url = clienteEmEdicao ?(`${API_URL}/clientes/${clienteEmEdicao.id}`):(`${API_URL}/clientes`)
+    const met = clienteEmEdicao?'PUT':'POST'
+
+    const res = await fetch(url,{method:met,headers:{'Content-Type':'application/json'},body:JSON.stringify(formCliente)})
+    if(res.ok){
+      setModalClienteAberto(false)
+      carregarDados()
+      alert("Cliente salvo com sucesso!")
+    }
   }
   
-  async function excluirProduto(id: number) { if(confirm("Excluir?")) { await fetch(`${API_URL}/produtos/${id}`,{method:'DELETE'}); carregarDados() } }
-  async function excluirCliente(id: number) { if(confirm("Excluir?")) { await fetch(`${API_URL}/clientes/${id}`,{method:'DELETE'}); carregarDados() } }
+  async function excluirProduto(id: number) {
+    if(confirm("Tem certeza que deseja excluir?")) {
+      await fetch(`${API_URL}/produtos/${id}`,{method:'DELETE'})
+      carregarDados()
+    }
+  }
+
+  async function excluirCliente(id: number) {
+    if(confirm("Tem certeza que deseja excluir?")) {
+      await fetch(`${API_URL}/clientes/${id}`,{method:'DELETE'})
+      carregarDados()
+    }
+  }
   
   async function verHistorico(c: Cliente) { 
-    setHistoricoCliente(await (await fetch(`${API_URL}/clientes/${c.id}/vendas`)).json())
+    const res = await fetch(`${API_URL}/clientes/${c.id}/vendas`)
+    const vendas = await res.json()
+    setHistoricoCliente(vendas)
     setClienteDoHistorico(c)
     setModalHistoricoCliente(true) 
   }
 
   if (!usuario) return <Login onLogin={fazerLogin} />
 
-  // --- CÁLCULOS DO DASHBOARD ---
-  const totalHoje = vendasRealizadas.filter(v => new Date(v.data).toLocaleDateString() === new Date().toLocaleDateString() && v.formaPagamento !== 'A PRAZO' && v.formaPagamento !== 'HAVER').reduce((acc, v) => acc + Number(v.total), 0)
+  // ==========================================================================
+  // CÁLCULOS DO DASHBOARD
+  // ==========================================================================
+
+  // Total Hoje: Soma das vendas do dia (usando os pagamentos para precisão)
+  const totalHoje = vendasRealizadas
+    .filter(v => new Date(v.data).toLocaleDateString() === new Date().toLocaleDateString())
+    .reduce((acc, v) => {
+      // Soma apenas o que entrou de dinheiro (exclui o 'A PRAZO')
+      const pagouAgora = v.pagamentos?.filter(p => p.forma !== 'A PRAZO').reduce((sum, p) => sum + Number(p.valor), 0) || 0
+      return acc + pagouAgora
+    }, 0)
+
   const totalReceber = contasReceber.reduce((acc, c) => acc + Number(c.valor), 0)
+  
   const prodsFilt = produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigoBarra||'').includes(busca))
-  const totalCarrinho = carrinho.reduce((acc, i) => acc + (Number(i.produto.precoVenda) * i.quantidade), 0)
+  
   const clienteObjSelecionado = clientes.find(c => c.id === Number(clienteSelecionado))
 
-  // --- RENDERIZAÇÃO (AGORA BONITA E ORGANIZADA) ---
+
+  // ==========================================================================
+  // RENDERIZAÇÃO (INTERFACE VISUAL)
+  // ==========================================================================
   return (
     <div style={{ fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
@@ -272,7 +513,7 @@ export function App() {
               </div>
             </div>
 
-            {/* Direita: Carrinho */}
+            {/* Direita: Carrinho (ATUALIZADO PARA MULTI-PAGAMENTO) */}
             <div style={{ width: 400, backgroundColor: 'white', borderRadius: 12, padding: 25, display: 'flex', flexDirection: 'column', boxShadow: '0 10px 15px rgba(0,0,0,0.05)' }}>
               <h2 style={{ margin: '0 0 20px 0', paddingBottom: 15, borderBottom: '1px solid #edf2f7' }}>🛒 Carrinho</h2>
               
@@ -291,25 +532,8 @@ export function App() {
                 </div>
               )}
 
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: '0.9rem', color: '#718096', fontWeight: 'bold', display: 'block', marginBottom: 5 }}>Pagamento</label>
-                <select value={formaPagamento} onChange={e => setFormaPagamento(e.target.value)} 
-                  style={{ 
-                    ...estiloInput, 
-                    borderColor: '#cbd5e0', 
-                    fontWeight: 'bold',
-                    color: formaPagamento === 'A PRAZO' ? '#c53030' : (formaPagamento === 'HAVER' ? '#2f855a' : '#2d3748'),
-                    backgroundColor: formaPagamento === 'A PRAZO' ? '#fff5f5' : (formaPagamento === 'HAVER' ? '#f0fff4' : 'white')
-                  }}>
-                  <option value="DINHEIRO">💵 Dinheiro</option>
-                  <option value="PIX">💠 PIX</option>
-                  <option value="CARTAO">💳 Cartão</option>
-                  <option value="A PRAZO">📒 A Prazo (Fiado)</option>
-                  <option value="HAVER">💰 Usar Haver (Crédito)</option>
-                </select>
-              </div>
-
-              <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #edf2f7', borderRadius: 8, padding: 10, marginBottom: 20 }}>
+              {/* Lista de Itens no Carrinho */}
+              <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #edf2f7', borderRadius: 8, padding: 10, marginBottom: 20, maxHeight: 200 }}>
                 {carrinho.length === 0 ? <p style={{ textAlign: 'center', color: '#a0aec0', marginTop: 50 }}>Carrinho vazio</p> : 
                   carrinho.map((item, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, borderBottom: '1px solid #edf2f7', paddingBottom: 10 }}>
@@ -323,27 +547,83 @@ export function App() {
                 }
               </div>
 
-              <div style={{ borderTop: '2px solid #2d3748', paddingTop: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: 15, color: '#2d3748' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: 15, color: '#2d3748' }}>
                   <span>Total</span>
                   <span>R$ {totalCarrinho.toFixed(2)}</span>
-                </div>
-                <button onClick={finalizarVenda} disabled={carrinho.length === 0} 
-                  style={{ 
-                    width: '100%', 
-                    padding: 18, 
-                    backgroundColor: carrinho.length > 0 ? (formaPagamento === 'A PRAZO' ? '#e53e3e' : '#48bb78') : '#cbd5e0', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: 10, 
-                    fontSize: '1.2rem', 
-                    fontWeight: 'bold', 
-                    cursor: carrinho.length > 0 ? 'pointer' : 'not-allowed',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}>
-                  {formaPagamento === 'A PRAZO' ? 'CONFIRMAR FIADO 📒' : (formaPagamento === 'HAVER' ? 'USAR CRÉDITO 💰' : 'FINALIZAR VENDA')}
-                </button>
               </div>
+
+              {/* ÁREA DE PAGAMENTO MISTO (NOVA E EXPANDIDA) */}
+              <div style={{ backgroundColor: '#f7fafc', padding: 15, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 15 }}>
+                 
+                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, color: faltaPagar > 0 ? '#e53e3e' : '#48bb78', fontWeight: 'bold' }}>
+                    <span>Falta Pagar:</span>
+                    <span>R$ {Math.max(0, faltaPagar).toFixed(2)}</span>
+                 </div>
+                 
+                 {/* Inputs de Pagamento */}
+                 <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                    <input 
+                      type="number" 
+                      placeholder={faltaPagar > 0 ? faltaPagar.toFixed(2) : "0.00"} 
+                      value={valorPagamentoInput} 
+                      onChange={e => setValorPagamentoInput(e.target.value)} 
+                      style={{ ...estiloInput, width: '100px', padding: 8 }} 
+                    />
+                    
+                    <select 
+                      value={formaPagamentoInput} 
+                      onChange={e => setFormaPagamentoInput(e.target.value)} 
+                      style={{ ...estiloInput, padding: 8, flex: 1 }}
+                    >
+                       <option value="DINHEIRO">Dinheiro</option>
+                       <option value="PIX">Pix</option>
+                       <option value="CARTAO">Cartão</option>
+                       <option value="A PRAZO">Fiado (A Prazo)</option>
+                       <option value="HAVER">Haver (Crédito)</option>
+                    </select>
+                    
+                    <button 
+                      onClick={adicionarPagamento} 
+                      disabled={faltaPagar <= 0.05} 
+                      style={{ 
+                        ...estiloBotao, 
+                        backgroundColor: faltaPagar <= 0.05 ? '#cbd5e0' : '#3182ce', 
+                        color: 'white', 
+                        padding: '0 15px' 
+                      }}>
+                      +
+                    </button>
+                 </div>
+
+                 {/* Lista de Pagamentos Adicionados */}
+                 <div style={{ fontSize: '0.9rem' }}>
+                    {listaPagamentos.map((p, i) => (
+                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e0', padding: '8px 0', color: '#4a5568' }}>
+                          <span>{p.forma}: R$ {p.valor.toFixed(2)}</span>
+                          <button onClick={() => removerPagamento(i)} style={{ border: 'none', background: 'none', color: '#e53e3e', cursor: 'pointer', fontWeight: 'bold' }}>✖</button>
+                       </div>
+                    ))}
+                 </div>
+              </div>
+
+              {/* Botão Finalizar */}
+              <button 
+                onClick={finalizarVenda} 
+                disabled={carrinho.length === 0 || faltaPagar > 0.05} 
+                style={{ 
+                  width: '100%', 
+                  padding: 18, 
+                  backgroundColor: (faltaPagar <= 0.05 && carrinho.length > 0) ? '#48bb78' : '#cbd5e0', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: 10, 
+                  fontSize: '1.2rem', 
+                  fontWeight: 'bold', 
+                  cursor: (faltaPagar <= 0.05 && carrinho.length > 0) ? 'pointer' : 'not-allowed',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                }}>
+                FINALIZAR VENDA
+              </button>
             </div>
           </div>
         )}
@@ -382,7 +662,7 @@ export function App() {
                       </span>
                     </td>
                     <td style={{ padding: 15, textAlign: 'right', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                      <button onClick={() => gerarHaver(c)} style={{ border: '1px solid #48bb78', background: 'white', color: '#48bb78', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontWeight: 'bold' }}>💰 Gerar Haver</button>
+                      <button onClick={() => gerarHaver(c)} style={{ border: '1px solid #48bb78', background: 'white', color: '#48bb78', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontWeight: 'bold' }}>💰 Haver</button>
                       <button onClick={() => verHistorico(c)} title="Histórico" style={{ background: '#bee3f8', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}>📜</button>
                       <button onClick={() => { setClienteEmEdicao(c); setFormCliente({ nome:c.nome, cpfCnpj:c.cpfCnpj||'', celular:c.celular||'', endereco:c.endereco||'' }); setModalClienteAberto(true) }} title="Editar" style={{ background: '#e2e8f0', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}>✏️</button>
                       <button onClick={() => excluirCliente(c.id)} title="Excluir" style={{ background: '#fed7d7', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}>🗑️</button>
@@ -449,13 +729,9 @@ export function App() {
                     <td style={{ padding: 15 }}>{new Date(v.data).toLocaleString()}</td>
                     <td style={{ padding: 15, fontWeight: 'bold' }}>{v.cliente?.nome || 'Consumidor'}</td>
                     <td style={{ padding: 15 }}>
-                      <span style={{ 
-                        padding: '4px 10px', borderRadius: 20, fontSize: '0.85rem', fontWeight: 'bold',
-                        backgroundColor: v.formaPagamento === 'A PRAZO' ? '#fed7d7' : (v.formaPagamento === 'HAVER' ? '#c6f6d5' : '#e2e8f0'),
-                        color: v.formaPagamento === 'A PRAZO' ? '#c53030' : (v.formaPagamento === 'HAVER' ? '#22543d' : '#4a5568')
-                      }}>
-                        {v.formaPagamento || 'DINHEIRO'}
-                      </span>
+                      <small style={{ color: '#4a5568' }}>
+                         {v.pagamentos?.map(p => p.forma).join(' + ') || 'ANTIGO'}
+                      </small>
                     </td>
                     <td style={{ padding: 15, fontWeight: 'bold' }}>R$ {Number(v.total).toFixed(2)}</td>
                     <td style={{ padding: 15 }}>
@@ -469,7 +745,9 @@ export function App() {
         )}
       </div>
 
-      {/* ================= MODAIS (VOLTARAM A FICAR BONITOS) ================= */}
+      {/* =====================================================================
+          MODAIS (JANELAS FLUTUANTES)
+      ===================================================================== */}
 
       {/* MODAL PRODUTO */}
       {modalAberto && (
@@ -527,7 +805,7 @@ export function App() {
         </div>
       )}
       
-      {/* MODAL HISTORICO CLIENTE (AGORA COM TOTAL GASTO!) */}
+      {/* MODAL HISTORICO CLIENTE */}
       {modalHistoricoCliente && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(3px)' }}>
           <div style={{ backgroundColor: 'white', padding: 30, borderRadius: 15, width: 600, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
@@ -542,7 +820,7 @@ export function App() {
                   <div key={v.id} style={{ borderBottom: '1px solid #edf2f7', padding: '15px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                        <div style={{ fontSize: '0.9rem', color: '#718096', marginBottom: 3 }}>
-                         {new Date(v.data).toLocaleDateString()} • {v.formaPagamento || 'DINHEIRO'}
+                         {new Date(v.data).toLocaleDateString()} • <small>{v.pagamentos?.map(p => p.forma).join('+') || 'ANTIGO'}</small>
                        </div>
                        <div style={{ fontSize: '0.95rem', color: '#2d3748' }}>
                          {v.itens.map(i => `${i.quantidade}x ${i.produto.nome}`).join(', ')}
@@ -557,7 +835,6 @@ export function App() {
               }
             </div>
 
-            {/* AQUI ESTÁ O TOTAL GASTO QUE FALTAVA! 👇 */}
             <div style={{ marginTop: 20, borderTop: '2px solid #e2e8f0', paddingTop: 15, textAlign: 'right' }}>
               <div style={{ fontSize: '0.9rem', color: '#718096' }}>TOTAL ACUMULADO</div>
               <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#2d3748' }}>

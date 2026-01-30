@@ -116,14 +116,15 @@ app.delete('/produtos/:id', async (request, reply) => {
 
 // --- ROTAS DE VENDAS ---
 
-// NOVA VENDA (ATUALIZADA COM HAVER)
+// NOVA VENDA COM PAGAMENTO MISTO
 app.post('/vendas', async (request, reply) => {
   const dados = request.body as any 
+  // Espera: { itens: [...], clienteId: 1, pagamentos: [{ forma: 'DINHEIRO', valor: 50 }, { forma: 'CARTAO', valor: 20 }] }
 
   let totalVenda = 0
   const itensParaSalvar = []
 
-  // 1. Calcular total e verificar estoque
+  // 1. Calcular total dos produtos e Estoque
   for (const item of dados.itens) {
     const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } })
     if (!produto) return reply.status(400).send({ erro: "Produto não existe" })
@@ -133,42 +134,51 @@ app.post('/vendas', async (request, reply) => {
     itensParaSalvar.push({ produtoId: item.produtoId, quantidade: item.quantidade, precoUnit: produto.precoVenda })
   }
 
-  // --- LÓGICA DO HAVER (NOVO) ---
-  if (dados.formaPagamento === 'HAVER') {
-    if (!dados.clienteId) return reply.status(400).send({ erro: "Precisa identificar o cliente para usar Haver!" })
-    
-    const cliente = await prisma.cliente.findUnique({ where: { id: Number(dados.clienteId) } })
-    
-    if (!cliente || Number(cliente.saldoHaver) < totalVenda) {
-      return reply.status(400).send({ erro: "Saldo de Haver insuficiente!" })
-    }
-
-    // Desconta do saldo do cliente
-    await prisma.cliente.update({
-      where: { id: Number(dados.clienteId) },
-      data: { saldoHaver: { decrement: totalVenda } }
-    })
+  // 2. Validar se a soma dos pagamentos bate com o total
+  const totalPagamentos = dados.pagamentos.reduce((acc: number, p: any) => acc + Number(p.valor), 0)
+  
+  // Aceita uma diferença de centavos (arredondamento)
+  if (Math.abs(totalVenda - totalPagamentos) > 0.05) {
+    return reply.status(400).send({ erro: `Pagamento incorreto! Total Venda: ${totalVenda.toFixed(2)}, Pago: ${totalPagamentos.toFixed(2)}` })
   }
-  // ------------------------------
 
-  // 2. Criar a Venda
+  // 3. Processar Pagamentos Especiais (Haver e Fiado)
+  for (const pgto of dados.pagamentos) {
+    // Se usar HAVER, desconta do cliente
+    if (pgto.forma === 'HAVER') {
+      if (!dados.clienteId) return reply.status(400).send({ erro: "Cliente obrigatório para usar Haver" })
+      const cliente = await prisma.cliente.findUnique({ where: { id: Number(dados.clienteId) } })
+      if (!cliente || Number(cliente.saldoHaver) < Number(pgto.valor)) {
+        return reply.status(400).send({ erro: "Saldo de Haver insuficiente!" })
+      }
+      await prisma.cliente.update({
+        where: { id: Number(dados.clienteId) },
+        data: { saldoHaver: { decrement: Number(pgto.valor) } }
+      })
+    }
+  }
+
+  // 4. Salvar a Venda
   const venda = await prisma.venda.create({
     data: {
       total: totalVenda,
       clienteId: dados.clienteId ? Number(dados.clienteId) : null,
-      formaPagamento: dados.formaPagamento,
-      itens: { create: itensParaSalvar }
+      itens: { create: itensParaSalvar },
+      pagamentos: { 
+        create: dados.pagamentos.map((p: any) => ({ forma: p.forma, valor: p.valor })) 
+      }
     }
   })
 
-  // 3. Se for FIADO (A PRAZO)
-  if (dados.formaPagamento === 'A PRAZO' && dados.clienteId) {
+  // 5. Gerar Dívida (Se houver parte FIADO)
+  const pagtoPrazo = dados.pagamentos.find((p: any) => p.forma === 'A PRAZO')
+  if (pagtoPrazo && dados.clienteId) {
     await prisma.contaReceber.create({
-      data: { valor: totalVenda, clienteId: Number(dados.clienteId), vendaId: venda.id, status: 'PENDENTE' }
+      data: { valor: pagtoPrazo.valor, clienteId: Number(dados.clienteId), vendaId: venda.id, status: 'PENDENTE' }
     })
   }
 
-  // 4. Baixar Estoque
+  // 6. Baixar Estoque
   for (const item of itensParaSalvar) {
     await prisma.produto.update({ where: { id: item.produtoId }, data: { estoque: { decrement: item.quantidade } } })
   }
@@ -180,10 +190,11 @@ app.post('/vendas', async (request, reply) => {
 app.get('/vendas', async () => {
   return await prisma.venda.findMany({
     include: { 
-      itens: { include: { produto: true } },
-      cliente: true // <--- Traz os dados do cliente
+      itens: { include: { produto: true } }, 
+      cliente: true,
+      pagamentos: true // <--- Incluir isso
     },
-    orderBy: { id: 'desc' }
+    orderBy: { data: 'desc' }
   })
 })
 
