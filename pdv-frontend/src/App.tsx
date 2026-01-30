@@ -111,14 +111,14 @@ export function App() {
   // --- CARREGAMENTO DE DADOS ---
   async function carregarDados() {
     try {
-      const resProdutos = await fetch('http://localhost:3333/produtos')
+      const resProdutos = await fetch('https://api-vila-verde.onrender.com/produtos')
       setProdutos(await resProdutos.json())
 
-      const resVendas = await fetch('http://localhost:3333/vendas')
+      const resVendas = await fetch('https://api-vila-verde.onrender.com/vendas')
       setVendasRealizadas(await resVendas.json())
 
       // Carrega Clientes Também
-      const resClientes = await fetch('http://localhost:3333/clientes')
+      const resClientes = await fetch('https://api-vila-verde.onrender.com/clientes')
       setClientes(await resClientes.json())
 
     } catch (erro) {
@@ -139,7 +139,7 @@ export function App() {
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault()
     try {
-      const res = await fetch('http://localhost:3333/clientes', {
+      const res = await fetch('https://api-vila-verde.onrender.com/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formCliente)
@@ -157,7 +157,7 @@ export function App() {
   async function excluirCliente(id: number) {
     if(!confirm("Tem certeza que deseja excluir este cliente?")) return
     try {
-      await fetch(`http://localhost:3333/clientes/${id}`, { method: 'DELETE' })
+      await fetch(`https://api-vila-verde.onrender.com/clientes/${id}`, { method: 'DELETE' })
       carregarDados()
       alert("Cliente removido.")
     } catch (error) { alert("Erro ao excluir") }
@@ -183,7 +183,7 @@ export function App() {
     const total = carrinho.reduce((acc, item) => acc + (Number(item.produto.precoVenda) * item.quantidade), 0)
     
     try {
-      const res = await fetch('http://localhost:3333/vendas', {
+      const res = await fetch('https://api-vila-verde.onrender.com/vendas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -272,8 +272,8 @@ export function App() {
     }
 
     const url = produtoEmEdicao 
-      ? `http://localhost:3333/produtos/${produtoEmEdicao.id}` 
-      : 'http://localhost:3333/produtos' 
+      ? `https://api-vila-verde.onrender.com/produtos/${produtoEmEdicao.id}` 
+      : 'https://api-vila-verde.onrender.com/produtos' 
     
     const metodo = produtoEmEdicao ? 'PUT' : 'POST'
 
@@ -296,7 +296,7 @@ export function App() {
   async function excluirProduto(id: number) {
     if(!confirm("Tem certeza que deseja excluir este produto?")) return
     try {
-      const res = await fetch(`http://localhost:3333/produtos/${id}`, { method: 'DELETE' })
+      const res = await fetch(`https://api-vila-verde.onrender.com/produtos/${id}`, { method: 'DELETE' })
       if (res.ok) {
         alert("Produto excluído.")
         carregarDados()
