@@ -275,6 +275,52 @@ app.get('/clientes/:id/vendas', async (request, reply) => {
   return reply.send(vendas)
 })
 
+// --- ORÇAMENTOS: CRIAR ---
+app.post('/orcamentos', async (request, reply) => {
+  const dados = request.body as any
+  
+  let total = 0
+  const itensParaSalvar = []
+
+  // Calcula total (sem mexer em estoque)
+  for (const item of dados.itens) {
+    const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } })
+    if (!produto) return reply.status(400).send({ erro: "Produto não existe" })
+    
+    total += Number(produto.precoVenda) * item.quantidade
+    itensParaSalvar.push({
+      produtoId: item.produtoId,
+      quantidade: item.quantidade,
+      precoUnit: produto.precoVenda
+    })
+  }
+
+  const orcamento = await prisma.orcamento.create({
+    data: {
+      total: total,
+      clienteId: dados.clienteId ? Number(dados.clienteId) : null,
+      itens: { create: itensParaSalvar }
+    }
+  })
+
+  return reply.status(201).send(orcamento)
+})
+
+// --- ORÇAMENTOS: LISTAR ---
+app.get('/orcamentos', async () => {
+  return await prisma.orcamento.findMany({
+    include: { itens: { include: { produto: true } }, cliente: true },
+    orderBy: { data: 'desc' }
+  })
+})
+
+// --- ORÇAMENTOS: EXCLUIR ---
+app.delete('/orcamentos/:id', async (request, reply) => {
+  const { id } = request.params as any
+  await prisma.orcamento.delete({ where: { id: Number(id) } })
+  return reply.send({ message: "Orçamento excluído" })
+})
+
 const start = async () => {
   try {
     await app.listen({ 

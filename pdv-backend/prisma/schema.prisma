@@ -81,8 +81,6 @@ model Produto {
   cfop        String?
   itens       ItemVenda[]
   itensOrcamento ItemOrcamento[]
-
-  @@map("produtos")
 }
 
 // --- NOVO MODELO: CONTAS A RECEBER ---
