@@ -12,11 +12,15 @@ model Venda {
   data      DateTime @default(now())
   total     Decimal
   
-  clienteId Int?     // <--- NOVO: ID do cliente (pode ser nulo/vazio)
-  cliente   Cliente? @relation(fields: [clienteId], references: [id]) // <--- A Conexão
+  // NOVO: Forma de Pagamento (Dinheiro, Pix, Fiado...)
+  formaPagamento String @default("DINHEIRO") 
+
+  clienteId Int?     
+  cliente   Cliente? @relation(fields: [clienteId], references: [id])
 
   itens     ItemVenda[]
-
+  
+  contaReceber ContaReceber? // <--- NOVO: Venda pode gerar uma dívida
   @@map("vendas")
 }
 
@@ -42,7 +46,8 @@ model Cliente {
   endereco  String?
   criadoEm  DateTime @default(now())
 
-  vendas    Venda[]  // <--- NOVO: O cliente tem várias vendas
+  vendas    Venda[]
+  contas    ContaReceber[] // <--- NOVO: Cliente tem contas a pagar
   @@map("clientes")
 }
 
@@ -73,4 +78,20 @@ model Produto {
   cest        String?
   cfop        String?
   itens       ItemVenda[]
+}
+
+// --- NOVO MODELO: CONTAS A RECEBER ---
+model ContaReceber {
+  id        Int      @id @default(autoincrement())
+  valor     Decimal
+  status    String   @default("PENDENTE") // PENDENTE ou PAGO
+  data      DateTime @default(now())
+  
+  clienteId Int
+  cliente   Cliente  @relation(fields: [clienteId], references: [id])
+  
+  vendaId   Int      @unique
+  venda     Venda    @relation(fields: [vendaId], references: [id])
+
+  @@map("contas_receber")
 }

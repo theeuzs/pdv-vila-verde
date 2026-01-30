@@ -116,9 +116,10 @@ app.delete('/produtos/:id', async (request, reply) => {
 
 // --- ROTAS DE VENDAS ---
 
-// NOVA VENDA (Agora aceita o clienteId)
+// NOVA VENDA (Agora com Financeiro)
 app.post('/vendas', async (request, reply) => {
-  const dados = request.body as any // { itens: [...], clienteId: 12 }
+  const dados = request.body as any 
+  // Espera: { itens: [], clienteId: 1, formaPagamento: 'DINHEIRO' ou 'A PRAZO' }
 
   let totalVenda = 0
   const itensParaSalvar = []
@@ -126,8 +127,9 @@ app.post('/vendas', async (request, reply) => {
   // 1. Calcular total e verificar estoque
   for (const item of dados.itens) {
     const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } })
-    
     if (!produto) return reply.status(400).send({ erro: "Produto não existe" })
+    
+    // Opcional: Bloquear venda se não tiver estoque (comente se quiser vender negativo)
     if (Number(produto.estoque) < item.quantidade) return reply.status(400).send({ erro: `Sem estoque para ${produto.nome}` })
 
     const totalItem = Number(produto.precoVenda) * item.quantidade
@@ -140,19 +142,29 @@ app.post('/vendas', async (request, reply) => {
     })
   }
 
-  // 2. Criar a Venda com o Cliente
+  // 2. Criar a Venda
   const venda = await prisma.venda.create({
     data: {
       total: totalVenda,
-      clienteId: dados.clienteId ? Number(dados.clienteId) : null, // <--- AQUI ESTÁ O SEGREDO!
-      itens: {
-        create: itensParaSalvar
-      }
-    },
-    include: { cliente: true } // Retorna o cliente na resposta
+      clienteId: dados.clienteId ? Number(dados.clienteId) : null,
+      formaPagamento: dados.formaPagamento || 'DINHEIRO', // Salva como pagou
+      itens: { create: itensParaSalvar }
+    }
   })
 
-  // 3. Baixar Estoque
+  // 3. Se for FIADO (A PRAZO), gera a Conta a Receber
+  if (dados.formaPagamento === 'A PRAZO' && dados.clienteId) {
+    await prisma.contaReceber.create({
+      data: {
+        valor: totalVenda,
+        clienteId: Number(dados.clienteId),
+        vendaId: venda.id,
+        status: 'PENDENTE'
+      }
+    })
+  }
+
+  // 4. Baixar Estoque
   for (const item of itensParaSalvar) {
     await prisma.produto.update({
       where: { id: item.produtoId },
@@ -162,6 +174,7 @@ app.post('/vendas', async (request, reply) => {
 
   return reply.status(201).send(venda)
 })
+
 // LISTAR VENDAS (Agora traz o cliente junto)
 app.get('/vendas', async () => {
   return await prisma.venda.findMany({
@@ -262,3 +275,24 @@ const start = async () => {
   }
 }
 start()
+
+// --- FINANCEIRO: LISTAR DÍVIDAS ---
+app.get('/contas-receber', async () => {
+  return await prisma.contaReceber.findMany({
+    where: { status: 'PENDENTE' }, // Só traz quem deve
+    include: { cliente: true, venda: true },
+    orderBy: { data: 'asc' } // As mais antigas primeiro
+  })
+})
+
+// --- FINANCEIRO: RECEBER (BAIXAR CONTA) ---
+app.put('/contas-receber/:id/pagar', async (request, reply) => {
+  const { id } = request.params as any
+  
+  await prisma.contaReceber.update({
+    where: { id: Number(id) },
+    data: { status: 'PAGO' }
+  })
+  
+  return reply.send({ message: "Conta recebida com sucesso!" })
+})
