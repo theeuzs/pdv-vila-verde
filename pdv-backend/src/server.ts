@@ -93,6 +93,42 @@ app.delete('/produtos/:id', async (request, reply) => {
   }
 })
 
+// --- ATUALIZAR PRODUTO (PUT) ---
+app.put('/produtos/:id', async (request, reply) => {
+  const { id } = request.params as { id: string }
+  const dados = request.body as any
+
+  try {
+    const produtoAtualizado = await prisma.produto.update({
+      where: { id: Number(id) },
+      data: {
+        // Atualiza todos os campos que vierem do formulário
+        nome: dados.nome,
+        codigoBarra: dados.codigoBarra,
+        precoCusto: dados.precoCusto,
+        precoVenda: dados.precoVenda,
+        estoque: dados.estoque,
+        unidade: dados.unidade,
+        categoria: dados.categoria,
+
+        // Campos Fiscais/Extras
+        fornecedor: dados.fornecedor,
+        localizacao: dados.localizacao,
+        frete: dados.frete,
+        ipi: dados.ipi,
+        icms: dados.icms,
+        ncm: dados.ncm,
+        cest: dados.cest,
+        cfop: dados.cfop
+      }
+    })
+    return reply.send(produtoAtualizado)
+  } catch (error) {
+    console.error(error)
+    return reply.status(500).send({ error: "Erro ao atualizar produto no banco." })
+  }
+})
+
 // --- VENDAS ---
 app.post('/vendas', async (request, reply) => {
   const dados = request.body as any;
