@@ -310,41 +310,51 @@ export function App() {
   }
 
   async function finalizarVenda() {
-    if (carrinho.length === 0) return
-    
-    // Verifica se pagou tudo
-    if (Math.abs(faltaPagar) > 0.05) {
-      return alert(`Ainda falta pagar R$ ${faltaPagar.toFixed(2)}!`)
-    }
+  if (carrinho.length === 0) return alert("Carrinho vazio!");
+  
+  // 1. Alterado de 'pagamentos' para 'listaPagamentos' conforme seu arquivo
+  const totalPago = listaPagamentos.reduce((acc: number, p: any) => acc + Number(p.valor), 0);
+  const totalVenda = carrinho.reduce((acc: number, item: any) => acc + (item.quantidade * Number(item.produto.precoVenda)), 0);
 
-    try {
-      const res = await fetch(`${API_URL}/vendas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          itens: carrinho.map(i => ({ produtoId: i.produto.id, quantidade: i.quantidade })), 
-          clienteId: clienteSelecionado || null, 
-          pagamentos: listaPagamentos 
-        })
-      })
-
-      if (res.ok) {
-        const v = await res.json()
-        reimprimirVenda(v) // Imprime o cupom
-        
-        setCarrinho([])
-        setClienteSelecionado('')
-        setListaPagamentos([])
-        alert("Venda realizada com sucesso!")
-        carregarDados()
-      } else {
-        alert("Erro ao realizar venda")
-      }
-    } catch (e) {
-      alert("Erro de Conexão")
-    }
+  if (Math.abs(totalVenda - totalPago) > 0.05) {
+    return alert("O valor total pago não bate com o total da venda!");
   }
 
+  const dadosVenda = {
+    clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
+    itens: carrinho.map((item: any) => ({
+      produtoId: item.produto.id,
+      quantidade: item.quantidade
+    })),
+    // 2. Usando 'listaPagamentos' aqui também
+    pagamentos: listaPagamentos.map((p: any) => ({
+      forma: p.forma,
+      valor: Number(p.valor)
+    }))
+  };
+
+  try {
+    const res = await fetch(`${API_URL}/vendas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dadosVenda)
+    });
+
+    if (res.ok) {
+      alert("Venda realizada com sucesso!");
+      setCarrinho([]);
+      // 3. O VS Code confirmou que o nome correto é 'setListaPagamentos'
+      setListaPagamentos([]); 
+      setClienteSelecionado("");
+      carregarDados(); 
+    } else {
+      const erro = await res.json();
+      alert(`Erro: ${erro.erro || "Verifique o estoque ou pagamentos"}`);
+    }
+  } catch (error) {
+    alert("Erro de Conexão. Verifique se o Render está online.");
+  }
+}
   // ==========================================================================
   // 7. FUNÇÕES DE IMPRESSÃO
   // ==========================================================================
