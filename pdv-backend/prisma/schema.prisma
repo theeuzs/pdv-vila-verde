@@ -49,6 +49,7 @@ model Cliente {
 
   vendas    Venda[]
   contas    ContaReceber[] // <--- NOVO: Cliente tem contas a pagar
+  orcamentos Orcamento[]
   @@map("clientes")
 }
 
@@ -79,6 +80,9 @@ model Produto {
   cest        String?
   cfop        String?
   itens       ItemVenda[]
+  itensOrcamento ItemOrcamento[]
+
+  @@map("produtos")
 }
 
 // --- NOVO MODELO: CONTAS A RECEBER ---
@@ -107,4 +111,31 @@ model Pagamento {
   venda     Venda    @relation(fields: [vendaId], references: [id])
 
   @@map("pagamentos")
+}
+
+// --- NOVO: ORÇAMENTOS ---
+model Orcamento {
+  id        Int      @id @default(autoincrement())
+  data      DateTime @default(now())
+  total     Decimal
+  
+  clienteId Int?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id])
+
+  itens     ItemOrcamento[]
+  @@map("orcamentos")
+}
+
+model ItemOrcamento {
+  id          Int       @id @default(autoincrement())
+  quantidade  Decimal
+  precoUnit   Decimal
+  
+  orcamentoId Int
+  orcamento   Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  
+  produtoId   Int
+  produto     Produto   @relation(fields: [produtoId], references: [id])
+
+  @@map("itens_orcamento")
 }
