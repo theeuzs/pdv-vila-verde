@@ -123,6 +123,49 @@ const API_URL = 'https://api-vila-verde.onrender.com'
 
 export function App() {
   
+// --- ESTADOS DO CAIXA (Cole logo no início da função App) ---
+  const [caixaAberto, setCaixaAberto] = useState<any>(null);
+  const [modalAbrirCaixa, setModalAbrirCaixa] = useState(false);
+  const [valorAbertura, setValorAbertura] = useState("");
+
+  // --- FUNÇÃO 1: Verificar se o caixa está aberto ---
+  async function verificarStatusCaixa() {
+    try {
+      const res = await fetch(`${API_URL}/caixa/status`);
+      const dados = await res.json();
+      if (dados.status === 'ABERTO') {
+        setCaixaAberto(dados);
+      } else {
+        setCaixaAberto(null);
+      }
+    } catch (error) {
+      console.error("Erro ao verificar caixa:", error);
+    }
+  }
+
+  // --- FUNÇÃO 2: Abrir o Caixa ---
+  async function abrirCaixa() {
+    if (!valorAbertura) return alert("Digite o valor de troco inicial!");
+
+    try {
+      const res = await fetch(`${API_URL}/caixa/abrir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ saldoInicial: Number(valorAbertura.replace(',', '.')) })
+      });
+
+      if (res.ok) {
+        alert("Caixa ABERTO com sucesso! Boas vendas. 🚀");
+        setModalAbrirCaixa(false);
+        verificarStatusCaixa(); // Atualiza a barra para Verde
+      } else {
+        alert("Erro ao abrir caixa.");
+      }
+    } catch (error) {
+      alert("Erro de conexão.");
+    }
+  }
+
   // ==========================================================================
   // 3. ESTADOS (STATES)
   // ==========================================================================
@@ -220,8 +263,9 @@ export function App() {
   }
 
   useEffect(() => {
-    if (usuario) carregarDados()
-  }, [usuario])
+    carregarDados(); 
+    verificarStatusCaixa(); // <--- SEM ISSO A BARRA NÃO APARECE
+  }, []);
 
   // ==========================================================================
   // 5. FUNÇÕES DE ORÇAMENTO
@@ -569,6 +613,83 @@ async function cancelarVenda(id: number) {
   return (
     <div style={{ fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
+{/* --- INÍCIO DA BARRA DE CAIXA --- */}
+      <div style={{ 
+        padding: '15px 20px', 
+        backgroundColor: caixaAberto ? '#d4edda' : '#f8d7da', // Verde ou Vermelho
+        color: caixaAberto ? '#155724' : '#721c24',
+        borderBottom: '1px solid #ccc',
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        marginBottom: 20
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: '1.5rem' }}>{caixaAberto ? '✅' : '🔒'}</span>
+          <div>
+            <strong>STATUS DO CAIXA:</strong> {caixaAberto ? 'ABERTO' : 'FECHADO'}
+            {caixaAberto && (
+              <div style={{ fontSize: '0.85rem' }}>
+                Aberto às: {new Date(caixaAberto.dataAbertura).toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {!caixaAberto ? (
+          <button 
+            onClick={() => setModalAbrirCaixa(true)}
+            style={{ 
+              padding: '10px 20px', 
+              background: '#c53030', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: 5, 
+              cursor: 'pointer', 
+              fontWeight: 'bold',
+              fontSize: '1rem'
+            }}
+          >
+            ABRIR CAIXA AGORA
+          </button>
+        ) : (
+           <div style={{ background: 'white', padding: '5px 10px', borderRadius: 5, border: '1px solid #c3e6cb' }}>
+              <strong>Fundo de Troco:</strong> R$ {Number(caixaAberto.saldoInicial).toFixed(2)}
+           </div>
+        )}
+      </div>
+
+      {/* --- MODAL (JANELINHA) PARA ABRIR O CAIXA --- */}
+      {modalAbrirCaixa && (
+        <div style={{ 
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+          background: 'rgba(0,0,0,0.6)', zIndex: 9999,
+          display: 'flex', justifyContent: 'center', alignItems: 'center' 
+        }}>
+          <div style={{ background: 'white', padding: 30, borderRadius: 10, width: 350, boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+            <h2 style={{ marginTop: 0, color: '#2d3748' }}>Abrir o Caixa 💰</h2>
+            <p style={{ color: '#718096' }}>Quanto de dinheiro (troco) tem na gaveta agora?</p>
+            
+            <input 
+              type="text" 
+              placeholder="Ex: 100,00"
+              value={valorAbertura}
+              onChange={(e) => setValorAbertura(e.target.value)}
+              style={{ width: '100%', padding: 12, marginBottom: 15, fontSize: '1.2rem', border: '1px solid #cbd5e0', borderRadius: 5 }}
+            />
+            
+            <button onClick={abrirCaixa} style={{ width: '100%', padding: 12, background: '#48bb78', color: 'white', border: 'none', borderRadius: 5, fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold' }}>
+              CONFIRMAR ABERTURA
+            </button>
+            
+            <button onClick={() => setModalAbrirCaixa(false)} style={{ width: '100%', marginTop: 10, background: 'transparent', border: 'none', color: '#718096', cursor: 'pointer' }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+      {/* --- FIM DA BARRA DE CAIXA --- */}
+
       {/* --- HEADER --- */}
       <div style={{ backgroundColor: '#1a202c', color: 'white', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
         <h2 style={{ margin: 0 }}>🏗️ PDV Vila Verde</h2>
