@@ -133,6 +133,8 @@ export function App() {
     return salvo ? JSON.parse(salvo) : null
   })
 
+  
+
   // Navegação entre Abas
   const [aba, setAba] = useState<'caixa' | 'historico' | 'clientes' | 'financeiro' | 'orcamentos'>('caixa')
 
@@ -154,6 +156,13 @@ export function App() {
   const [listaPagamentos, setListaPagamentos] = useState<PagamentoVenda[]>([])
   const [valorPagamentoInput, setValorPagamentoInput] = useState('')
   const [formaPagamentoInput, setFormaPagamentoInput] = useState('DINHEIRO')
+  // MONITOR DE LIMPEZA: Se o carrinho esvaziar, zera o financeiro
+  useEffect(() => {
+    if (carrinho.length === 0) {
+      setTroco(0);            // Zera o troco visual
+      setListaPagamentos([]); // Remove pagamentos antigos para não dar erro na próxima venda
+    }
+  }, [carrinho]); // Esse comando roda toda vez que o "carrinho" mudar
 
   // Controle dos Modais (Janelas)
   const [modalAberto, setModalAberto] = useState(false)

@@ -137,3 +137,27 @@ model ItemOrcamento {
 
   @@map("itens_orcamento")
 }
+// --- CONTROLE DE CAIXA ---
+
+model Caixa {
+  id            Int       @id @default(autoincrement())
+  dataAbertura  DateTime  @default(now())
+  dataFechamento DateTime? // Pode ser nulo se o caixa ainda estiver aberto
+  saldoInicial  Decimal   @db.Decimal(10, 2)
+  saldoFinal    Decimal?  @db.Decimal(10, 2)
+  status        String    @default("ABERTO") // "ABERTO" ou "FECHADO"
+  observacoes   String?
+  
+  movimentacoes MovimentacaoCaixa[]
+}
+
+model MovimentacaoCaixa {
+  id          Int      @id @default(autoincrement())
+  data        DateTime @default(now())
+  tipo        String   // "VENDA", "SANGRIA", "SUPRIMENTO", "ABERTURA"
+  valor       Decimal  @db.Decimal(10, 2)
+  descricao   String?
+  
+  caixa       Caixa    @relation(fields: [caixaId], references: [id])
+  caixaId     Int
+}
