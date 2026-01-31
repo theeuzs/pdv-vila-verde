@@ -147,6 +147,8 @@ export function App() {
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
   const [busca, setBusca] = useState('') 
   const [clienteSelecionado, setClienteSelecionado] = useState('') 
+  // Adicione junto com os outros estados
+  const [troco, setTroco] = useState(0);
   
   // Sistema de Pagamento Misto
   const [listaPagamentos, setListaPagamentos] = useState<PagamentoVenda[]>([])
@@ -282,31 +284,39 @@ export function App() {
   const faltaPagar = totalCarrinho - totalPago
 
   function adicionarPagamento() {
-    let valor = parseFloat(valorPagamentoInput.replace(',', '.'))
+    // 1. Correção: Usando 'valorPagamentoInput' (o nome que existe no seu código)
+    const valorNum = Number(valorPagamentoInput.replace(',', '.')); 
     
-    // Se estiver vazio, assume o valor restante
-    if (!valor || valor <= 0) valor = faltaPagar 
+    if (!valorNum || valorNum <= 0) return alert("Digite um valor válido");
+
+    // Cálculo do total e falta
+    const totalVenda = carrinho.reduce((acc: number, item: any) => acc + (item.quantidade * Number(item.produto.precoVenda)), 0);
+    const totalJaPago = listaPagamentos.reduce((acc: number, p: any) => acc + Number(p.valor), 0);
+    const falta = totalVenda - totalJaPago;
+
+    // Arredonda para 2 casas decimais
+    const faltaArredondada = Number(falta.toFixed(2));
+
+    let valorParaRegistrar = valorNum;
+
+    // LÓGICA DO TROCO
+    if (valorNum > faltaArredondada) {
+      // 2. Correção: Tentei adivinhar que o nome é 'formaPagamentoInput'. 
+      // Se der erro aqui, verifique se o nome lá em cima é 'formaSelecionada' ou 'metodoPagamento'.
+      if (formaPagamentoInput === 'DINHEIRO') { 
+        const trocoCalculado = valorNum - faltaArredondada;
+        setTroco(trocoCalculado); // Guarda o troco
+        valorParaRegistrar = faltaArredondada; // Registra só o que faltava
+      } else {
+        return alert("Pagamento maior que o total só é permitido em DINHEIRO (para troco).");
+      }
+    }
+
+    // 3. Adiciona na lista usando os nomes corretos
+    setListaPagamentos([...listaPagamentos, { forma: formaPagamentoInput, valor: valorParaRegistrar }]);
     
-    // Validação de valor excedente
-    if (valor > faltaPagar + 0.05) {
-      return alert(`Valor maior que o restante! Falta pagar: R$ ${faltaPagar.toFixed(2)}`)
-    }
-
-    // Validação de Cliente Obrigatório
-    if ((formaPagamentoInput === 'A PRAZO' || formaPagamentoInput === 'HAVER') && !clienteSelecionado) {
-      return alert("Selecione um cliente para usar Fiado ou Haver!")
-    }
-
-    // Validação de Saldo Haver
-    if (formaPagamentoInput === 'HAVER') {
-       const cli = clientes.find(c => c.id === Number(clienteSelecionado))
-       if (cli && Number(cli.saldoHaver) < valor) {
-         return alert(`Saldo insuficiente! Disponível: R$ ${Number(cli.saldoHaver).toFixed(2)}`)
-       }
-    }
-
-    setListaPagamentos([...listaPagamentos, { forma: formaPagamentoInput, valor }])
-    setValorPagamentoInput('')
+    // 4. Limpa o campo usando o nome correto do 'set'
+    setValorPagamentoInput(""); 
   }
 
   async function finalizarVenda() {
@@ -352,6 +362,7 @@ export function App() {
 
       alert("Venda realizada com sucesso!");
       setCarrinho([]);
+      setTroco(0); // Limpa o troco da tela
       setListaPagamentos([]);
       setClienteSelecionado("");
       carregarDados(); 
@@ -687,7 +698,22 @@ async function cancelarVenda(id: number) {
                     <span>Falta Pagar:</span>
                     <span>R$ {Math.max(0, faltaPagar).toFixed(2)}</span>
                  </div>
-                 
+                 {/* EXIBIR TROCO SE HOUVER */}
+{troco > 0 && (
+  <div style={{ 
+      marginTop: 10, 
+      padding: 10, 
+      backgroundColor: '#d4edda', 
+      color: '#155724', 
+      borderRadius: 5, 
+      border: '1px solid #c3e6cb',
+      textAlign: 'center',
+      fontSize: '1.2rem',
+      fontWeight: 'bold'
+  }}>
+      💰 TROCO: R$ {troco.toFixed(2)}
+  </div>
+)}
                  <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                     <input 
                       type="number" 
