@@ -619,6 +619,23 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// --- ROTA DE EMERGÊNCIA (CORRIGIDA) ---
+app.get('/criar-chefe', async (req, res) => {
+  try {
+    await prisma.user.create({
+      data: {
+        nome: "Matheus",
+        senha: "admin",
+        cargo: "GERENTE",
+        email: "admin@vilaverde.com" // <--- O INGRESSO QUE FALTAVA! 📧
+      }
+    });
+    return res.send("✅ Chefe Matheus criado com sucesso!");
+  } catch (error) {
+    return res.send("Erro: Talvez o usuário já exista.");
+  }
+});
+
 // --- INICIALIZAÇÃO ---
 const start = async () => {
   try {
