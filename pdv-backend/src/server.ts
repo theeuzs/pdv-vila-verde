@@ -619,16 +619,24 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// --- ROTA DE EMERGÊNCIA (CORRIGIDA) ---
-// --- ROTA DE RESET (Apaga o velho e cria o novo) ---
+// --- ROTA DE RESET BLINDADA (Apaga pelo EMAIL) ---
 app.get('/resetar-chefe', async (req, res) => {
   try {
-    // 1. Primeiro, apaga qualquer Matheus que existir
+    // 1. Apaga QUALQUER usuário que esteja usando esse e-mail
     await prisma.user.deleteMany({
-      where: { nome: "Matheus" }
+      where: { 
+        email: "admin@vilaverde.com" 
+      }
     });
 
-    // 2. Agora cria um novinho, garantido
+    // 2. Apaga também pelo nome para garantir (faxina completa)
+    await prisma.user.deleteMany({
+      where: { 
+        nome: "Matheus" 
+      }
+    });
+
+    // 3. Agora cria o chefe novinho
     await prisma.user.create({
       data: {
         nome: "Matheus",
@@ -638,9 +646,8 @@ app.get('/resetar-chefe', async (req, res) => {
       }
     });
     
-    return res.send("♻️ Chefe Matheus foi RESETADO e recriado com sucesso! Tente logar.");
+    return res.send("♻️ SUCESSO! O usuário antigo foi removido e o novo foi criado. Pode logar!");
   } catch (error: any) {
-    // Agora mostramos o erro real se der ruim
     return res.send("Erro fatal: " + error.message);
   }
 });
