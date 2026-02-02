@@ -830,6 +830,7 @@ async function cancelarVenda(id: number) {
     <div style={{ fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
 {/* --- INÍCIO DA BARRA DE CAIXA --- */}
+{usuarioLogado === 'admin' && (
       <div style={{ 
         padding: '15px 20px', 
         backgroundColor: caixaAberto ? '#d4edda' : '#f8d7da', // Verde ou Vermelho
@@ -904,7 +905,7 @@ async function cancelarVenda(id: number) {
           )}
       
       </div>
-
+)}
       {/* --- MODAL (JANELINHA) PARA ABRIR O CAIXA --- */}
       {modalAbrirCaixa && (
         <div style={{ 
@@ -1390,7 +1391,7 @@ async function cancelarVenda(id: number) {
         )}
 
         {/* === ABA: HISTÓRICO === */}
-        {aba === 'historico' && (
+        {aba === 'vendas' && (
           <div style={{ background: 'white', borderRadius: 12, padding: 30, height: '100%', overflowY: 'auto' }}>
             <h2>📜 Histórico de Vendas</h2>
             <table style={{width:'100%', borderCollapse:'collapse'}}>
