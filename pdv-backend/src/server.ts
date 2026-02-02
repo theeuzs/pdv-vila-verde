@@ -511,6 +511,64 @@ app.post('/caixa/movimentar', async (req, reply) => {
   return reply.send(movimento)
 })
 
+// --- ROTA DO DASHBOARD (ESTATÍSTICAS) ---
+app.get('/dashboard', async () => {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0); // Zera a hora para pegar desde o início do dia
+  
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+  // Busca todas as vendas do mês atual
+  const vendas = await prisma.venda.findMany({
+    where: { data: { gte: inicioMes } },
+    include: { pagamentos: true, itens: { include: { produto: true } } }
+  });
+
+  // Variáveis para somar
+  let totalHoje = 0;
+  let totalMes = 0;
+  const porPagamento: any = {};
+  const topProdutos: any = {};
+
+  vendas.forEach(venda => {
+    const valor = Number(venda.total);
+    const dataVenda = new Date(venda.data);
+
+    // Soma Total do Mês
+    totalMes += valor;
+
+    // Soma Total de Hoje
+    if (dataVenda >= hoje) {
+      totalHoje += valor;
+    }
+
+    // Soma por Forma de Pagamento (PIX, DINHEIRO, ETC)
+    venda.pagamentos.forEach(p => {
+      const forma = p.forma || 'OUTROS';
+      porPagamento[forma] = (porPagamento[forma] || 0) + Number(p.valor);
+    });
+
+    // Contagem de Produtos Mais Vendidos
+    venda.itens.forEach(item => {
+      const nome = item.produto?.nome || 'Item Excluído';
+      topProdutos[nome] = (topProdutos[nome] || 0) + item.quantidade;
+    });
+  });
+
+  // Organiza o TOP 5 Produtos
+  const listaProdutos = Object.entries(topProdutos)
+    .sort((a: any, b: any) => b[1] - a[1]) // Ordena do maior para o menor
+    .slice(0, 5) // Pega só os 5 primeiros
+    .map(([nome, qtd]) => ({ nome, qtd }));
+
+  return {
+    totalHoje,
+    totalMes,
+    porPagamento,
+    topProdutos: listaProdutos
+  };
+});
+
 // --- INICIALIZAÇÃO ---
 const start = async () => {
   try {

@@ -127,6 +127,7 @@ export function App() {
   const [caixaAberto, setCaixaAberto] = useState<any>(null);
   const [modalAbrirCaixa, setModalAbrirCaixa] = useState(false);
   const [valorAbertura, setValorAbertura] = useState("");
+  const [dashboard, setDashboard] = useState<any>(null);
 
   // --- FUNÇÃO 1: Verificar se o caixa está aberto ---
   async function verificarStatusCaixa() {
@@ -196,7 +197,7 @@ export function App() {
   
 
   // Navegação entre Abas
-  const [aba, setAba] = useState<'caixa' | 'historico' | 'clientes' | 'financeiro' | 'orcamentos'>('caixa')
+  const [aba, setAba] = useState<string>('caixa');
 
   // Listas de Dados
   const [produtos, setProdutos] = useState<Produto[]>([])
@@ -259,6 +260,23 @@ export function App() {
     localStorage.removeItem('usuario_vila_verde')
     window.location.reload()
   }
+
+async function carregarDashboard() {
+    try {
+      const res = await fetch(`${API_URL}/dashboard`);
+      const dados = await res.json();
+      setDashboard(dados);
+    } catch (error) {
+      console.error("Erro ao carregar dashboard", error);
+    }
+  }
+
+  // E adicione isso dentro do useEffect inicial (aquele lá da linha 130+-)
+  useEffect(() => {
+    carregarDados();
+    carregarDashboard(); // <--- ADICIONE AQUI
+    verificarStatusCaixa();
+  }, []);
 
   async function carregarDados() {
     try {
@@ -888,6 +906,11 @@ async function cancelarVenda(id: number) {
         <button onClick={() => setAba('financeiro')} style={{ padding: '20px 25px', background: 'none', border: 'none', borderBottom: aba === 'financeiro' ? '4px solid #3182ce' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: aba === 'financeiro' ? '#2b6cb0' : '#718096', cursor: 'pointer' }}>💲 FINANCEIRO</button>
         <button onClick={() => setAba('historico')} style={{ padding: '20px 25px', background: 'none', border: 'none', borderBottom: aba === 'historico' ? '4px solid #3182ce' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: aba === 'historico' ? '#2b6cb0' : '#718096', cursor: 'pointer' }}>📜 VENDAS</button>
         <button onClick={() => setAba('orcamentos')} style={{ padding: '20px 25px', background: 'none', border: 'none', borderBottom: aba === 'orcamentos' ? '4px solid #3182ce' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: aba === 'orcamentos' ? '#2b6cb0' : '#718096', cursor: 'pointer' }}>📝 ORÇAMENTOS</button>
+        <button onClick={() => { setAba('dashboard'); carregarDashboard(); }} 
+  style={{ padding: '10px', background: aba === 'dashboard' ? '#2c5282' : '#4299e1', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold' }}
+>
+  📊 DASHBOARD
+</button>
       </div>
 
       {/* --- CONTEÚDO PRINCIPAL --- */}
@@ -1236,6 +1259,67 @@ async function cancelarVenda(id: number) {
           </div>
         )}
       </div>
+
+      {/* === ABA DASHBOARD (PAINEL DO CHEFE) === */}
+        {aba === 'dashboard' && dashboard && (
+          <div style={{ padding: 20 }}>
+            <h2>📊 Visão Geral do Negócio</h2>
+            
+            {/* CARDS DE FATURAMENTO */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 30 }}>
+              
+              <div style={{ background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)', padding: 20, borderRadius: 10, color: 'white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: 14, opacity: 0.9 }}>VENDAS HOJE</div>
+                <div style={{ fontSize: 32, fontWeight: 'bold' }}>R$ {dashboard.totalHoje.toFixed(2)}</div>
+              </div>
+
+              <div style={{ background: 'linear-gradient(135deg, #4299e1 0%, #3182ce 100%)', padding: 20, borderRadius: 10, color: 'white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: 14, opacity: 0.9 }}>ACUMULADO DO MÊS</div>
+                <div style={{ fontSize: 32, fontWeight: 'bold' }}>R$ {dashboard.totalMes.toFixed(2)}</div>
+              </div>
+
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              
+              {/* TOP 5 PRODUTOS */}
+              <div style={{ background: 'white', padding: 20, borderRadius: 10, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                <h3 style={{ borderBottom: '1px solid #eee', paddingBottom: 10 }}>🏆 Top 5 Produtos</h3>
+                <ul style={{ listStyle: 'none', padding: 0 }}>
+                  {dashboard.topProdutos.map((p: any, i: number) => (
+                    <li key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px dashed #eee' }}>
+                      <span>{i+1}. {p.nome}</span>
+                      <strong>{p.qtd} un</strong>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* FORMAS DE PAGAMENTO */}
+              <div style={{ background: 'white', padding: 20, borderRadius: 10, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                <h3 style={{ borderBottom: '1px solid #eee', paddingBottom: 10 }}>💰 Formas de Pagamento (Mês)</h3>
+                {Object.entries(dashboard.porPagamento).map(([forma, valor]: any) => (
+                  <div key={forma} style={{ marginBottom: 15 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 5 }}>
+                      <span>{forma}</span>
+                      <strong>R$ {Number(valor).toFixed(2)}</strong>
+                    </div>
+                    {/* Barrinha colorida simples */}
+                    <div style={{ width: '100%', background: '#edf2f7', height: 10, borderRadius: 5 }}>
+                      <div style={{ 
+                        width: `${(valor / dashboard.totalMes) * 100}%`, 
+                        background: forma === 'PIX' ? '#38a169' : forma === 'DINHEIRO' ? '#d69e2e' : '#3182ce',
+                        height: '100%', 
+                        borderRadius: 5 
+                      }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          </div>
+        )}
 
       {/* =====================================================================
           MODAIS (JANELAS FLUTUANTES)
