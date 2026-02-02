@@ -48,7 +48,8 @@ model Cliente {
   celular   String?
   endereco  String?
   criadoEm  DateTime @default(now())
-  saldoHaver Decimal @default(0)
+  saldoHaver   Decimal @default(0) @db.Decimal(10, 2)
+  saldoDevedor Decimal @default(0) @db.Decimal(10, 2)
 
   vendas    Venda[]
   contas    ContaReceber[] // <--- NOVO: Cliente tem contas a pagar

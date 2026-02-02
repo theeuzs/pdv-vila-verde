@@ -177,33 +177,59 @@ app.post('/vendas', async (request, reply) => {
   })
 
   // 5. FINANCEIRO: SEPARA O QUE É CAIXA E O QUE É FIADO
-  for (const pag of dados.pagamentos) {
-    const valor = Number(pag.valor)
+  // 5. FINANCEIRO E SALDOS (Versão Corrigida)
+    for (const pag of dados.pagamentos) {
+      const valor = Number(pag.valor);
 
-    if (pag.forma === 'A PRAZO') {
-      // --- LÓGICA DO FIADO (CRIA CONTA A RECEBER) ---
-      await prisma.contaReceber.create({
-        data: {
-          descricao: `Venda #${venda.id} - A Prazo`,
-          valor: valor,
-          clienteId: Number(dados.clienteId),
-          vendaId: venda.id,
-          dataVencimento: new Date(new Date().setDate(new Date().getDate() + 30)), // Vence em 30 dias
-          status: 'PENDENTE'
+      // --- PARTE A: REGISTRO FINANCEIRO (Dinheiro ou Dívida?) ---
+      
+      if (pag.forma === 'A PRAZO') {
+        // 1. Se for Fiado, cria a conta a receber
+        await prisma.contaReceber.create({
+          data: {
+            descricao: `Venda #${venda.id} - A Prazo`,
+            valor: valor,
+            clienteId: Number(dados.clienteId),
+            vendaId: venda.id,
+            dataVencimento: new Date(new Date().setDate(new Date().getDate() + 30)),
+            status: 'PENDENTE'
+          }
+        });
+      } 
+      // 2. Se NÃO for Fiado e NEM Crédito/Haver, então é Dinheiro/Pix entrando no caixa
+      else if (pag.forma !== 'Crédito' && pag.forma !== 'Haver' && pag.forma !== 'Crédito em Haver') {
+        await prisma.movimentacaoCaixa.create({
+          data: {
+            caixaId: caixaAberto.id,
+            tipo: 'VENDA',
+            valor: valor,
+            descricao: `Venda #${venda.id} (${pag.forma})`
+          }
+        });
+      }
+
+      // --- PARTE B: ATUALIZA A FICHA DO CLIENTE ---
+      
+      if (dados.clienteId) {
+        
+        // CASO 1: CLIENTE COMPROU NO FIADO (Aumenta a Dívida)
+        if (pag.forma === 'A PRAZO' || pag.forma === 'Fiado') {
+          await prisma.cliente.update({
+            where: { id: Number(dados.clienteId) },
+            data: { saldoDevedor: { increment: valor } } // Sobe a dívida
+          });
         }
-      })
-    } else {
-      // --- LÓGICA DO CAIXA (DINHEIRO/PIX/CARTÃO) ---
-      await prisma.movimentacaoCaixa.create({
-        data: {
-          caixaId: caixaAberto.id,
-          tipo: 'VENDA',
-          valor: valor,
-          descricao: `Venda #${venda.id} (${pag.forma})`
+
+        // CASO 2: CLIENTE PAGOU USANDO CRÉDITO QUE TINHA (Diminui o Haver)
+        // Verifique se o nome aqui bate com o que está no seu cadastro de formas de pagamento
+        if (pag.forma === 'Haver' || pag.forma === 'Crédito' || pag.forma === 'Crédito em Haver') {
+          await prisma.cliente.update({
+            where: { id: Number(dados.clienteId) },
+            data: { saldoHaver: { decrement: valor } } // Gasta o crédito
+          });
         }
-      })
+      }
     }
-  }
 
   // 6. BAIXA NO ESTOQUE
   for (const item of dados.itens) {
