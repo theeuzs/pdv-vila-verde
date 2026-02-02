@@ -620,19 +620,28 @@ app.post('/login', async (req, res) => {
 });
 
 // --- ROTA DE EMERGÊNCIA (CORRIGIDA) ---
-app.get('/criar-chefe', async (req, res) => {
+// --- ROTA DE RESET (Apaga o velho e cria o novo) ---
+app.get('/resetar-chefe', async (req, res) => {
   try {
+    // 1. Primeiro, apaga qualquer Matheus que existir
+    await prisma.user.deleteMany({
+      where: { nome: "Matheus" }
+    });
+
+    // 2. Agora cria um novinho, garantido
     await prisma.user.create({
       data: {
         nome: "Matheus",
         senha: "admin",
         cargo: "GERENTE",
-        email: "admin@vilaverde.com" // <--- O INGRESSO QUE FALTAVA! 📧
+        email: "admin@vilaverde.com"
       }
     });
-    return res.send("✅ Chefe Matheus criado com sucesso!");
-  } catch (error) {
-    return res.send("Erro: Talvez o usuário já exista.");
+    
+    return res.send("♻️ Chefe Matheus foi RESETADO e recriado com sucesso! Tente logar.");
+  } catch (error: any) {
+    // Agora mostramos o erro real se der ruim
+    return res.send("Erro fatal: " + error.message);
   }
 });
 
