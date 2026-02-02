@@ -215,19 +215,22 @@ console.log("💳 Processando pagamento:", pag.forma);
       if (dados.clienteId) {
         
         // CASO 1: CLIENTE COMPROU NO FIADO (Aumenta a Dívida)
-        if (pag.forma === 'A PRAZO' || pag.forma === 'Fiado') {
+        // Adicionei variações comuns de nome
+        if (['A PRAZO', 'Fiado', 'Crediario', 'A Prazo'].includes(pag.forma)) {
+          console.log("Simulando: Aumentando Dívida..."); // Log para confirmar
           await prisma.cliente.update({
             where: { id: Number(dados.clienteId) },
-            data: { saldoDevedor: { increment: valor } } // Sobe a dívida
+            data: { saldoDevedor: { increment: Number(pag.valor) } } 
           });
         }
 
-        // CASO 2: CLIENTE PAGOU USANDO CRÉDITO QUE TINHA (Diminui o Haver)
-        // Verifique se o nome aqui bate com o que está no seu cadastro de formas de pagamento
-        if (pag.forma === 'Haver' || pag.forma === 'Crédito' || pag.forma === 'Crédito em Haver') {
+        // CASO 2: CLIENTE PAGOU USANDO CRÉDITO/HAVER (Diminui o Haver)
+        // ATENÇÃO: Verifique se o nome que aparece no seu Terminal está nesta lista abaixo!
+        if (['Haver', 'Crédito', 'Credito', 'Uso de Haver', 'Saldo', 'Crédito em Haver'].includes(pag.forma)) {
+          console.log("Simulando: Baixando Haver..."); // Log para confirmar
           await prisma.cliente.update({
             where: { id: Number(dados.clienteId) },
-            data: { saldoHaver: { decrement: valor } } // Gasta o crédito
+            data: { saldoHaver: { decrement: Number(pag.valor) } } // <--- TEM QUE SER DECREMENT
           });
         }
       }
