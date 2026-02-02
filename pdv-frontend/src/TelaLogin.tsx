@@ -12,7 +12,7 @@ export function TelaLogin({ onLoginSucesso }: Props) {
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
 
-  const API_URL = 'http://localhost:3333'; // Ajuste se seu backend estiver em outra porta
+  const API_URL = 'https://api-vila-verde.onrender.com'; // Ajuste se seu backend estiver em outra porta
 
   async function tentarLogin(e: React.FormEvent) {
     e.preventDefault();
