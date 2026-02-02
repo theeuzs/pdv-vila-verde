@@ -166,6 +166,23 @@ export function App() {
     }
   }
 
+  async function fecharCaixa() {
+    if (!confirm("Tem certeza que deseja FECHAR o caixa agora?")) return;
+
+    try {
+      const res = await fetch(`${API_URL}/caixa/fechar`, { method: 'POST' });
+      
+      if (res.ok) {
+        alert("Caixa fechado com sucesso! Até amanhã. 🌙");
+        verificarStatusCaixa(); // Atualiza a tela para bloquear as vendas
+      } else {
+        alert("Erro ao fechar o caixa.");
+      }
+    } catch (error) {
+      alert("Erro de conexão.");
+    }
+  }
+
   // ==========================================================================
   // 3. ESTADOS (STATES)
   // ==========================================================================
@@ -731,27 +748,57 @@ async function cancelarVenda(id: number) {
           </div>
         </div>
         
-        {!caixaAberto ? (
-          <button 
-            onClick={() => setModalAbrirCaixa(true)}
-            style={{ 
-              padding: '10px 20px', 
-              background: '#c53030', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: 5, 
-              cursor: 'pointer', 
-              fontWeight: 'bold',
-              fontSize: '1rem'
-            }}
-          >
-            ABRIR CAIXA AGORA
-          </button>
-        ) : (
-           <div style={{ background: 'white', padding: '5px 10px', borderRadius: 5, border: '1px solid #c3e6cb' }}>
-              <strong>Saldo em Caixa:</strong> R$ {Number(caixaAberto.saldoAtual).toFixed(2)}
-           </div>
-        )}
+         {/* LÓGICA INTELIGENTE DE CAIXA */}
+          {(!caixaAberto || caixaAberto.status === 'FECHADO') ? (
+            // SITUAÇÃO 1: CAIXA FECHADO (MOSTRA BOTÃO VERDE)
+            <button 
+              onClick={() => setModalAbrirCaixa(true)}
+              style={{
+                padding: '10px 20px',
+                background: '#48bb78', // Verde
+                color: 'white',
+                border: 'none',
+                borderRadius: 5,
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                fontSize: '1rem'
+              }}
+            >
+              ABRIR CAIXA 🔓
+            </button>
+          ) : (
+            // SITUAÇÃO 2: CAIXA ABERTO (MOSTRA SALDO + BOTÃO VERMELHO)
+            <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+              
+              {/* Mostrador de Saldo */}
+              <div style={{ 
+                background: '#fff', 
+                padding: '5px 15px', 
+                borderRadius: 5, 
+                border: '1px solid #c3e6cb',
+                color: '#155724'
+              }}>
+                <strong>Saldo:</strong> R$ {Number(caixaAberto.saldoAtual).toFixed(2)}
+              </div>
+
+              {/* Botão de Fechar */}
+              <button 
+                onClick={fecharCaixa}
+                style={{
+                  padding: '8px 15px',
+                  background: '#e53e3e', // Vermelho
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 5,
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                FECHAR 🔒
+              </button>
+            </div>
+          )}
+      
       </div>
 
       {/* --- MODAL (JANELINHA) PARA ABRIR O CAIXA --- */}
