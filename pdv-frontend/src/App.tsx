@@ -797,20 +797,20 @@ async function cancelarVenda(id: number) {
   if (!usuarioLogado) {
     return (
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#2d3748', gap: 20 }}>
-        <h1 style={{ color: 'white', marginBottom: 20 }}>Quem está acessando? 🤔</h1>
+        <h1 style={{ color: 'white', marginBottom: 20 }}>MEGA LOJA DA CONSTRUÇÃO: VILA VERDE</h1>
         
         <button 
           onClick={() => { setUsuarioLogado('admin'); setAba('caixa'); }}
           style={{ padding: '20px 40px', fontSize: 18, borderRadius: 10, border: 'none', cursor: 'pointer', background: '#4299e1', color: 'white', fontWeight: 'bold', width: 300 }}
         >
-          💼 SOU O DONO (ADMIN)
+          💼 SOU GERENTE/VENDEDOR (ADMIN)
         </button>
 
         <button 
           onClick={() => { setUsuarioLogado('motorista'); setAba('entregas'); carregarEntregas(); }}
           style={{ padding: '20px 40px', fontSize: 18, borderRadius: 10, border: 'none', cursor: 'pointer', background: '#ecc94b', color: '#744210', fontWeight: 'bold', width: 300 }}
         >
-          🚚 SOU O MOTORISTA
+          🚚 SOU MOTORISTA
         </button>
       </div>
     );
