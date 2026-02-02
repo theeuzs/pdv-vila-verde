@@ -338,10 +338,26 @@ setContasReceber(await resContas.json());
     }
   }
 
+  // --- CARREGAMENTO INICIAL E ATUALIZAÇÃO AUTOMÁTICA ---
   useEffect(() => {
-    carregarDados(); 
-    verificarStatusCaixa(); // <--- SEM ISSO A BARRA NÃO APARECE
-  }, []);
+    // 1. Carrega tudo assim que abre a tela
+    carregarDados();
+    verificarStatusCaixa(); // Garante que a barra do caixa apareça
+
+    // 2. Configura o "Robô" para atualizar tudo a cada 5 segundos
+    const relogio = setInterval(() => {
+      // Chama a função principal que atualiza TUDO (Produtos, Clientes, Vendas)
+      carregarDados(); 
+      
+      // Se estiver na tela de entregas, atualiza elas também
+      if (aba === 'entregas') {
+        carregarEntregas();
+      }
+    }, 5000); // 5000 milissegundos = 5 segundos
+
+    // 3. Limpeza (Desliga o robô ao fechar)
+    return () => clearInterval(relogio);
+  }, [aba]);
 
   // ==========================================================================
   // 5. FUNÇÕES DE ORÇAMENTO
