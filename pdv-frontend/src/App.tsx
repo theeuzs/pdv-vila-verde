@@ -296,7 +296,7 @@ setContasReceber(await resContas.json());
         const nome = clientes.find(c => c.id === Number(clienteSelecionado))?.nome || 'Consumidor'
         
         // Imprime como Orçamento
-        imprimirCupom(carrinho, Number(orc.total), orc.id, nome, "ORÇAMENTO VÁLIDO POR 7 DIAS", true)
+        imprimirCupom(carrinho, Number(orc.total), orc.id, nome)
         
         setCarrinho([])
         setClienteSelecionado('')
@@ -376,61 +376,61 @@ setContasReceber(await resContas.json());
     setValorPagamentoInput(""); 
   }
 
-  async function finalizarVenda() {
-  if (carrinho.length === 0) return alert("Carrinho vazio!");
-  
-  // 1. Alterado de 'pagamentos' para 'listaPagamentos' conforme seu arquivo
-  const totalPago = listaPagamentos.reduce((acc: number, p: any) => acc + Number(p.valor), 0);
-  const totalVenda = carrinho.reduce((acc: number, item: any) => acc + (item.quantidade * Number(item.produto.precoVenda)), 0);
+async function finalizarVenda() {
+    if (carrinho.length === 0) return alert("Carrinho vazio!");
+    if (!clienteSelecionado && !confirm("Vender sem cliente identificado?")) return;
 
-  if (Math.abs(totalVenda - totalPago) > 0.05) {
-    return alert("O valor total pago não bate com o total da venda!");
-  }
+    // Monta os dados para enviar ao backend
+    const dadosVenda = {
+      clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
+      itens: carrinho.map(item => ({
+        produtoId: item.produto.id,
+        quantidade: item.quantidade
+      })),
+      pagamentos: listaPagamentos.map(p => ({
+        forma: p.forma,
+        valor: Number(p.valor)
+      }))
+    };
 
-  const dadosVenda = {
-    clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
-    itens: carrinho.map((item: any) => ({
-      produtoId: item.produto.id,
-      quantidade: item.quantidade
-    })),
-    // 2. Usando 'listaPagamentos' aqui também
-    pagamentos: listaPagamentos.map((p: any) => ({
-      forma: p.forma,
-      valor: Number(p.valor)
-    }))
-  };
+    try {
+      const res = await fetch(`${API_URL}/vendas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dadosVenda)
+      });
 
-  try {
-    const res = await fetch(`${API_URL}/vendas`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dadosVenda)
-    });
+      // AQUI ESTÁ A CORREÇÃO: Pegamos a resposta (ID) antes de qualquer coisa
+      const vendaCriada = await res.json();
 
-    if (res.ok) {
-      const vendaSalva = await res.json(); // Pega a venda completa que o servidor mandou
-      
-      // Tenta imprimir. Se a função se chamar 'reimprimirVenda', use ela.
-      try {
-          reimprimirVenda(vendaSalva); 
-      } catch (e) {
-          console.error("Erro ao tentar imprimir:", e);
+      if (res.ok) {
+        alert("Venda realizada com sucesso! 🎉");
+
+        if (confirm("Deseja imprimir o cupom? 🧾")) {
+          // Agora temos certeza que vendaCriada.id existe
+          imprimirCupom(
+            carrinho, 
+            totalCarrinho, 
+            vendaCriada.id, 
+            clienteObjSelecionado?.nome || 'Consumidor Final'
+          );
+        }
+
+        // Limpa tudo para a próxima venda
+        setCarrinho([]);
+        setTroco(0);
+        setListaPagamentos([]);
+        setClienteSelecionado("");
+        carregarDados();
+        verificarStatusCaixa(); // Atualiza o saldo lá em cima
+      } else {
+        alert(`Erro: ${vendaCriada.erro || "Verifique o estoque ou pagamentos"}`);
       }
-
-      alert("Venda realizada com sucesso!");
-      setCarrinho([]);
-      setTroco(0); // Limpa o troco da tela
-      setListaPagamentos([]);
-      setClienteSelecionado("");
-      carregarDados(); 
-    } else {
-      const erro = await res.json();
-      alert(`Erro: ${erro.erro || "Verifique o estoque ou pagamentos"}`);
+    } catch (error) {
+      console.error("Erro ao vender:", error);
+      alert("Erro de conexão com o servidor.");
     }
-  } catch (error) {
-    alert("Erro de Conexão. Verifique se o Render está online.");
   }
-}
   // ==========================================================================
   // 7. FUNÇÕES DE IMPRESSÃO
   // ==========================================================================
@@ -439,37 +439,117 @@ setContasReceber(await resContas.json());
     const itens = v.itens.map(i => ({ produto: i.produto, quantidade: Number(i.quantidade) }))
     const nome = v.cliente?.nome || 'Consumidor'
     
-    // Formata o resumo dos pagamentos (Ex: DINHEIRO: 50.00 | PIX: 20.00)
-    const resumo = v.pagamentos?.map(p => `${p.forma}: ${Number(p.valor).toFixed(2)}`).join(' | ') || 'DINHEIRO'
-    
-    imprimirCupom(itens, Number(v.total), v.id, nome, resumo, false)
+    imprimirCupom(itens, Number(v.total), v.id, nome)
   }
 
   function reimprimirOrcamento(o: Orcamento) {
     const itens = o.itens.map(i => ({ produto: i.produto, quantidade: Number(i.quantidade) }))
     const nome = o.cliente?.nome || 'Consumidor'
-    imprimirCupom(itens, Number(o.total), o.id, nome, "ORÇAMENTO (NÃO É DOCUMENTO FISCAL)", true)
+    imprimirCupom(itens, Number(o.total), o.id, nome,)
   }
 
-  function imprimirCupom(itens: ItemCarrinho[], total: number, id: number, clienteNome: string, rodape: string, isOrcamento: boolean) {
-    const win = window.open('', '', 'width=300,height=500'); 
-    win?.document.write(`
+  // --- FUNÇÃO DE IMPRESSÃO DE CUPOM (ESTILO TÉRMICO PROFISSIONAL) ---
+  function imprimirCupom(itens: any[], total: number, idVenda: number | string, nomeCliente: string) {
+    const larguraPapel = '80mm'; // Pode mudar para 58mm se sua impressora for pequena
+    
+    const conteudo = `
       <html>
-        <body style="font-family: monospace;">
-          <h3 style="margin-bottom:5px">${isOrcamento ? 'ORÇAMENTO' : 'VILA VERDE'} #${id}</h3>
-          <p style="margin:0; font-size: 12px">Cli: ${clienteNome}</p>
-          <hr/>
-          ${itens.map(i => `<div>${i.produto.nome}<br/>${i.quantidade}x R$${Number(i.produto.precoVenda).toFixed(2)}</div>`).join('')}
-          <hr/>
-          <b>TOTAL: R$ ${total.toFixed(2)}</b>
-          <br/>
-          <small>${rodape}</small>
-          <script>window.print()</script>
+        <head>
+          <title>Cupom #${idVenda}</title>
+          <style>
+            @page { margin: 0; }
+            body { 
+              font-family: 'Courier New', Courier, monospace; /* Fonte tipo máquina de escrever */
+              width: ${larguraPapel};
+              margin: 0;
+              padding: 5px;
+              font-size: 12px;
+              color: black;
+            }
+            .centralizado { text-align: center; }
+            .negrito { font-weight: bold; }
+            .divisoria { border-top: 1px dashed black; margin: 5px 0; }
+            .tabela { width: 100%; border-collapse: collapse; }
+            .tabela td { padding: 2px 0; vertical-align: top; }
+            .direita { text-align: right; }
+            .esquerda { text-align: left; }
+            .grande { font-size: 16px; }
+          </style>
+        </head>
+        <body>
+          
+          <div class="centralizado">
+            <div class="negrito grande">MEGA LOJA DA CONSTRUÇÃO</div>
+            <div class="negrito grande">VILA VERDE 🏗️</div>
+            <br>
+            Rua Jornalista Rubens Avila, 530 - CIC<br>
+            Tel/Whatsapp: (41) 98438-7167<br>
+            CNPJ: 12.820.608/0001-41
+          </div>
+
+          <div class="divisoria"></div>
+
+          <div>
+            <strong>VENDA: #${idVenda}</strong><br>
+            Data: ${new Date().toLocaleString()}<br>
+            Cliente: ${nomeCliente || 'Consumidor Final'}
+          </div>
+
+          <div class="divisoria"></div>
+
+          <table class="tabela">
+            <thead>
+              <tr class="negrito" style="border-bottom: 1px solid black;">
+                <td class="esquerda">QTD</td>
+                <td class="esquerda">ITEM</td>
+                <td class="direita">TOTAL</td>
+              </tr>
+            </thead>
+            <tbody>
+              ${itens.map(item => `
+                <tr>
+                  <td>${item.quantidade}x</td>
+                  <td>${item.produto?.nome || item.nome || 'Produto'}</td>
+                  <td class="direita">R$ ${(Number(item.precoUnit || item.precoVenda || 0) * item.quantidade).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="divisoria"></div>
+
+          <table class="tabela grande negrito">
+            <tr>
+              <td class="esquerda">TOTAL A PAGAR:</td>
+              <td class="direita">R$ ${Number(total).toFixed(2)}</td>
+            </tr>
+          </table>
+
+          <div class="divisoria"></div>
+
+          <div class="centralizado" style="margin-top: 10px;">
+            Obrigado pela preferência!<br>
+            Volte Sempre! 👍<br>
+            <small>Sistema PDV Vila Verde</small>
+          </div>
+          
+          <br><br>.
         </body>
       </html>
-    `);
-  }
+    `;
 
+    // Cria uma janela invisível para impressão
+    const janelaImpressao = window.open('', '', 'height=600,width=400');
+    if(janelaImpressao) {
+      janelaImpressao.document.write(conteudo);
+      janelaImpressao.document.close();
+      // Espera carregar e imprime
+      setTimeout(() => {
+        janelaImpressao.print();
+        janelaImpressao.close();
+      }, 500);
+    }
+  }
   // ==========================================================================
   // 8. FUNÇÕES CRUD E AUXILIARES
   // ==========================================================================
