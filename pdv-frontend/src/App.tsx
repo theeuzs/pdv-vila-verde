@@ -328,6 +328,30 @@ setContasReceber(await resContas.json());
     }
   }
 
+  // --- TRANSFORMAR ORÇAMENTO EM VENDA ---
+  function efetivarOrcamento(orc: any) {
+    // 1. Segurança: Se já tiver coisa no carrinho, avisa
+    if (carrinho.length > 0) {
+      if (!confirm("Seu carrinho atual será limpo para carregar este orçamento. Continuar?")) return;
+    }
+
+    // 2. Mágica: Converte os itens do orçamento para o formato do carrinho
+    // Importante: Estamos assumindo que o produto ainda existe no banco
+    const itensDoOrcamento = orc.itens.map((item: any) => ({
+      produto: item.produto, // O objeto produto completo que veio do banco
+      quantidade: Number(item.quantidade)
+    }));
+
+    // 3. Atualiza o estado do sistema
+    setCarrinho(itensDoOrcamento);
+    setClienteSelecionado(orc.clienteId ? String(orc.clienteId) : ""); // Já seleciona o cliente do orçamento
+    
+    // 4. Leva o usuário para a tela de vendas
+    setAba('caixa'); 
+
+    alert("Orçamento carregado no caixa! 🛒\nConfira se o estoque ainda está disponível e finalize a venda.");
+  }
+
   async function excluirOrcamento(id: number) {
     if(!confirm("Tem certeza que deseja excluir este orçamento?")) return
     await fetch(`${API_URL}/orcamentos/${id}`, { method: 'DELETE' })
@@ -1058,6 +1082,23 @@ async function cancelarVenda(id: number) {
                     <td style={{padding:15}}>{o.itens.length} itens</td>
                     <td style={{padding:15, fontWeight:'bold'}}>R$ {Number(o.total).toFixed(2)}</td>
                     <td style={{padding:15}}>
+                      {/* BOTÃO DE EFETIVAR (TRANSFORMAR EM VENDA) */}
+                    <button
+                      onClick={() => efetivarOrcamento(o)}
+                      title="Transformar em Venda"
+                      style={{
+                        marginRight: 10,
+                        padding: '5px 10px',
+                        backgroundColor: '#2b6cb0', // Um azul mais escuro
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Virar Venda 🛒
+                    </button>
                       <button onClick={()=>reimprimirOrcamento(o)} style={{marginRight:10, cursor:'pointer', border:'none', background:'none', fontSize:'1.2rem'}}>🖨️</button>
                       <button onClick={()=>excluirOrcamento(o.id)} style={{color:'red', cursor:'pointer', border:'none', background:'none', fontSize:'1.2rem'}}>🗑️</button>
                     </td>
