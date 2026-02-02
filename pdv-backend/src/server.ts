@@ -180,7 +180,9 @@ app.post('/vendas', async (request, reply) => {
   // 5. FINANCEIRO E SALDOS (Versão Corrigida)
     for (const pag of dados.pagamentos) {
       const valor = Number(pag.valor);
-
+console.log("💳 Processando pagamento:", pag.forma);
+        console.log("💰 Valor:", pag.valor);
+        console.log("👤 Cliente ID:", dados.clienteId);
       // --- PARTE A: REGISTRO FINANCEIRO (Dinheiro ou Dívida?) ---
       
       if (pag.forma === 'A PRAZO') {
