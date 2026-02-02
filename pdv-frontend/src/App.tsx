@@ -131,6 +131,16 @@ export function App() {
   // ... outros useStates ...
   const [entrega, setEntrega] = useState(false);
   const [endereco, setEndereco] = useState('');
+  // --- DETECTOR DE CELULAR ---
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth < 768);
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // --- CONTROLE DE ACESSO ---
   // Pode ser 'admin' (você), 'motorista', ou null (ninguém logado ainda)
@@ -1036,7 +1046,13 @@ async function cancelarVenda(id: number) {
         
         {/* === ABA: CAIXA === */}
         {aba === 'caixa' && (
-          <div style={{ display: 'flex', height: '100%', gap: 30 }}>
+          <div style={{ 
+  display: 'flex', 
+  height: '100%', 
+  gap: 30, 
+  flexDirection: isMobile ? 'column' : 'row', // Se for celular, empilha. Se for PC, lado a lado.
+  overflowY: isMobile ? 'auto' : 'hidden'     // No celular rola a tela, no PC fixa.
+}}>
             {/* Esquerda: Lista de Produtos */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', gap: 15, marginBottom: 20 }}>
@@ -1520,7 +1536,18 @@ async function cancelarVenda(id: number) {
       {/* 1. MODAL DE CADASTRO DE PRODUTO (COMPLETO) */}
       {modalAberto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(3px)' }}>
-          <div style={{ backgroundColor: 'white', padding: 30, borderRadius: 15, width: 700, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+<div style={{ 
+            backgroundColor: 'white', 
+            padding: isMobile ? 15 : 30, // Menos espaço nas bordas se for celular
+            borderRadius: 15, 
+            width: isMobile ? '95%' : '700px', // AQUI É O SEGREDO 📱
+            maxHeight: '90vh', 
+            overflowY: 'auto', 
+            boxShadow: '0 5px 15px rgba(0,0,0,0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 20
+          }}>
             <h2 style={{ marginTop: 0, marginBottom: 20, color: '#2d3748' }}>{produtoEmEdicao ? '✏️ Editar Produto' : '✨ Novo Produto'}</h2>
             
             <form onSubmit={salvarProduto} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
