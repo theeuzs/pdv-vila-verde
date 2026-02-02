@@ -133,6 +133,8 @@ export function App() {
   const [endereco, setEndereco] = useState('');
   // --- DETECTOR DE CELULAR ---
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  // ... outros useStates (carrinho, busca, etc) ...
+  const [modoEdicao, setModoEdicao] = useState(false); // <--- ADICIONE ISSO
 
   useEffect(() => {
     function handleResize() {
@@ -1068,15 +1070,15 @@ async function cancelarVenda(id: number) {
   flexDirection: isMobile ? 'column' : 'row', // Se for celular, empilha. Se for PC, lado a lado.
   overflowY: isMobile ? 'auto' : 'hidden'     // No celular rola a tela, no PC fixa.
 }}>
-            {/* --- COLUNA DA ESQUERDA: PRODUTOS (MODO CLEAN) --- */}
+            {/* --- COLUNA DA ESQUERDA: PRODUTOS (COM MODO EDIÇÃO) --- */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '10px', overflowY: 'auto' }}>
           
-          {/* Área de Busca e Botão Novo */}
+          {/* Área de Busca e Botões de Ação */}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
             <input
               autoFocus
               type="text"
-              placeholder="🔍 Digite o nome ou código..."
+              placeholder={modoEdicao ? "✏️ MODO EDIÇÃO: Qual produto quer alterar?" : "🔍 Digite o nome ou código..."}
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               style={{
@@ -1084,16 +1086,37 @@ async function cancelarVenda(id: number) {
                 padding: '15px',
                 fontSize: '1.2rem',
                 borderRadius: '10px',
-                border: '1px solid #ddd',
+                border: modoEdicao ? '3px solid #f39c12' : '1px solid #ddd', // Borda Laranja se estiver editando
                 outline: 'none',
                 boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
               }}
             />
-            {/* Botão de Adicionar Produto (Mantido!) */}
-           <button
+            
+            {/* BOTÃO MODO EDIÇÃO (O Lápis) */}
+            <button
+              onClick={() => setModoEdicao(!modoEdicao)}
+              style={{
+                backgroundColor: modoEdicao ? '#f39c12' : '#ecf0f1', // Laranja (Ativo) ou Cinza (Inativo)
+                color: modoEdicao ? 'white' : '#7f8c8d',
+                border: 'none',
+                borderRadius: '10px',
+                width: '60px',
+                fontSize: '24px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s'
+              }}
+              title={modoEdicao ? "Sair do Modo Edição" : "Entrar no Modo Edição"}
+            >
+              ✏️
+            </button>
+
+            {/* Botão Novo Produto (+) */}
+            <button
               onClick={() => {
                 setProdutoEmEdicao(null);
-                // O 'as any' aqui força o sistema a aceitar o reset, parando de brigar por causa do ID
                 setFormProduto({ 
                   nome: '', 
                   codigoBarra: '', 
@@ -1123,115 +1146,95 @@ async function cancelarVenda(id: number) {
             </button>
           </div>
 
-          {/* LÓGICA DE EXIBIÇÃO: CLEAN vs RESULTADOS */}
-          {busca === '' ? (
-            // ESTADO 1: TELA LIMPA (Sem busca)
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              flex: 1,
-              opacity: 0.6,
-              color: '#888'
-            }}>
+          {/* MENSAGEM DE AVISO QUANDO EM MODO EDIÇÃO */}
+          {modoEdicao && (
+            <div style={{ backgroundColor: '#f39c12', color: 'white', padding: '10px', borderRadius: '8px', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>
+              ⚠️ MODO EDIÇÃO ATIVO: Clique em um produto para alterar seus dados.
+            </div>
+          )}
+
+          {/* LISTA DE PRODUTOS */}
+          {busca === '' && !modoEdicao ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, opacity: 0.6, color: '#888' }}>
               <div style={{ fontSize: '80px', marginBottom: '20px' }}>🏪</div>
               <h2>Vila Verde PDV</h2>
-              <p>Pesquise um produto acima para iniciar a venda.</p>
+              <p>Pesquise para vender.</p>
             </div>
           ) : (
-            // ESTADO 2: RESULTADOS DA PESQUISA (Cards Grandes)
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              
-              {/* Filtra a lista de produtos (prodsFilt já existe no seu código, mas vamos filtrar direto aqui pra garantir) */}
               {produtos
-                .filter(p => 
-                  p.nome.toLowerCase().includes(busca.toLowerCase()) || 
-                  (p.codigoBarra && p.codigoBarra.includes(busca))
-                )
+                .filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigoBarra && p.codigoBarra.includes(busca)))
                 .map(produto => (
                   <div 
                     key={produto.id} 
-                    onClick={() => adicionarAoCarrinho(produto)}
+                    onClick={() => {
+                      if (modoEdicao) {
+                        // --- LÓGICA DE EDITAR ---
+                        setProdutoEmEdicao(produto);
+                        // Convertendo números para string para o formulário não reclamar
+                        setFormProduto({
+                          ...produto,
+                          precoCusto: String(produto.precoCusto),
+                          precoVenda: String(produto.precoVenda),
+                          estoque: String(produto.estoque)
+                        } as any);
+                        setModalAberto(true);
+                        setModoEdicao(false); // Desliga o modo edição após clicar (segurança)
+                      } else {
+                        // --- LÓGICA DE VENDER ---
+                        adicionarAoCarrinho(produto);
+                      }
+                    }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      backgroundColor: 'white',
+                      backgroundColor: modoEdicao ? '#fff8e1' : 'white', // Fundo amarelinho se for para editar
                       padding: '15px',
                       borderRadius: '12px',
                       boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
                       cursor: 'pointer',
-                      borderLeft: Number(produto.estoque) <= 0 ? '5px solid #e74c3c' : '5px solid #2ecc71',
+                      borderLeft: Number(produto.estoque) <= 0 ? '5px solid #e74c3c' : (modoEdicao ? '5px solid #f39c12' : '5px solid #2ecc71'),
+                      transform: 'scale(1)',
                       transition: 'transform 0.1s'
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.01)'}
                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                   >
-                    {/* Ícone/Foto */}
-                    <div style={{ 
-                      width: '60px', 
-                      height: '60px', 
-                      backgroundColor: '#f4f6f8', 
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '25px',
-                      marginRight: '15px'
-                    }}>
-                      📦
+                    {/* Ícone */}
+                    <div style={{ width: '60px', height: '60px', backgroundColor: '#f4f6f8', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '25px', marginRight: '15px' }}>
+                      {modoEdicao ? '📝' : '📦'}
                     </div>
 
-                    {/* Dados do Produto */}
+                    {/* Dados */}
                     <div style={{ flex: 1 }}>
                       <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: '#2c3e50' }}>{produto.nome}</h3>
                       <div style={{ fontSize: '0.9rem', color: '#7f8c8d' }}>
-                        Estoque: <strong>{produto.estoque}</strong> {produto.unidade} 
-                        {produto.codigoBarra ? ` | Cód: ${produto.codigoBarra}` : ''}
+                        Estoque: <strong>{produto.estoque}</strong> {produto.unidade}
                       </div>
                     </div>
 
-                    {/* Preço */}
-                    {/* 3. Preço e Botão de Excluir (Direita) */}
+                    {/* Preço e Lixeira */}
                     <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
-                      
-                      {/* Preço */}
-                      <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#27ae60' }}>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: modoEdicao ? '#f39c12' : '#27ae60' }}>
                         R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}
                       </div>
-
-                      {/* Botão EXCLUIR (A volta dos que não foram!) */}
-                      <button 
-                        onClick={(e) => {
-                           e.stopPropagation(); // Isso impede que o clique "venda" o produto sem querer
-                           excluirProduto(produto.id);
-                        }}
-                        style={{ 
-                          backgroundColor: '#ffebee', 
-                          color: '#c62828', 
-                          border: '1px solid #ef9a9a', 
-                          padding: '4px 8px', 
-                          borderRadius: '6px', 
-                          cursor: 'pointer', 
-                          fontSize: '0.8rem',
-                          marginTop: '5px'
-                        }}
-                       title="Excluir este produto"
-                      >
-                        🗑️ Apagar
-                      </button>
+                      
+                      {/* Botão Apagar (Só aparece no modo normal para não confundir, ou mantemos sempre) */}
+                      {!modoEdicao && (
+                        <button 
+                          onClick={(e) => {
+                             e.stopPropagation(); 
+                             excluirProduto(produto.id);
+                          }}
+                          style={{ backgroundColor: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', marginTop: '5px' }}
+                          title="Excluir este produto"
+                        >
+                          🗑️ Apagar
+                        </button>
+                      )}
                     </div>
-
                   </div>
                 ))}
-                
-                {/* Aviso se não achar nada */}
-                {produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase())).length === 0 && (
-                   <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-                      Nenhum produto encontrado. <br/>
-                      <small>Verifique o nome ou cadastre um novo no botão (+).</small>
-                   </div>
-                )}
             </div>
           )}
         </div>
