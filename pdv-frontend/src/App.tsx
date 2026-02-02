@@ -131,6 +131,11 @@ export function App() {
   // ... outros useStates ...
   const [entrega, setEntrega] = useState(false);
   const [endereco, setEndereco] = useState('');
+  
+  // --- CONTROLE DE ACESSO ---
+  // Pode ser 'admin' (você), 'motorista', ou null (ninguém logado ainda)
+  const [usuarioLogado, setUsuarioLogado] = useState<'admin' | 'motorista' | null>(null);
+
   // --- CONTROLE DE ENTREGAS ---
   const [listaEntregas, setListaEntregas] = useState<any[]>([]);
 
@@ -280,11 +285,6 @@ export function App() {
 
   function fazerLogin(dados: any) {
     localStorage.setItem('usuario_vila_verde', JSON.stringify(dados))
-    window.location.reload()
-  }
-
-  function sair() {
-    localStorage.removeItem('usuario_vila_verde')
     window.location.reload()
   }
 
@@ -793,6 +793,29 @@ async function cancelarVenda(id: number) {
   // 10. RENDERIZAÇÃO DA TELA (JSX)
   // ==========================================================================
   
+  // SE NÃO TIVER NINGUÉM LOGADO, MOSTRA A TELA DE ESCOLHA
+  if (!usuarioLogado) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#2d3748', gap: 20 }}>
+        <h1 style={{ color: 'white', marginBottom: 20 }}>Quem está acessando? 🤔</h1>
+        
+        <button 
+          onClick={() => { setUsuarioLogado('admin'); setAba('caixa'); }}
+          style={{ padding: '20px 40px', fontSize: 18, borderRadius: 10, border: 'none', cursor: 'pointer', background: '#4299e1', color: 'white', fontWeight: 'bold', width: 300 }}
+        >
+          💼 SOU O DONO (ADMIN)
+        </button>
+
+        <button 
+          onClick={() => { setUsuarioLogado('motorista'); setAba('entregas'); carregarEntregas(); }}
+          style={{ padding: '20px 40px', fontSize: 18, borderRadius: 10, border: 'none', cursor: 'pointer', background: '#ecc94b', color: '#744210', fontWeight: 'bold', width: 300 }}
+        >
+          🚚 SOU O MOTORISTA
+        </button>
+      </div>
+    );
+  }
+  
   return (
     <div style={{ fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
@@ -904,51 +927,109 @@ async function cancelarVenda(id: number) {
       {/* --- FIM DA BARRA DE CAIXA --- */}
 
       {/* --- HEADER --- */}
-      <div style={{ backgroundColor: '#1a202c', color: 'white', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
-        <h2 style={{ margin: 0 }}>🏗️ PDV Vila Verde</h2>
+      <div style={{ background: '#1a202c', padding: '10px 30px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         
-        <div style={{ display: 'flex', gap: 30, alignItems: 'center' }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>CAIXA HOJE</div>
-            <div style={{ fontWeight: 'bold', fontSize: '1.4rem', color: '#48bb78' }}>
-             R$ {caixaAberto ? Number(caixaAberto.saldoAtual).toFixed(2) : '0.00'}
-            </div>
+        {/* LADO ESQUERDO: Logo e Identificação */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 24 }}>🏗️</span>
+          <div>
+            <h1 style={{ fontSize: 18, margin: 0, lineHeight: '1' }}>PDV Vila Verde</h1>
+            <span style={{ background: '#4a5568', padding: '2px 6px', borderRadius: 4, fontSize: 10, textTransform: 'uppercase' }}>
+              {usuarioLogado === 'admin' ? '👤 MODO CHEFE' : '🚚 MODO MOTORISTA'}
+            </span>
           </div>
-          
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>A RECEBER</div>
-            <div style={{ fontWeight: 'bold', fontSize: '1.4rem', color: '#f56565' }}>
-              R$ {totalReceber.toFixed(2)}
-            </div>
-          </div>
-          
-          <button onClick={sair} style={{ backgroundColor: '#e53e3e', color: 'white', border: 'none', padding: '8px 15px', borderRadius: 6, fontWeight: 'bold', cursor: 'pointer', marginLeft: 20 }}>
-            SAIR
-          </button>
         </div>
+
+        {/* MEIO: Resumo Financeiro (SÓ O ADMIN VÊ) */}
+        {usuarioLogado === 'admin' && (
+          <div style={{ display: 'flex', gap: 30 }}>
+            {/* Caixa Hoje (Calculado na hora somando as vendas do dia) */}
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 11, color: '#a0aec0' }}>CAIXA HOJE</div>
+              <div style={{ fontWeight: 'bold', color: '#48bb78', fontSize: 18 }}>
+                R$ {vendasRealizadas
+                  .filter(v => new Date(v.data).toLocaleDateString() === new Date().toLocaleDateString())
+                  .reduce((acc, v) => acc + Number(v.total), 0)
+                  .toFixed(2)}
+              </div>
+            </div>
+
+            {/* A Receber (Aqui usamos a variável que estava dando erro!) */}
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 11, color: '#a0aec0' }}>A RECEBER</div>
+              <div style={{ fontWeight: 'bold', color: '#ecc94b', fontSize: 18 }}>
+                R$ {totalReceber.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* LADO DIREITO: Botão Sair */}
+        <button 
+          onClick={() => setUsuarioLogado(null)}
+          style={{ background: '#e53e3e', color: 'white', border: 'none', padding: '8px 15px', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 5 }}
+        >
+          SAIR 🚪
+        </button>
+
       </div>
 
       {/* --- MENU DE NAVEGAÇÃO --- */}
-      <div style={{ display: 'flex', backgroundColor: 'white', padding: '0 30px', borderBottom: '1px solid #e2e8f0' }}>
-        <button onClick={() => setAba('caixa')} style={{ padding: '20px 25px', background: 'none', border: 'none', borderBottom: aba === 'caixa' ? '4px solid #3182ce' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: aba === 'caixa' ? '#2b6cb0' : '#718096', cursor: 'pointer' }}>🛒 CAIXA</button>
-        <button onClick={() => setAba('clientes')} style={{ padding: '20px 25px', background: 'none', border: 'none', borderBottom: aba === 'clientes' ? '4px solid #3182ce' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: aba === 'clientes' ? '#2b6cb0' : '#718096', cursor: 'pointer' }}>👥 CLIENTES</button>
-        <button onClick={() => setAba('financeiro')} style={{ padding: '20px 25px', background: 'none', border: 'none', borderBottom: aba === 'financeiro' ? '4px solid #3182ce' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: aba === 'financeiro' ? '#2b6cb0' : '#718096', cursor: 'pointer' }}>💲 FINANCEIRO</button>
-        <button onClick={() => setAba('historico')} style={{ padding: '20px 25px', background: 'none', border: 'none', borderBottom: aba === 'historico' ? '4px solid #3182ce' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: aba === 'historico' ? '#2b6cb0' : '#718096', cursor: 'pointer' }}>📜 VENDAS</button>
-        <button onClick={() => setAba('orcamentos')} style={{ padding: '20px 25px', background: 'none', border: 'none', borderBottom: aba === 'orcamentos' ? '4px solid #3182ce' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: aba === 'orcamentos' ? '#2b6cb0' : '#718096', cursor: 'pointer' }}>📝 ORÇAMENTOS</button>
-        <button onClick={() => { setAba('dashboard'); carregarDashboard(); }} 
-        
-        
-  style={{ padding: '10px', background: aba === 'dashboard' ? '#2c5282' : '#4299e1', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold' }}
->
-  📊 DASHBOARD
-</button>
-<button 
-  onClick={() => { setAba('entregas'); carregarEntregas(); }} 
-  style={{ padding: '10px', background: aba === 'entregas' ? '#2c5282' : '#4299e1', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold' }}
->
-  🚚 ENTREGAS
-</button>
-      </div>
+      {/* --- MENU DE NAVEGAÇÃO (SÓ PARA O ADMIN) --- */}
+        {usuarioLogado === 'admin' && (
+          <div style={{ display: 'flex', background: 'white', padding: '0 30px', borderBottom: '1px solid #e2e8f0', overflowX: 'auto' }}>
+            
+            <button 
+              onClick={() => setAba('caixa')} 
+              style={{ padding: '20px', background: 'none', border: 'none', borderBottom: aba === 'caixa' ? '4px solid #2b6cb0' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'caixa' ? '#2b6cb0' : '#718096' }}
+            >
+              🛒 CAIXA
+            </button>
+
+            <button 
+              onClick={() => setAba('clientes')} 
+              style={{ padding: '20px', background: 'none', border: 'none', borderBottom: aba === 'clientes' ? '4px solid #2b6cb0' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'clientes' ? '#2b6cb0' : '#718096' }}
+            >
+              👥 CLIENTES
+            </button>
+
+            <button 
+              onClick={() => setAba('financeiro')} 
+              style={{ padding: '20px', background: 'none', border: 'none', borderBottom: aba === 'financeiro' ? '4px solid #2b6cb0' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'financeiro' ? '#2b6cb0' : '#718096' }}
+            >
+              💲 FINANCEIRO
+            </button>
+
+             <button 
+              onClick={() => setAba('vendas')} 
+              style={{ padding: '20px', background: 'none', border: 'none', borderBottom: aba === 'vendas' ? '4px solid #2b6cb0' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'vendas' ? '#2b6cb0' : '#718096' }}
+            >
+              📄 VENDAS
+            </button>
+
+            <button 
+              onClick={() => setAba('orcamentos')} 
+              style={{ padding: '20px', background: 'none', border: 'none', borderBottom: aba === 'orcamentos' ? '4px solid #2b6cb0' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'orcamentos' ? '#2b6cb0' : '#718096' }}
+            >
+              📝 ORÇAMENTOS
+            </button>
+
+            <button 
+              onClick={() => { setAba('dashboard'); carregarDashboard(); }} 
+              style={{ padding: '20px', background: 'none', border: 'none', borderBottom: aba === 'dashboard' ? '4px solid #2b6cb0' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'dashboard' ? '#2b6cb0' : '#718096' }}
+            >
+              📊 DASHBOARD
+            </button>
+
+            <button 
+              onClick={() => { setAba('entregas'); carregarEntregas(); }} 
+              style={{ padding: '20px', background: 'none', border: 'none', borderBottom: aba === 'entregas' ? '4px solid #2b6cb0' : 'none', fontWeight: 'bold', cursor: 'pointer', color: aba === 'entregas' ? '#2b6cb0' : '#718096' }}
+            >
+              🚚 ENTREGAS
+            </button>
+
+          </div>
+        )}
 
       {/* --- CONTEÚDO PRINCIPAL --- */}
       <div style={{ flex: 1, padding: '30px', overflow: 'hidden' }}>
