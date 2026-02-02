@@ -609,14 +609,6 @@ async function cancelarVenda(id: number) {
   // 9. CÁLCULOS DO DASHBOARD
   // ==========================================================================
 
-  // Soma de vendas do dia (Exclui Fiado para não duplicar na contabilidade de caixa)
-  const totalHoje = vendasRealizadas
-    .filter(v => new Date(v.data).toLocaleDateString() === new Date().toLocaleDateString())
-    .reduce((acc, v) => {
-      const pagouAgora = v.pagamentos?.filter(p => p.forma !== 'A PRAZO').reduce((sum, p) => sum + Number(p.valor), 0) || 0
-      return acc + pagouAgora
-    }, 0)
-
   const totalReceber = contasReceber.reduce((acc, c) => acc + Number(c.valor), 0)
   
   const prodsFilt = produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigoBarra||'').includes(busca))
