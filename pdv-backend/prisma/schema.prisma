@@ -90,6 +90,7 @@ model ContaReceber {
   status    String   @default("PENDENTE") // PENDENTE ou PAGO
   data      DateTime @default(now())
   descricao       String?
+  dataVencimento  DateTime
   
   clienteId Int
   cliente   Cliente  @relation(fields: [clienteId], references: [id])
