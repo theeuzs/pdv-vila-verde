@@ -296,7 +296,7 @@ setContasReceber(await resContas.json());
         const nome = clientes.find(c => c.id === Number(clienteSelecionado))?.nome || 'Consumidor'
         
         // Imprime como Orçamento
-        imprimirCupom(carrinho, Number(orc.total), orc.id, nome)
+        imprimirCupom(carrinho, Number(orc.total), orc.id, nome, 'ORÇAMENTO')
         
         setCarrinho([])
         setClienteSelecionado('')
@@ -412,7 +412,7 @@ async function finalizarVenda() {
             carrinho, 
             totalCarrinho, 
             vendaCriada.id, 
-            clienteObjSelecionado?.nome || 'Consumidor Final'
+            clienteObjSelecionado?.nome || 'Consumidor Final', 'VENDA'
           );
         }
 
@@ -439,27 +439,27 @@ async function finalizarVenda() {
     const itens = v.itens.map(i => ({ produto: i.produto, quantidade: Number(i.quantidade) }))
     const nome = v.cliente?.nome || 'Consumidor'
     
-    imprimirCupom(itens, Number(v.total), v.id, nome)
+    imprimirCupom(itens, Number(v.total), v.id, nome, 'VENDA')
   }
 
   function reimprimirOrcamento(o: Orcamento) {
     const itens = o.itens.map(i => ({ produto: i.produto, quantidade: Number(i.quantidade) }))
     const nome = o.cliente?.nome || 'Consumidor'
-    imprimirCupom(itens, Number(o.total), o.id, nome,)
+    imprimirCupom(itens, Number(o.total), o.id, nome, 'ORÇAMENTO')
   }
 
-  // --- FUNÇÃO DE IMPRESSÃO DE CUPOM (ESTILO TÉRMICO PROFISSIONAL) ---
-  function imprimirCupom(itens: any[], total: number, idVenda: number | string, nomeCliente: string) {
-    const larguraPapel = '80mm'; // Pode mudar para 58mm se sua impressora for pequena
+  // --- FUNÇÃO DE IMPRESSÃO (AGORA COM TÍTULO E CORREÇÃO DE PREÇO) ---
+  function imprimirCupom(itens: any[], total: number, id: number | string, nomeCliente: string, titulo: string = "VENDA") {
+    const larguraPapel = '80mm'; // Mude para 58mm se precisar
     
     const conteudo = `
       <html>
         <head>
-          <title>Cupom #${idVenda}</title>
+          <title>${titulo} #${id}</title>
           <style>
             @page { margin: 0; }
             body { 
-              font-family: 'Courier New', Courier, monospace; /* Fonte tipo máquina de escrever */
+              font-family: 'Courier New', Courier, monospace;
               width: ${larguraPapel};
               margin: 0;
               padding: 5px;
@@ -479,20 +479,21 @@ async function finalizarVenda() {
         <body>
           
           <div class="centralizado">
-            <div class="negrito grande">MEGA LOJA DA CONSTRUÇÃO</div>
+            <div class="negrito grande">MAT. CONSTRUÇÃO</div>
             <div class="negrito grande">VILA VERDE 🏗️</div>
             <br>
             Rua Jornalista Rubens Avila, 530 - CIC<br>
-            Tel/Whatsapp: (41) 98438-7167<br>
+            Tel/Zap: (41) 98438-7167<br>
             CNPJ: 12.820.608/0001-41
           </div>
 
           <div class="divisoria"></div>
 
           <div>
-            <strong>VENDA: #${idVenda}</strong><br>
+            <strong class="grande">${titulo}: #${id}</strong><br>
             Data: ${new Date().toLocaleString()}<br>
             Cliente: ${nomeCliente || 'Consumidor Final'}
+            ${titulo.includes('ORÇAMENTO') ? '<br><i>* Não vale como recibo</i>' : ''}
           </div>
 
           <div class="divisoria"></div>
@@ -506,13 +507,19 @@ async function finalizarVenda() {
               </tr>
             </thead>
             <tbody>
-              ${itens.map(item => `
+              ${itens.map(item => {
+                // Lógica reforçada para achar o preço
+                const preco = Number(item.precoUnit || item.preco || item.precoVenda || item.produto?.precoVenda || 0);
+                const totalItem = preco * item.quantidade;
+                
+                return `
                 <tr>
                   <td>${item.quantidade}x</td>
                   <td>${item.produto?.nome || item.nome || 'Produto'}</td>
-                  <td class="direita">R$ ${(Number(item.precoUnit || item.precoVenda || 0) * item.quantidade).toFixed(2)}</td>
+                  <td class="direita">R$ ${totalItem.toFixed(2)}</td>
                 </tr>
-              `).join('')}
+                `;
+              }).join('')}
             </tbody>
           </table>
 
@@ -520,7 +527,7 @@ async function finalizarVenda() {
 
           <table class="tabela grande negrito">
             <tr>
-              <td class="esquerda">TOTAL A PAGAR:</td>
+              <td class="esquerda">TOTAL:</td>
               <td class="direita">R$ ${Number(total).toFixed(2)}</td>
             </tr>
           </table>
@@ -528,8 +535,7 @@ async function finalizarVenda() {
           <div class="divisoria"></div>
 
           <div class="centralizado" style="margin-top: 10px;">
-            Obrigado pela preferência!<br>
-            Volte Sempre! 👍<br>
+            ${titulo === 'VENDA' ? 'Obrigado pela preferência! 👍' : 'Orçamento válido por 7 dias.'}<br>
             <small>Sistema PDV Vila Verde</small>
           </div>
           
@@ -538,18 +544,17 @@ async function finalizarVenda() {
       </html>
     `;
 
-    // Cria uma janela invisível para impressão
-    const janelaImpressao = window.open('', '', 'height=600,width=400');
-    if(janelaImpressao) {
-      janelaImpressao.document.write(conteudo);
-      janelaImpressao.document.close();
-      // Espera carregar e imprime
+    const janela = window.open('', '', 'height=600,width=400');
+    if(janela) {
+      janela.document.write(conteudo);
+      janela.document.close();
       setTimeout(() => {
-        janelaImpressao.print();
-        janelaImpressao.close();
+        janela.print();
+        janela.close();
       }, 500);
     }
   }
+  
   // ==========================================================================
   // 8. FUNÇÕES CRUD E AUXILIARES
   // ==========================================================================
