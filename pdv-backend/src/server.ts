@@ -425,9 +425,20 @@ app.post('/clientes/:id/haver', async (request, reply) => {
 app.get('/caixa/status', async () => {
   const caixaAberto = await prisma.caixa.findFirst({
     where: { status: 'ABERTO' },
-    orderBy: { id: 'desc' } // Pega o último aberto
+    include: { movimentacoes: true }, // <--- O SEGREDO: Traz os movimentos para somar
+    orderBy: { id: 'desc' }
   })
-  return caixaAberto || { status: 'FECHADO' }
+  
+  if (!caixaAberto) return { status: 'FECHADO' }
+
+  // CALCULA O SALDO ATUAL (Soma tudo que entrou e tira o que saiu)
+  const saldoAtual = caixaAberto.movimentacoes.reduce((acc, mov) => {
+    if (mov.tipo === 'SANGRIA') return acc - Number(mov.valor)
+    return acc + Number(mov.valor) // SOMA (Abertura, Venda, Suprimento, Recebimento)
+  }, 0)
+
+  // Retorna os dados do caixa + o saldo calculado na hora
+  return { ...caixaAberto, saldoAtual } 
 })
 
 // 2. ABRIR CAIXA

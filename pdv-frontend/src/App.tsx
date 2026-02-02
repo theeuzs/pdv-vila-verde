@@ -672,7 +672,7 @@ async function cancelarVenda(id: number) {
           </button>
         ) : (
            <div style={{ background: 'white', padding: '5px 10px', borderRadius: 5, border: '1px solid #c3e6cb' }}>
-              <strong>Fundo de Troco:</strong> R$ {Number(caixaAberto.saldoInicial).toFixed(2)}
+              <strong>Saldo em Caixa:</strong> R$ {Number(caixaAberto.saldoAtual).toFixed(2)}
            </div>
         )}
       </div>
@@ -716,7 +716,7 @@ async function cancelarVenda(id: number) {
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>CAIXA HOJE</div>
             <div style={{ fontWeight: 'bold', fontSize: '1.4rem', color: '#48bb78' }}>
-              R$ {totalHoje.toFixed(2)}
+             R$ {caixaAberto ? Number(caixaAberto.saldoAtual).toFixed(2) : '0.00'}
             </div>
           </div>
           
