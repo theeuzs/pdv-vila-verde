@@ -195,6 +195,7 @@ export function App() {
   // Adicione junto com os outros estados
   const [troco, setTroco] = useState(0);
   
+  
   // Sistema de Pagamento Misto
   const [listaPagamentos, setListaPagamentos] = useState<PagamentoVenda[]>([])
   const [valorPagamentoInput, setValorPagamentoInput] = useState('')
@@ -251,6 +252,9 @@ export function App() {
         fetch(`${API_URL}/contas-receber`),
         fetch(`${API_URL}/orcamentos`)
       ])
+      // Dentro da função carregarDados()
+const resContas = await fetch(`${API_URL}/contas-receber`);
+setContasReceber(await resContas.json());
       
       setProdutos(await resProd.json())
       setVendasRealizadas(await resVend.json())

@@ -129,68 +129,86 @@ app.put('/produtos/:id', async (request, reply) => {
   }
 })
 
-// --- VENDAS ---
+// --- ROTA DE VENDAS COMPLETA (CAIXA + ESTOQUE + FIADO) ---
 app.post('/vendas', async (request, reply) => {
   const dados = request.body as any
 
-  // --- TRAVA DE SEGURANÇA 1: O CAIXA TÁ ABERTO? ---
+  // 1. VERIFICA SE O CAIXA ESTÁ ABERTO
   const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } })
   if (!caixaAberto) {
     return reply.status(400).send({ erro: "O Caixa está FECHADO. Abra o caixa antes de vender!" })
   }
 
-  // ... (cálculo do total e validação de estoque continuam iguais) ...
+  // 2. VERIFICA SE TEM CLIENTE PARA VENDA A PRAZO
+  const temFiado = dados.pagamentos.some((p: any) => p.forma === 'A PRAZO')
+  if (temFiado && !dados.clienteId) {
+    return reply.status(400).send({ erro: "Para vender A PRAZO, é obrigatório selecionar um Cliente!" })
+  }
+
+  // 3. VALIDA ESTOQUE E CALCULA TOTAL
   let totalVenda = 0
   const itensParaSalvar = []
 
-  // ... (loop do for)
   for (const item of dados.itens) {
     const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } })
     if (!produto) return reply.status(400).send({ erro: "Produto não encontrado" })
+    if (produto.estoque < item.quantidade) return reply.status(400).send({ erro: `Estoque insuficiente: ${produto.nome}` })
     
-    // ... validações de estoque ...
-
     totalVenda += Number(produto.precoVenda) * item.quantidade
     itensParaSalvar.push({
       produtoId: item.produtoId,
       quantidade: item.quantidade,
-      precoUnit: produto.precoVenda // <--- ADICIONE ESTA LINHA COM O NOME CURTO
+      precoUnit: produto.precoVenda // Ajustado para o nome curto que seu banco aceitou
     })
   }
 
-  // --- SALVA A VENDA ---
+  // 4. SALVA A VENDA NO BANCO
   const venda = await prisma.venda.create({
     data: {
       total: totalVenda,
       clienteId: dados.clienteId ? Number(dados.clienteId) : null,
-      
-      // O SEGREDO: Adicione 'as any' aqui para o TypeScript parar de bloquear
       itens: { create: itensParaSalvar as any },
-      
       pagamentos: { create: dados.pagamentos }
     },
     include: { itens: { include: { produto: true } }, cliente: true, pagamentos: true }
   })
 
-  // --- NOVIDADE: REGISTRA O DINHEIRO NO CAIXA ---
-  // Somamos apenas o que entrou em dinheiro/pix/cartão agora (exclui "A PRAZO")
-  const valorEntradaCaixa = dados.pagamentos
-    .filter((p: any) => p.forma !== 'A PRAZO')
-    .reduce((acc: number, p: any) => acc + Number(p.valor), 0)
+  // 5. FINANCEIRO: SEPARA O QUE É CAIXA E O QUE É FIADO
+  for (const pag of dados.pagamentos) {
+    const valor = Number(pag.valor)
 
-  if (valorEntradaCaixa > 0) {
-    await prisma.movimentacaoCaixa.create({
-      data: {
-        caixaId: caixaAberto.id,
-        tipo: 'VENDA',
-        valor: valorEntradaCaixa,
-        descricao: `Venda #${venda.id}`
-      }
+    if (pag.forma === 'A PRAZO') {
+      // --- LÓGICA DO FIADO (CRIA CONTA A RECEBER) ---
+      await prisma.contaReceber.create({
+        data: {
+          descricao: `Venda #${venda.id} - A Prazo`,
+          valor: valor,
+          clienteId: Number(dados.clienteId),
+          vendaId: venda.id,
+          dataVencimento: new Date(new Date().setDate(new Date().getDate() + 30)), // Vence em 30 dias
+          status: 'PENDENTE'
+        }
+      })
+    } else {
+      // --- LÓGICA DO CAIXA (DINHEIRO/PIX/CARTÃO) ---
+      await prisma.movimentacaoCaixa.create({
+        data: {
+          caixaId: caixaAberto.id,
+          tipo: 'VENDA',
+          valor: valor,
+          descricao: `Venda #${venda.id} (${pag.forma})`
+        }
+      })
+    }
+  }
+
+  // 6. BAIXA NO ESTOQUE
+  for (const item of dados.itens) {
+    await prisma.produto.update({
+      where: { id: item.produtoId },
+      data: { estoque: { decrement: item.quantidade } }
     })
   }
-  
-  // ... (Geração de Dívida e Baixa de Estoque continuam iguais) ...
-  // ... (Código de baixar estoque aqui) ...
 
   return reply.status(201).send(venda)
 })
