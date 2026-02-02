@@ -511,32 +511,6 @@ app.post('/caixa/movimentar', async (req, reply) => {
   return reply.send(movimento)
 })
 
-// 4. FECHAR CAIXA
-app.post('/caixa/fechar', async (req, reply) => {
-  const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } })
-  if (!caixaAberto) return reply.status(400).send({ erro: "Nenhum caixa para fechar!" })
-
-  // Calcula quanto entrou e saiu
-  const movimentos = await prisma.movimentacaoCaixa.findMany({ where: { caixaId: caixaAberto.id } })
-  
-  let saldoCalculado = Number(caixaAberto.saldoInicial)
-  for (const mov of movimentos) {
-    if (mov.tipo === 'VENDA' || mov.tipo === 'SUPRIMENTO') saldoCalculado += Number(mov.valor)
-    if (mov.tipo === 'SANGRIA') saldoCalculado -= Number(mov.valor)
-  }
-
-  const caixaFechado = await prisma.caixa.update({
-    where: { id: caixaAberto.id },
-    data: {
-      status: 'FECHADO',
-      dataFechamento: new Date(),
-      saldoFinal: saldoCalculado // O sistema diz quanto tem que ter
-    }
-  })
-
-  return reply.send(caixaFechado)
-})
-
 // --- INICIALIZAÇÃO ---
 const start = async () => {
   try {
