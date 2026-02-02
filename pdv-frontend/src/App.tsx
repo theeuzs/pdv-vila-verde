@@ -131,6 +131,30 @@ export function App() {
   // ... outros useStates ...
   const [entrega, setEntrega] = useState(false);
   const [endereco, setEndereco] = useState('');
+  // --- CONTROLE DE ENTREGAS ---
+  const [listaEntregas, setListaEntregas] = useState<any[]>([]);
+
+  async function carregarEntregas() {
+    try {
+      const res = await fetch(`${API_URL}/entregas/pendentes`);
+      const dados = await res.json();
+      setListaEntregas(dados);
+    } catch (error) {
+      console.error("Erro ao carregar entregas");
+    }
+  }
+
+  async function baixarEntrega(id: number) {
+    if (!confirm("Confirmar que a entrega foi realizada?")) return;
+    
+    try {
+      await fetch(`${API_URL}/entregas/${id}/concluir`, { method: 'PATCH' });
+      alert("Entrega confirmada! ✅");
+      carregarEntregas(); // Atualiza a lista na hora
+    } catch (error) {
+      alert("Erro ao baixar entrega.");
+    }
+  }
 
   // --- FUNÇÃO 1: Verificar se o caixa está aberto ---
   async function verificarStatusCaixa() {
@@ -912,9 +936,17 @@ async function cancelarVenda(id: number) {
         <button onClick={() => setAba('historico')} style={{ padding: '20px 25px', background: 'none', border: 'none', borderBottom: aba === 'historico' ? '4px solid #3182ce' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: aba === 'historico' ? '#2b6cb0' : '#718096', cursor: 'pointer' }}>📜 VENDAS</button>
         <button onClick={() => setAba('orcamentos')} style={{ padding: '20px 25px', background: 'none', border: 'none', borderBottom: aba === 'orcamentos' ? '4px solid #3182ce' : '4px solid transparent', fontWeight: 'bold', fontSize: '1rem', color: aba === 'orcamentos' ? '#2b6cb0' : '#718096', cursor: 'pointer' }}>📝 ORÇAMENTOS</button>
         <button onClick={() => { setAba('dashboard'); carregarDashboard(); }} 
+        
+        
   style={{ padding: '10px', background: aba === 'dashboard' ? '#2c5282' : '#4299e1', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold' }}
 >
   📊 DASHBOARD
+</button>
+<button 
+  onClick={() => { setAba('entregas'); carregarEntregas(); }} 
+  style={{ padding: '10px', background: aba === 'entregas' ? '#2c5282' : '#4299e1', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold' }}
+>
+  🚚 ENTREGAS
 </button>
       </div>
 
@@ -1292,6 +1324,52 @@ async function cancelarVenda(id: number) {
           </div>
         )}
       </div>
+
+{/* === ABA ENTREGAS === */}
+        {aba === 'entregas' && (
+          <div style={{ padding: 20 }}>
+            <h2>🚚 Entregas Pendentes</h2>
+            
+            {listaEntregas.length === 0 ? (
+              <p style={{ color: '#718096' }}>Nenhuma entrega pendente no momento. Tudo limpo! ✨</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                {listaEntregas.map((entrega: any) => (
+                  <div key={entrega.id} style={{ background: 'white', padding: 20, borderRadius: 10, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', borderLeft: '5px solid #ecc94b' }}>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <span style={{ fontWeight: 'bold', fontSize: 18 }}>#{entrega.id} - {entrega.cliente?.nome || 'Consumidor'}</span>
+                      <span style={{ background: '#ecc94b', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 'bold' }}>PENDENTE</span>
+                    </div>
+
+                    <div style={{ marginBottom: 15, color: '#4a5568' }}>
+                      <strong>📍 Destino:</strong> {entrega.enderecoEntrega}
+                    </div>
+
+                    <div style={{ background: '#f7fafc', padding: 10, borderRadius: 5, marginBottom: 15 }}>
+                      <strong>📦 Levar:</strong>
+                      <ul style={{ paddingLeft: 20, margin: '5px 0' }}>
+                        {entrega.itens.map((item: any) => (
+                          <li key={item.id}>
+                            {item.quantidade}x {item.produto.nome}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <button 
+                      onClick={() => baixarEntrega(entrega.id)}
+                      style={{ width: '100%', padding: 10, background: '#48bb78', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                      ✅ MARCAR COMO ENTREGUE
+                    </button>
+                  
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
       {/* === ABA DASHBOARD (PAINEL DO CHEFE) === */}
         {aba === 'dashboard' && dashboard && (
