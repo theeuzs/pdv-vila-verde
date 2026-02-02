@@ -14,42 +14,6 @@ app.register(cors, {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'] // <--- O SEGREDO ESTÁ AQUI (Adicionamos o PATCH)
 });
 
-// --- AUTENTICAÇÃO ---
-app.post('/login', async (request, reply) => {
-    const loginSchema = z.object({
-      email: z.string().email(),
-      senha: z.string(),
-    })
-
-    const { email, senha } = loginSchema.parse(request.body)
-
-    const user = await prisma.user.findUnique({ where: { email } })
-
-    if (!user) {
-      return reply.status(400).send({ erro: 'Email ou senha inválidos' })
-    }
-
-    const senhaBate = await compare(senha, user.senha)
-
-    if (!senhaBate) {
-      return reply.status(400).send({ erro: 'Email ou senha inválidos' })
-    }
-
-    const token = jwt.sign(
-      { id: user.id, cargo: user.cargo }, 
-      process.env.JWT_SECRET || 'segredo', 
-      { expiresIn: '30d' } 
-    )
-
-    return {
-      id: user.id,
-      nome: user.nome,
-      email: user.email,
-      cargo: user.cargo,
-      token: token,
-    }
-})
-
 // --- PRODUTOS ---
 app.get('/produtos', async () => {
   return await prisma.produto.findMany({ orderBy: { nome: 'asc' } })
@@ -629,6 +593,30 @@ app.patch('/entregas/:id/concluir', async (request) => {
   });
   
   return vendaAtualizada;
+});
+
+// --- ROTA DE LOGIN (CORRIGIDA) ---
+app.post('/login', async (req, res) => {
+  // 1. Usamos 'as any' para o TypeScript parar de reclamar que não conhece o body
+  const { nome, senha, cargo } = req.body as any;
+
+  try {
+    const usuario = await prisma.user.findFirst({
+      where: { 
+        nome: nome,
+        cargo: cargo 
+      }
+    });
+
+    if (usuario && usuario.senha === senha) {
+      // 2. Trocamos .json() por .send() (O Fastify prefere assim)
+      return res.send(usuario);
+    } else {
+      return res.status(401).send({ error: "Usuário ou senha incorretos." });
+    }
+  } catch (error) {
+    return res.status(500).send({ error: "Erro ao tentar fazer login." });
+  }
 });
 
 // --- INICIALIZAÇÃO ---

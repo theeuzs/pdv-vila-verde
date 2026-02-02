@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Login } from './TelaLogin' 
+import { TelaLogin } from './TelaLogin';
 
 // ============================================================================
 // 1. TIPAGEM DE DADOS (INTERFACES)
@@ -133,6 +133,7 @@ export function App() {
   const [endereco, setEndereco] = useState('');
   // --- DETECTOR DE CELULAR ---
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
 
   useEffect(() => {
     function handleResize() {
@@ -144,7 +145,7 @@ export function App() {
   
   // --- CONTROLE DE ACESSO ---
   // Pode ser 'admin' (você), 'motorista', ou null (ninguém logado ainda)
-  const [usuarioLogado, setUsuarioLogado] = useState<'admin' | 'motorista' | null>(null);
+  const [usuarioLogado, setUsuarioLogado] = useState<any>(null);
 
   // --- CONTROLE DE ENTREGAS ---
   const [listaEntregas, setListaEntregas] = useState<any[]>([]);
@@ -229,15 +230,7 @@ export function App() {
   // ==========================================================================
   // 3. ESTADOS (STATES)
   // ==========================================================================
-
-  // Login do Usuário
-  const [usuario] = useState(() => {
-    const salvo = localStorage.getItem('usuario_vila_verde')
-    return salvo ? JSON.parse(salvo) : null
-  })
-
   
-
   // Navegação entre Abas
   const [aba, setAba] = useState<string>('caixa');
 
@@ -307,11 +300,6 @@ export function App() {
   // ==========================================================================
   // 4. FUNÇÕES DE LOGIN E CARREGAMENTO
   // ==========================================================================
-
-  function fazerLogin(dados: any) {
-    localStorage.setItem('usuario_vila_verde', JSON.stringify(dados))
-    window.location.reload()
-  }
 
 async function carregarDashboard() {
     try {
@@ -817,7 +805,9 @@ async function cancelarVenda(id: number) {
     }
   }
 
-  if (!usuario) return <Login onLogin={fazerLogin} />
+  if (!usuarioLogado) {
+    return <TelaLogin onLoginSucesso={(u) => setUsuarioLogado(u)} />;
+  }
 
   // ==========================================================================
   // 9. CÁLCULOS DO DASHBOARD
