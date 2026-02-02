@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Login } from './TelaLogin' 
 
 // ============================================================================
@@ -255,6 +255,21 @@ export function App() {
   // Adicione junto com os outros estados
   const [troco, setTroco] = useState(0);
   
+  // --- OTIMIZAÇÃO DE PERFORMANCE 🚀 ---
+  // Isso aqui garante que só calculamos a lista quando necessário
+  // e mostramos no máximo 30 itens para não travar o PC.
+  const produtosFiltrados = useMemo(() => {
+    if (!busca) return []; // Se não tem busca, não retorna nada (tela limpa)
+
+    const termo = busca.toLowerCase();
+    
+    return produtos
+      .filter(p => 
+        p.nome.toLowerCase().includes(termo) || 
+        (p.codigoBarra && p.codigoBarra.includes(termo))
+      )
+      .slice(0, 30); // <--- O SEGREDO ESTÁ AQUI! (Pega só os 30 primeiros)
+  }, [busca, produtos]);
   
   // Sistema de Pagamento Misto
   const [listaPagamentos, setListaPagamentos] = useState<PagamentoVenda[]>([])
@@ -1068,7 +1083,7 @@ async function cancelarVenda(id: number) {
   flexDirection: isMobile ? 'column' : 'row', // Se for celular, empilha. Se for PC, lado a lado.
   overflowY: isMobile ? 'auto' : 'hidden'     // No celular rola a tela, no PC fixa.
 }}>
-           {/* --- COLUNA DA ESQUERDA: PRODUTOS (COM BOTÕES DE AÇÃO) --- */}
+           {/* --- COLUNA DA ESQUERDA: PRODUTOS (OTIMIZADA) --- */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '10px', overflowY: 'auto' }}>
           
           {/* Área de Busca e Botão Novo */}
@@ -1131,12 +1146,11 @@ async function cancelarVenda(id: number) {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {produtos
-                .filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigoBarra && p.codigoBarra.includes(busca)))
-                .map(produto => (
+              
+              {/* AQUI MUDOU: Usamos a lista 'produtosFiltrados' que é leve! */}
+              {produtosFiltrados.map(produto => (
                   <div 
                     key={produto.id} 
-                    // Clicar no cartão ADICIONA AO CARRINHO (Venda)
                     onClick={() => adicionarAoCarrinho(produto)}
                     style={{
                       display: 'flex',
@@ -1157,7 +1171,7 @@ async function cancelarVenda(id: number) {
                       📦
                     </div>
 
-                    {/* Dados do Produto */}
+                    {/* Dados */}
                     <div style={{ flex: 1 }}>
                       <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: '#2c3e50' }}>{produto.nome}</h3>
                       <div style={{ fontSize: '0.9rem', color: '#7f8c8d' }}>
@@ -1165,21 +1179,17 @@ async function cancelarVenda(id: number) {
                       </div>
                     </div>
 
-                    {/* Preço e Ações (Direita) */}
+                    {/* Preço e Botões */}
                     <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
                       <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#27ae60' }}>
                         R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}
                       </div>
                       
-                      {/* Container dos Botões (Editar e Excluir) */}
                       <div style={{ display: 'flex', gap: '5px' }}>
-                        
-                        {/* Botão EDITAR (Abre a mesma tela de adicionar!) */}
+                        {/* Editar */}
                         <button 
                           onClick={(e) => {
-                             e.stopPropagation(); // Não deixa adicionar ao carrinho
-                             
-                             // Prepara o formulário com os dados desse produto
+                             e.stopPropagation();
                              setProdutoEmEdicao(produto);
                              setFormProduto({
                                ...produto,
@@ -1187,30 +1197,36 @@ async function cancelarVenda(id: number) {
                                precoVenda: String(produto.precoVenda),
                                estoque: String(produto.estoque)
                              } as any);
-                             setModalAberto(true); // Abre o Modal
+                             setModalAberto(true);
                           }}
                           style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}
-                          title="Editar Produto"
+                          title="Editar"
                         >
                           ✏️
                         </button>
 
-                        {/* Botão EXCLUIR */}
+                        {/* Excluir */}
                         <button 
                           onClick={(e) => {
                              e.stopPropagation(); 
                              excluirProduto(produto.id);
                           }}
                           style={{ backgroundColor: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}
-                          title="Excluir Produto"
+                          title="Excluir"
                         >
                           🗑️
                         </button>
                       </div>
-
                     </div>
                   </div>
                 ))}
+
+                {/* Aviso se não achou nada */}
+                {produtosFiltrados.length === 0 && (
+                   <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                      Nenhum produto encontrado.
+                   </div>
+                )}
             </div>
           )}
         </div>
