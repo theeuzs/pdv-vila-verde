@@ -8,11 +8,11 @@ import { z } from 'zod'
 const app = Fastify()
 const prisma = new PrismaClient()
 
+// Configuração do CORS (O porteiro)
 app.register(cors, { 
-  origin: true, 
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
-  allowedHeaders: ['Content-Type'] 
-})
+  origin: true, // Aceita requisições de qualquer lugar (ou coloque o link do seu front)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'] // <--- O SEGREDO ESTÁ AQUI (Adicionamos o PATCH)
+});
 
 // --- AUTENTICAÇÃO ---
 app.post('/login', async (request, reply) => {
