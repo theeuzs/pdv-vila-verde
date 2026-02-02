@@ -809,9 +809,7 @@ async function cancelarVenda(id: number) {
   // ==========================================================================
 
   const totalReceber = contasReceber.reduce((acc, c) => acc + Number(c.valor), 0)
-  
-  const prodsFilt = produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigoBarra||'').includes(busca))
-  
+    
   const clienteObjSelecionado = clientes.find(c => c.id === Number(clienteSelecionado))
 
 
@@ -1070,52 +1068,173 @@ async function cancelarVenda(id: number) {
   flexDirection: isMobile ? 'column' : 'row', // Se for celular, empilha. Se for PC, lado a lado.
   overflowY: isMobile ? 'auto' : 'hidden'     // No celular rola a tela, no PC fixa.
 }}>
-            {/* Esquerda: Lista de Produtos */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', gap: 15, marginBottom: 20 }}>
-                <input 
-                  autoFocus 
-                  placeholder="🔍 Buscar produto por nome ou código..." 
-                  value={busca} 
-                  onChange={e => setBusca(e.target.value)} 
-                  style={{ ...estiloInput, fontSize: '1.1rem' }} 
-                />
-                <button 
-                  onClick={() => { 
-                    setProdutoEmEdicao(null); 
-                    setFormProduto({ nome: '', codigoBarra: '', precoCusto: '', precoVenda: '', estoque: '', unidade: 'UN', categoria: 'Geral', fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '', ncm: '', cest: '', cfop: '' }); 
-                    setModalAberto(true) 
-                  }} 
-                  style={{ ...estiloBotao, backgroundColor: '#48bb78', color: 'white' }}>
-                  + NOVO PRODUTO
-                </button>
-              </div>
+            {/* --- COLUNA DA ESQUERDA: PRODUTOS (MODO CLEAN) --- */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '10px', overflowY: 'auto' }}>
+          
+          {/* Área de Busca e Botão Novo */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <input
+              autoFocus
+              type="text"
+              placeholder="🔍 Digite o nome ou código..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '15px',
+                fontSize: '1.2rem',
+                borderRadius: '10px',
+                border: '1px solid #ddd',
+                outline: 'none',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+              }}
+            />
+            {/* Botão de Adicionar Produto (Mantido!) */}
+           <button
+              onClick={() => {
+                setProdutoEmEdicao(null);
+                // O 'as any' aqui força o sistema a aceitar o reset, parando de brigar por causa do ID
+                setFormProduto({ 
+                  nome: '', 
+                  codigoBarra: '', 
+                  precoCusto: '', 
+                  precoVenda: '', 
+                  estoque: '', 
+                  unidade: 'UN', 
+                  categoria: 'Geral' 
+                } as any);
+                setModalAberto(true);
+              }}
+              style={{
+                backgroundColor: '#2ecc71',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                width: '60px',
+                fontSize: '24px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="Cadastrar Novo Produto"
+            >
+              +
+            </button>
+          </div>
 
-              <div style={{ overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20, paddingBottom: 20 }}>
-                {prodsFilt.map(p => (
-                  <div key={p.id} style={{ backgroundColor: 'white', padding: 20, borderRadius: 12, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid #edf2f7' }}>
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{p.nome}</h3>
-                        <button onClick={() => { setProdutoEmEdicao(p); setFormProduto({ ...formProduto, ...p, precoCusto: String(p.precoCusto), precoVenda: String(p.precoVenda), estoque: String(p.estoque), ipi:String(p.ipi||''), icms:String(p.icms||''), frete:String(p.frete||''), ncm:p.ncm||'', cest:p.cest||'', cfop:p.cfop||'' } as any); setModalAberto(true) }} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize:'1.2rem' }}>✏️</button>
-                        <button onClick={() => excluirProduto(p.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}>
-            🗑️
-        </button>
-                      </div>
-                      <p style={{ color: '#718096' }}>Est: {p.estoque}</p>
+          {/* LÓGICA DE EXIBIÇÃO: CLEAN vs RESULTADOS */}
+          {busca === '' ? (
+            // ESTADO 1: TELA LIMPA (Sem busca)
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              flex: 1,
+              opacity: 0.6,
+              color: '#888'
+            }}>
+              <div style={{ fontSize: '80px', marginBottom: '20px' }}>🏪</div>
+              <h2>Vila Verde PDV</h2>
+              <p>Pesquise um produto acima para iniciar a venda.</p>
+            </div>
+          ) : (
+            // ESTADO 2: RESULTADOS DA PESQUISA (Cards Grandes)
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              
+              {/* Filtra a lista de produtos (prodsFilt já existe no seu código, mas vamos filtrar direto aqui pra garantir) */}
+              {produtos
+                .filter(p => 
+                  p.nome.toLowerCase().includes(busca.toLowerCase()) || 
+                  (p.codigoBarra && p.codigoBarra.includes(busca))
+                )
+                .map(produto => (
+                  <div 
+                    key={produto.id} 
+                    onClick={() => adicionarAoCarrinho(produto)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      backgroundColor: 'white',
+                      padding: '15px',
+                      borderRadius: '12px',
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+                      cursor: 'pointer',
+                      borderLeft: Number(produto.estoque) <= 0 ? '5px solid #e74c3c' : '5px solid #2ecc71',
+                      transition: 'transform 0.1s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.01)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    {/* Ícone/Foto */}
+                    <div style={{ 
+                      width: '60px', 
+                      height: '60px', 
+                      backgroundColor: '#f4f6f8', 
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '25px',
+                      marginRight: '15px'
+                    }}>
+                      📦
                     </div>
-                    <div style={{ marginTop: 15, display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontWeight: 'bold', fontSize: '1.4rem', color: '#2b6cb0' }}>
-                        R$ {Number(p.precoVenda).toFixed(2)}
-                      </span>
-                      <button onClick={() => adicionarAoCarrinho(p)} style={{ backgroundColor: '#3182ce', color: 'white', border: 'none', padding: '8px 20px', borderRadius: 8, fontWeight: 'bold', cursor: 'pointer' }}>
-                        + ADD
+
+                    {/* Dados do Produto */}
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: '#2c3e50' }}>{produto.nome}</h3>
+                      <div style={{ fontSize: '0.9rem', color: '#7f8c8d' }}>
+                        Estoque: <strong>{produto.estoque}</strong> {produto.unidade} 
+                        {produto.codigoBarra ? ` | Cód: ${produto.codigoBarra}` : ''}
+                      </div>
+                    </div>
+
+                    {/* Preço */}
+                    {/* 3. Preço e Botão de Excluir (Direita) */}
+                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
+                      
+                      {/* Preço */}
+                      <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#27ae60' }}>
+                        R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}
+                      </div>
+
+                      {/* Botão EXCLUIR (A volta dos que não foram!) */}
+                      <button 
+                        onClick={(e) => {
+                           e.stopPropagation(); // Isso impede que o clique "venda" o produto sem querer
+                           excluirProduto(produto.id);
+                        }}
+                        style={{ 
+                          backgroundColor: '#ffebee', 
+                          color: '#c62828', 
+                          border: '1px solid #ef9a9a', 
+                          padding: '4px 8px', 
+                          borderRadius: '6px', 
+                          cursor: 'pointer', 
+                          fontSize: '0.8rem',
+                          marginTop: '5px'
+                        }}
+                       title="Excluir este produto"
+                      >
+                        🗑️ Apagar
                       </button>
                     </div>
+
                   </div>
                 ))}
-              </div>
+                
+                {/* Aviso se não achar nada */}
+                {produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase())).length === 0 && (
+                   <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                      Nenhum produto encontrado. <br/>
+                      <small>Verifique o nome ou cadastre um novo no botão (+).</small>
+                   </div>
+                )}
             </div>
+          )}
+        </div>
 
             {/* Direita: Carrinho e Pagamento */}
             <div style={{ width: 400, backgroundColor: 'white', borderRadius: 12, padding: 25, display: 'flex', flexDirection: 'column', boxShadow: '0 10px 15px rgba(0,0,0,0.05)' }}>
