@@ -551,7 +551,7 @@ app.get('/dashboard', async () => {
     // Contagem de Produtos Mais Vendidos
     venda.itens.forEach(item => {
       const nome = item.produto?.nome || 'Item Excluído';
-      topProdutos[nome] = (topProdutos[nome] || 0) + item.quantidade;
+      topProdutos[nome] = (topProdutos[nome] || 0) + Number(item.quantidade);
     });
   });
 

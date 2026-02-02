@@ -1050,7 +1050,7 @@ async function cancelarVenda(id: number) {
                       <option value="DINHEIRO">Dinheiro</option>
                       <option value="PIX">Pix</option>
                       <option value="CARTAO">Cartão</option>
-                      <option value="A PRAZO">Fiado</option>
+                      <option value="A PRAZO">A prazo</option>
                       <option value="HAVER">Haver</option>
                     </select>
                     
@@ -1174,7 +1174,7 @@ async function cancelarVenda(id: number) {
         {/* === ABA: FINANCEIRO === */}
         {aba === 'financeiro' && (
           <div style={{ background: 'white', borderRadius: 12, padding: 30, height: '100%', overflowY: 'auto' }}>
-            <h2>💲 A Receber (Fiado)</h2>
+            <h2>💲 A Receber (A prazo)</h2>
             {contasReceber.length===0 ? <p>Nada pendente.</p> : (
               <table style={{width:'100%', borderCollapse:'collapse'}}>
                 <thead>
