@@ -366,6 +366,40 @@ app.get('/contas-receber', async () => {
   })
 })
 
+// --- DAR BAIXA EM CONTA (RECEBER FIADO) ---
+app.post('/contas-receber/baixar/:id', async (request, reply) => {
+  const { id } = request.params as any;
+
+  // 1. O CAIXA ESTÁ ABERTO?
+  const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } });
+  if (!caixaAberto) {
+    return reply.status(400).send({ erro: "Abra o caixa antes de receber pagamentos!" });
+  }
+
+  // 2. BUSCA A CONTA
+  const conta = await prisma.contaReceber.findUnique({ where: { id: Number(id) } });
+  if (!conta) return reply.status(404).send({ erro: "Conta não encontrada" });
+  if (conta.status === 'PAGO') return reply.status(400).send({ erro: "Esta conta já foi paga!" });
+
+  // 3. REGISTRA A ENTRADA NO CAIXA (O PULO DO GATO 🐱)
+  await prisma.movimentacaoCaixa.create({
+    data: {
+      caixaId: caixaAberto.id,
+      tipo: 'RECEBIMENTO_FIADO', // Um tipo novo para você saber de onde veio o dinheiro
+      valor: conta.valor,
+      descricao: `Recebimento Fiado #${conta.id}`
+    }
+  });
+
+  // 4. ATUALIZA O STATUS DA CONTA
+  const contaAtualizada = await prisma.contaReceber.update({
+    where: { id: Number(id) },
+    data: { status: 'PAGO' }
+  });
+
+  return reply.send(contaAtualizada);
+});
+
 app.put('/contas-receber/:id/pagar', async (request, reply) => {
   const { id } = request.params as any
   await prisma.contaReceber.update({

@@ -474,13 +474,7 @@ setContasReceber(await resContas.json());
   // 8. FUNÇÕES CRUD E AUXILIARES
   // ==========================================================================
 
-  async function baixarConta(id: number) {
-    if(!confirm("Confirmar recebimento deste valor?")) return
-    await fetch(`${API_URL}/contas-receber/${id}/pagar`, { method: 'PUT' })
-    carregarDados()
-    alert("Recebido com sucesso!")
-  }
-  
+ 
 function removerItemCarrinho(index: number) {
   const novoCarrinho = [...carrinho];
   novoCarrinho.splice(index, 1);
@@ -586,6 +580,26 @@ async function cancelarVenda(id: number) {
       })
       carregarDados()
       alert("Haver gerado!")
+    }
+  }
+
+  async function receberConta(id: number) {
+    if (!confirm("Confirmar recebimento deste valor? O dinheiro entrará no caixa.")) return;
+
+    try {
+      const res = await fetch(`${API_URL}/contas-receber/baixar/${id}`, { method: 'POST' });
+      
+      if (res.ok) {
+        alert("Pagamento recebido com sucesso! 💰");
+        // Atualiza as listas para sumir o pendente e atualizar o saldo
+        carregarDados(); 
+        verificarStatusCaixa(); 
+      } else {
+        const erro = await res.json();
+        alert(erro.erro || "Erro ao receber.");
+      }
+    } catch (error) {
+      alert("Erro de conexão.");
     }
   }
 
@@ -976,6 +990,7 @@ async function cancelarVenda(id: number) {
             {contasReceber.length===0 ? <p>Nada pendente.</p> : (
               <table style={{width:'100%', borderCollapse:'collapse'}}>
                 <thead>
+                  <th>Ação</th>
                   <tr style={{textAlign:'left', color:'#718096'}}>
                     <th style={{padding:15}}>Data</th>
                     <th style={{padding:15}}>Cliente</th>
@@ -984,17 +999,41 @@ async function cancelarVenda(id: number) {
                   </tr>
                 </thead>
                 <tbody>
-                  {contasReceber.map(c => (
-                    <tr key={c.id} style={{borderBottom:'1px solid #eee'}}>
-                      <td style={{padding:15}}>{new Date(c.data).toLocaleDateString()}</td>
-                      <td style={{padding:15}}><b>{c.cliente.nome}</b></td>
-                      <td style={{padding:15,color:'#e53e3e',fontWeight:'bold'}}>R$ {Number(c.valor).toFixed(2)}</td>
-                      <td>
-                        <button onClick={()=>baixarConta(c.id)} style={{...estiloBotao, background:'#48bb78', color:'white'}}>Receber ✅</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+          {contasReceber.map((conta: any) => (
+            <tr key={conta.id} style={{ borderBottom: '1px solid #ccc' }}>
+              {/* Coluna 1: Nome */}
+              <td style={{ padding: 10 }}>{conta.cliente?.nome || 'Cliente Excluído'}</td>
+              
+              {/* Coluna 2: Data */}
+              <td>{new Date(conta.dataVencimento).toLocaleDateString()}</td>
+              
+              {/* Coluna 3: Valor */}
+              <td style={{ fontWeight: 'bold', color: '#c53030' }}>R$ {Number(conta.valor).toFixed(2)}</td>
+              
+              {/* Coluna 4: Status */}
+              <td>{conta.status}</td>
+
+              {/* Coluna 5: BOTÃO DE AÇÃO (O que estava dando erro) */}
+              <td>
+                {conta.status === 'PENDENTE' && (
+                  <button 
+                    onClick={() => receberConta(conta.id)}
+                    style={{ 
+                      padding: '5px 10px', 
+                      background: '#28a745', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: 4, 
+                      cursor: 'pointer' 
+                    }}
+                  >
+                    Receber 💵
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
               </table>
             )}
           </div>
