@@ -226,11 +226,12 @@ console.log("💳 Processando pagamento:", pag.forma);
 
         // CASO 2: CLIENTE PAGOU USANDO CRÉDITO/HAVER (Diminui o Haver)
         // ATENÇÃO: Verifique se o nome que aparece no seu Terminal está nesta lista abaixo!
-        if (['Haver', 'Crédito', 'Credito', 'Uso de Haver', 'Saldo', 'Crédito em Haver'].includes(pag.forma)) {
-          console.log("Simulando: Baixando Haver..."); // Log para confirmar
+        if (['Haver', 'HAVER', 'Crédito', 'CREDITO', 'Saldo', 'Uso de Haver'].includes(pag.forma)) {
+          
+          console.log("Simulando: Baixando Haver..."); 
           await prisma.cliente.update({
             where: { id: Number(dados.clienteId) },
-            data: { saldoHaver: { decrement: Number(pag.valor) } } // <--- TEM QUE SER DECREMENT
+            data: { saldoHaver: { decrement: Number(pag.valor) } } 
           });
         }
       }
