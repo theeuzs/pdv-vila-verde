@@ -128,6 +128,9 @@ export function App() {
   const [modalAbrirCaixa, setModalAbrirCaixa] = useState(false);
   const [valorAbertura, setValorAbertura] = useState("");
   const [dashboard, setDashboard] = useState<any>(null);
+  // ... outros useStates ...
+  const [entrega, setEntrega] = useState(false);
+  const [endereco, setEndereco] = useState('');
 
   // --- FUNÇÃO 1: Verificar se o caixa está aberto ---
   async function verificarStatusCaixa() {
@@ -442,6 +445,8 @@ async function finalizarVenda() {
     // Monta os dados para enviar ao backend
     const dadosVenda = {
       clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
+      entrega: entrega,
+    enderecoEntrega: endereco,
       itens: carrinho.map(item => ({
         produtoId: item.produto.id,
         quantidade: item.quantidade
@@ -1068,7 +1073,35 @@ async function cancelarVenda(id: number) {
                     ))}
                  </div>
               </div>
+{/* --- ÁREA DE ENTREGA (Cole na linha 1075, antes do <div style... ) --- */}
+            <div style={{ marginBottom: 15, background: '#f7fafc', padding: 10, borderRadius: 5, border: '1px solid #edf2f7' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontWeight: 'bold', color: '#2d3748' }}>
+                <input 
+                  type="checkbox" 
+                  checked={entrega} 
+                  onChange={(e) => setEntrega(e.target.checked)}
+                  style={{ transform: 'scale(1.5)' }} 
+                />
+                🚛 É para entregar?
+              </label>
 
+              {/* Só mostra o campo de endereço se marcou a caixinha */}
+              {entrega && (
+                <input
+                  type="text"
+                  placeholder="Digite o endereço de entrega..."
+                  value={endereco}
+                  onChange={(e) => setEndereco(e.target.value)}
+                  style={{
+                    width: '100%',
+                    marginTop: 10,
+                    padding: 8,
+                    borderRadius: 4,
+                    border: '1px solid #cbd5e0'
+                  }}
+                />
+              )}
+            </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={salvarOrcamento} disabled={carrinho.length === 0} style={{ ...estiloBotao, flex: 1, backgroundColor: carrinho.length > 0 ? '#d69e2e' : '#cbd5e0', color: 'white' }}>
                    📝 ORÇAMENTO

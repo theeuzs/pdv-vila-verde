@@ -11,6 +11,9 @@ model Venda {
   id        Int      @id @default(autoincrement())
   data      DateTime @default(now())
   total     Decimal
+  entrega         Boolean  @default(false)       // É pra entregar?
+  statusEntrega   String?  @default("PENDENTE")  // "PENDENTE" ou "ENTREGUE"
+  enderecoEntrega String?                        // Onde entregar?
   
   // formaPagamento String? (Pode apagar ou deixar como opcional, não vamos mais usar ele como principal)
   

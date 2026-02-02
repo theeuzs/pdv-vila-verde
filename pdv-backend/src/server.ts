@@ -167,6 +167,9 @@ app.post('/vendas', async (request, reply) => {
     data: {
       total: totalVenda,
       clienteId: dados.clienteId ? Number(dados.clienteId) : null,
+      entrega: dados.entrega || false,
+      enderecoEntrega: dados.enderecoEntrega || '',
+      statusEntrega: dados.entrega ? 'PENDENTE' : 'RETIRADO',
       itens: { create: itensParaSalvar as any },
       pagamentos: { create: dados.pagamentos }
     },
@@ -567,6 +570,33 @@ app.get('/dashboard', async () => {
     porPagamento,
     topProdutos: listaProdutos
   };
+});
+
+// --- ROTAS DE ENTREGA ---
+
+// 1. Listar entregas pendentes
+app.get('/entregas/pendentes', async () => {
+  const entregas = await prisma.venda.findMany({
+    where: { 
+      entrega: true,
+      statusEntrega: 'PENDENTE' 
+    },
+    include: { cliente: true, itens: { include: { produto: true } } },
+    orderBy: { data: 'asc' } // As mais antigas aparecem primeiro
+  });
+  return entregas;
+});
+
+// 2. Marcar como entregue
+app.patch('/entregas/:id/concluir', async (request) => {
+  const { id } = request.params as any;
+  
+  const vendaAtualizada = await prisma.venda.update({
+    where: { id: Number(id) },
+    data: { statusEntrega: 'ENTREGUE' }
+  });
+  
+  return vendaAtualizada;
 });
 
 // --- INICIALIZAÇÃO ---
