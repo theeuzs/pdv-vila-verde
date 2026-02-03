@@ -1391,11 +1391,16 @@ function removerItemCarrinho(index: number) {
 
         {/* === ABA: ORÇAMENTOS === */}
         {aba === 'orcamentos' && (
-          <div style={{ backgroundColor: 'white', borderRadius: 12, padding: 30, height: '100%', overflowY: 'auto' }}>
+          <div style={{ 
+            // MUDANÇA: Fundo e Cor do texto reagem ao tema
+            backgroundColor: modoEscuro ? '#2d3748' : 'white', 
+            color: modoEscuro ? 'white' : '#2d3748',
+            borderRadius: 12, padding: 30, height: '100%', overflowY: 'auto' 
+          }}>
             <h2 style={{ margin: '0 0 20px 0', color: '#d69e2e' }}>📝 Orçamentos Salvos</h2>
             <table style={{width:'100%', borderCollapse:'collapse'}}>
               <thead>
-                <tr style={{textAlign:'left', color:'#718096'}}>
+                <tr style={{textAlign:'left', color: modoEscuro ? '#cbd5e0' : '#718096'}}>
                   <th style={{padding:15}}>ID</th>
                   <th style={{padding:15}}>Data</th>
                   <th style={{padding:15}}>Cliente</th>
@@ -1406,7 +1411,7 @@ function removerItemCarrinho(index: number) {
               </thead>
               <tbody>
                 {orcamentos.map(o => (
-                  <tr key={o.id} style={{borderBottom:'1px solid #eee'}}>
+                  <tr key={o.id} style={{borderBottom: modoEscuro ? '1px solid #4a5568' : '1px solid #eee'}}>
                     <td style={{padding:15}}>#{o.id}</td>
                     <td style={{padding:15}}>{new Date(o.data).toLocaleDateString()}</td>
                     <td style={{padding:15}}><b>{o.cliente?.nome || 'Consumidor'}</b></td>
@@ -1414,7 +1419,7 @@ function removerItemCarrinho(index: number) {
                     <td style={{padding:15, fontWeight:'bold'}}>R$ {Number(o.total).toFixed(2)}</td>
                     <td style={{padding:15}}>
                       <button onClick={() => efetivarOrcamento(o)} title="Transformar em Venda" style={{ marginRight: 10, padding: '5px 10px', backgroundColor: '#2b6cb0', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Virar Venda 🛒</button>
-                      <button onClick={()=>reimprimirOrcamento(o)} style={{marginRight:10, cursor:'pointer', border:'none', background:'none', fontSize:'1.2rem'}}>🖨️</button>
+                      <button onClick={()=>reimprimirOrcamento(o)} style={{marginRight:10, cursor:'pointer', border:'none', background:'none', fontSize:'1.2rem', color: modoEscuro ? 'white' : 'black'}}>🖨️</button>
                       <button onClick={()=>excluirOrcamento(o.id)} style={{color:'red', cursor:'pointer', border:'none', background:'none', fontSize:'1.2rem'}}>🗑️</button>
                     </td>
                   </tr>
@@ -1426,14 +1431,19 @@ function removerItemCarrinho(index: number) {
 
         {/* === ABA: CLIENTES === */}
         {aba === 'clientes' && (
-          <div style={{ background: 'white', borderRadius: 12, padding: 30, height: '100%', overflowY: 'auto' }}>
+          <div style={{ 
+            // MUDANÇA: Fundo e Cor do texto reagem ao tema
+            backgroundColor: modoEscuro ? '#2d3748' : 'white', 
+            color: modoEscuro ? 'white' : '#2d3748',
+            borderRadius: 12, padding: 30, height: '100%', overflowY: 'auto' 
+          }}>
             <div style={{display:'flex',justifyContent:'space-between', marginBottom:20}}>
               <h2>👥 Clientes</h2>
               <button onClick={()=>{setModalClienteAberto(true);setClienteEmEdicao(null)}} style={{...estiloBotao,background:'#48bb78',color:'white'}}>+ Novo</button>
             </div>
             <table style={{width:'100%'}}>
               <thead>
-                <tr style={{textAlign:'left', color:'#718096'}}>
+                <tr style={{textAlign:'left', color: modoEscuro ? '#cbd5e0' : '#718096'}}>
                   <th style={{padding:15}}>Nome</th>
                   <th style={{padding:15}}>CPF / Endereço</th>
                   <th style={{padding:15}}>Haver</th>
@@ -1442,9 +1452,9 @@ function removerItemCarrinho(index: number) {
               </thead>
               <tbody>
                 {clientes.map(c => (
-                  <tr key={c.id} style={{borderBottom:'1px solid #eee'}}>
-                    <td style={{padding:15}}><b>{c.nome}</b><br/><small>{c.celular}</small></td>
-                    <td style={{padding:15}}>{c.cpfCnpj}<br/><small>{c.endereco}</small></td>
+                  <tr key={c.id} style={{borderBottom: modoEscuro ? '1px solid #4a5568' : '1px solid #eee'}}>
+                    <td style={{padding:15}}><b>{c.nome}</b><br/><small style={{color: modoEscuro ? '#a0aec0' : 'gray'}}>{c.celular}</small></td>
+                    <td style={{padding:15}}>{c.cpfCnpj}<br/><small style={{color: modoEscuro ? '#a0aec0' : 'gray'}}>{c.endereco}</small></td>
                     <td style={{padding:15}}>
                       <span style={{fontWeight:'bold', color:Number(c.saldoHaver)>0?'#2f855a':'#a0aec0', background:Number(c.saldoHaver)>0?'#f0fff4':'#edf2f7', padding:'5px 10px', borderRadius:20}}>
                         R$ {Number(c.saldoHaver).toFixed(2)}
@@ -1465,12 +1475,17 @@ function removerItemCarrinho(index: number) {
 
         {/* === ABA: FINANCEIRO === */}
         {aba === 'financeiro' && (
-          <div style={{ background: 'white', borderRadius: 12, padding: 30, height: '100%', overflowY: 'auto' }}>
+          <div style={{ 
+            // MUDANÇA: Fundo e Cor do texto reagem ao tema
+            backgroundColor: modoEscuro ? '#2d3748' : 'white', 
+            color: modoEscuro ? 'white' : '#2d3748',
+            borderRadius: 12, padding: 30, height: '100%', overflowY: 'auto' 
+          }}>
             <h2>💲 A Receber (A prazo)</h2>
             {contasReceber.length===0 ? <p>Nada pendente.</p> : (
               <table style={{width:'100%', borderCollapse:'collapse'}}>
                 <thead>
-                  <tr style={{textAlign:'left', color:'#718096'}}>
+                  <tr style={{textAlign:'left', color: modoEscuro ? '#cbd5e0' : '#718096'}}>
                     <th style={{padding:15}}>Cliente</th>
                     <th style={{padding:15}}>Data</th>
                     <th style={{padding:15}}>Valor</th>
@@ -1480,7 +1495,7 @@ function removerItemCarrinho(index: number) {
                 </thead>
                 <tbody>
                   {contasReceber.map((conta: any) => (
-                    <tr key={conta.id} style={{ borderBottom: '1px solid #ccc' }}>
+                    <tr key={conta.id} style={{ borderBottom: modoEscuro ? '1px solid #4a5568' : '1px solid #ccc' }}>
                       <td style={{ padding: 10 }}>{conta.cliente?.nome || 'Cliente Excluído'}</td>
                       <td>{new Date(conta.dataVencimento).toLocaleDateString()}</td>
                       <td style={{ fontWeight: 'bold', color: '#c53030' }}>R$ {Number(conta.valor).toFixed(2)}</td>
@@ -1500,11 +1515,16 @@ function removerItemCarrinho(index: number) {
 
         {/* === ABA: HISTÓRICO VENDAS === */}
         {aba === 'vendas' && (
-          <div style={{ background: 'white', borderRadius: 12, padding: 30, height: '100%', overflowY: 'auto' }}>
+          <div style={{ 
+            // MUDANÇA: Fundo e Cor do texto reagem ao tema
+            backgroundColor: modoEscuro ? '#2d3748' : 'white', 
+            color: modoEscuro ? 'white' : '#2d3748',
+            borderRadius: 12, padding: 30, height: '100%', overflowY: 'auto' 
+          }}>
             <h2>📜 Histórico de Vendas</h2>
             <table style={{width:'100%', borderCollapse:'collapse'}}>
               <thead>
-                <tr style={{textAlign:'left', color:'#718096'}}>
+                <tr style={{textAlign:'left', color: modoEscuro ? '#cbd5e0' : '#718096'}}>
                   <th style={{padding:15}}>ID</th>
                   <th style={{padding:15}}>Data</th>
                   <th style={{padding:15}}>Cliente</th>
@@ -1514,15 +1534,15 @@ function removerItemCarrinho(index: number) {
                 </tr>
               </thead>
               <tbody>
-                {vendasRealizadas.map(v => (
-                  <tr key={v.id} style={{borderBottom:'1px solid #eee'}}>
+                {vendasRealizadas.map((v: any) => (
+                  <tr key={v.id} style={{borderBottom: modoEscuro ? '1px solid #4a5568' : '1px solid #eee'}}>
                     <td style={{padding:15}}>#{v.id}</td>
                     <td style={{padding:15}}>{new Date(v.data).toLocaleString()}</td>
                     <td style={{padding:15}}><b>{v.cliente?.nome||'Consumidor'}</b></td>
-                    <td style={{padding:15}}><small>{v.pagamentos?.map(p=>p.forma).join(' + ')}</small></td>
+                    <small>{v.pagamentos?.map((p: any) => p.forma).join(' + ')}</small>
                     <td style={{padding:15,fontWeight:'bold'}}>R$ {Number(v.total).toFixed(2)}</td>
                     <td style={{padding:15}}>
-                      <button onClick={() => reimprimirVenda(v)} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem' }}>🖨️</button>
+                      <button onClick={() => reimprimirVenda(v)} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem', color: modoEscuro ? 'white' : 'black' }}>🖨️</button>
                       <button onClick={() => tentarCancelarVenda(v.id)} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem', marginLeft: 10 }} title="Estornar Venda">🚫</button>
                     </td>
                   </tr>
@@ -1531,7 +1551,6 @@ function removerItemCarrinho(index: number) {
             </table>
           </div>
         )}
-
         {/* === ABA ENTREGAS === */}
         {aba === 'entregas' && (
           <div style={{ padding: 20 }}>
