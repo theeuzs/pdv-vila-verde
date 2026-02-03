@@ -900,7 +900,7 @@ function removerItemCarrinho(index: number) {
   }
   
   return (
-<div style={{ 
+    <div style={{ 
       fontFamily: 'Segoe UI, sans-serif', 
       height: '100vh', 
       display: 'flex', 
@@ -982,7 +982,7 @@ function removerItemCarrinho(index: number) {
           <span style={{ fontSize: 24 }}>🏗️</span>
           <div>
             <h1 style={{ fontSize: 18, margin: 0, lineHeight: '1' }}>PDV Vila Verde</h1>
-           <span style={{ background: '#4a5568', padding: '2px 6px', borderRadius: 4, fontSize: 10, textTransform: 'uppercase' }}>
+            <span style={{ background: '#4a5568', padding: '2px 6px', borderRadius: 4, fontSize: 10, textTransform: 'uppercase' }}>
               {usuarioLogado.cargo === 'GERENTE' ? '👤 MODO CHEFE' : 
                usuarioLogado.cargo === 'VENDEDOR' ? '🛒 MODO VENDEDOR' : 
                '🚚 MODO MOTORISTA'}
@@ -1049,22 +1049,22 @@ function removerItemCarrinho(index: number) {
           </button>
         </div>
       </div>
+      </div>
 
-     {/* --- MENU DE NAVEGAÇÃO (AGORA COM OS 3 CARGOS) --- */}
+     {/* --- MENU DE NAVEGAÇÃO --- */}
       {usuarioLogado && (
-<div style={{ 
-  display: 'flex', 
-  background: modoEscuro ? '#2d3748' : 'white', // <--- MUDANÇA AQUI
-  padding: '0 30px', 
-  borderBottom: modoEscuro ? '1px solid #4a5568' : '1px solid #e2e8f0', // <--- E AQUI (Borda mais escura)
-  overflowX: 'auto' 
-}}>          
-          {/* DEFINIÇÃO DOS BOTÕES POR CARGO */}
+        <div style={{ 
+          display: 'flex', 
+          background: modoEscuro ? '#2d3748' : 'white',
+          padding: '0 30px', 
+          borderBottom: modoEscuro ? '1px solid #4a5568' : '1px solid #e2e8f0',
+          overflowX: 'auto' 
+        }}>          
           {(usuarioLogado.cargo === 'GERENTE' 
               ? ['caixa', 'clientes', 'financeiro', 'vendas', 'orcamentos', 'dashboard', 'entregas', 'equipe'] 
               : usuarioLogado.cargo === 'VENDEDOR'
                   ? ['caixa', 'clientes', 'vendas', 'orcamentos', 'entregas']
-                  : ['entregas'] // <--- MOTORISTA SÓ VÊ ISSO AGORA
+                  : ['entregas']
           ).map((menu) => (
             <button 
               key={menu}
@@ -1074,15 +1074,14 @@ function removerItemCarrinho(index: number) {
                 if(menu==='dashboard') carregarDashboard(); 
               }} 
               style={{
-  padding: '20px',
-  background: 'none',
-  border: 'none',
-  cursor: 'pointer', // Adicionei pra ficar melhor
-  fontWeight: 'bold', // Adicionei pra ficar melhor
-  color: modoEscuro ? 'white' : '#4a5568', // <--- ADICIONE ESSA LINHA!
-  borderBottom: aba === menu ? '4px solid #2b6cb0' : 'none',
-  // ... resto do código ...
-}}
+                padding: '20px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                color: modoEscuro ? 'white' : '#4a5568',
+                borderBottom: aba === menu ? '4px solid #2b6cb0' : 'none',
+              }}
             >
               {
                 menu === 'caixa' ? '🛒 CAIXA' : 
@@ -1110,22 +1109,22 @@ function removerItemCarrinho(index: number) {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '10px', overflowY: 'auto' }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 {/* === NOVO CAMPO DE QUANTIDADE === */}
-            <input 
-              type="number" 
-              min="1"
-              value={qtdParaAdicionar}
-              onChange={e => setQtdParaAdicionar(Number(e.target.value))}
-              placeholder="Qtd"
-              style={{ 
-                width: 80, 
-                padding: '15px', 
-                borderRadius: '10px', 
-                border: '1px solid #ddd', 
-                textAlign: 'center', 
-                fontSize: '1.2rem', 
-                fontWeight: 'bold'
-              }} 
-            />
+                <input 
+                  type="number" 
+                  min="1"
+                  value={qtdParaAdicionar}
+                  onChange={e => setQtdParaAdicionar(Number(e.target.value))}
+                  placeholder="Qtd"
+                  style={{ 
+                    width: 80, 
+                    padding: '15px', 
+                    borderRadius: '10px', 
+                    border: '1px solid #ddd', 
+                    textAlign: 'center', 
+                    fontSize: '1.2rem', 
+                    fontWeight: 'bold'
+                  }} 
+                />
                 <input
                   autoFocus
                   type="text"
@@ -1215,10 +1214,10 @@ function removerItemCarrinho(index: number) {
                       placeholder="🔍 Digite o nome do cliente..."
                       value={termoCliente}
                       onChange={e => setTermoCliente(e.target.value)}
-                      style={{ ...estiloInput, marginBottom: 0 }} // Reaproveita seu estilo
+                      style={{ ...estiloInput, marginBottom: 0 }} 
                     />
                     
-                    {/* LISTA FILTRADA (SÓ APARECE SE TIVER DIGITADO ALGO OU CLICADO) */}
+                    {/* LISTA FILTRADA */}
                     {termoCliente.length > 0 && (
                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #ccc', borderRadius: '0 0 8px 8px', maxHeight: '200px', overflowY: 'auto', zIndex: 100, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
                         {clientes
@@ -1236,7 +1235,6 @@ function removerItemCarrinho(index: number) {
                             </div>
                           ))
                         }
-                        {/* Se não achar ninguém */}
                         {clientes.filter(c => c.nome.toLowerCase().includes(termoCliente.toLowerCase())).length === 0 && (
                           <div style={{ padding: 10, color: '#999', fontStyle: 'italic' }}>Nenhum cliente encontrado.</div>
                         )}
@@ -1309,7 +1307,7 @@ function removerItemCarrinho(index: number) {
                 </div>
               </div>
 
-              {/* --- ÁREA DE ENTREGA (Integração Corrigida) --- */}
+              {/* --- ÁREA DE ENTREGA --- */}
               <div style={{ marginBottom: 15, background: '#f7fafc', padding: 10, borderRadius: 5, border: '1px solid #edf2f7' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontWeight: 'bold', color: '#2d3748' }}>
                   <input type="checkbox" checked={entrega} onChange={(e) => setEntrega(e.target.checked)} style={{ transform: 'scale(1.5)' }} />
@@ -1547,7 +1545,11 @@ function removerItemCarrinho(index: number) {
             </div>
           </div>
         )}
-      </div>
+
+        {/* === ABA: EQUIPE === */}
+        {aba === 'equipe' && <TelaEquipe />}
+
+      </div> {/* <--- FIM DO CONTEÚDO PRINCIPAL */}
 
       {/* =====================================================================
           MODAIS (JANELAS FLUTUANTES)
@@ -1698,10 +1700,7 @@ function removerItemCarrinho(index: number) {
         </div>
       )}
 
-{/* === ABA: EQUIPE (A peça que faltava!) === */}
-        {aba === 'equipe' && <TelaEquipe />}
-
-{/* === MODAL DE AUTORIZAÇÃO DE GERENTE === */}
+      {/* === MODAL DE AUTORIZAÇÃO DE GERENTE === */}
       {modalAutorizacao && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
           <div style={{ backgroundColor: 'white', padding: 30, borderRadius: 10, width: 350, textAlign: 'center' }}>
@@ -1729,8 +1728,7 @@ function removerItemCarrinho(index: number) {
         </div>
       )}
 
-    </div>      
-    </div> 
+    </div>
   );
 }
 
