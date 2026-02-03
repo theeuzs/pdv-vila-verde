@@ -223,16 +223,14 @@ app.get('/vendas', async () => {
   })
 })
 
-// CANCELAR VENDA (COM ESTORNO DE CAIXA E ESTOQUE CORRIGIDO)
-// CANCELAR VENDA (VERSÃO CORRIGIDA E LIMPA)
-// CANCELAR VENDA (VERSÃO SEGURA)
+// CANCELAR VENDA (CORRIGIDO PARA NÚMERO)
 app.delete('/vendas/:id', async (req, res) => {
   const { id } = req.params as any;
 
   try {
-    // 1. Busca a venda
+    // 1. Busca a venda (USANDO NUMBER)
     const venda = await prisma.venda.findUnique({
-      where: { id: Number(id) }, // Garante que é número
+      where: { id: Number(id) }, // <--- VENDAS SÃO NÚMEROS!
       include: { itens: true }
     });
 
@@ -242,11 +240,13 @@ app.delete('/vendas/:id', async (req, res) => {
     for (const item of venda.itens) {
       await prisma.produto.update({
         where: { id: item.produtoId },
-        data: { estoque: { increment: Number(item.quantidade) } }
+        data: { 
+          estoque: { increment: Number(item.quantidade) } 
+        }
       });
     }
 
-    // 3. Apaga tudo (usando transaction para não dar erro de ordem)
+    // 3. Apaga tudo (USANDO NUMBER)
     await prisma.$transaction([
       prisma.itemVenda.deleteMany({ where: { vendaId: Number(id) } }),
       prisma.pagamento.deleteMany({ where: { vendaId: Number(id) } }),
@@ -256,7 +256,7 @@ app.delete('/vendas/:id', async (req, res) => {
     return res.send({ ok: true });
 
   } catch (error) {
-    console.error("ERRO AO CANCELAR:", error); // Isso vai aparecer nos logs do Render
+    console.error("ERRO AO CANCELAR:", error);
     return res.status(500).send({ error: "Erro interno no servidor" });
   }
 });
