@@ -830,7 +830,7 @@ async function cancelarVenda(id: number) {
     <div style={{ fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
       {/* --- INÍCIO DA BARRA DE CAIXA (ADMIN) --- */}
-      {usuarioLogado === 'admin' && (
+      {usuarioLogado === 'GERENTE' && (
         <div style={{ 
           padding: '15px 20px', 
           backgroundColor: caixaAberto ? '#d4edda' : '#f8d7da', 
@@ -903,12 +903,12 @@ async function cancelarVenda(id: number) {
           <div>
             <h1 style={{ fontSize: 18, margin: 0, lineHeight: '1' }}>PDV Vila Verde</h1>
             <span style={{ background: '#4a5568', padding: '2px 6px', borderRadius: 4, fontSize: 10, textTransform: 'uppercase' }}>
-              {usuarioLogado === 'admin' ? '👤 MODO CHEFE' : '🚚 MODO MOTORISTA'}
+              {usuarioLogado === 'GERENTE' ? '👤 MODO CHEFE' : '🚚 MODO MOTORISTA'}
             </span>
           </div>
         </div>
 
-        {usuarioLogado === 'admin' && (
+        {usuarioLogado === 'GERENTE' && (
           <div style={{ display: 'flex', gap: 30 }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 11, color: '#a0aec0' }}>CAIXA HOJE</div>
@@ -937,7 +937,7 @@ async function cancelarVenda(id: number) {
       </div>
 
       {/* --- MENU DE NAVEGAÇÃO --- */}
-      {usuarioLogado === 'admin' && (
+      {usuarioLogado === 'GERENTE' && (
         <div style={{ display: 'flex', background: 'white', padding: '0 30px', borderBottom: '1px solid #e2e8f0', overflowX: 'auto' }}>
           {['caixa', 'clientes', 'financeiro', 'vendas', 'orcamentos', 'dashboard', 'entregas'].map((menu) => (
             <button 
