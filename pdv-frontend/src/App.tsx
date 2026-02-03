@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { TelaLogin } from './TelaLogin';
+import { TelaEquipe } from './TelaEquipe';
 
 // ============================================================================
 // 1. TIPAGEM DE DADOS (INTERFACES)
@@ -939,7 +940,7 @@ async function cancelarVenda(id: number) {
       {/* --- MENU DE NAVEGAÇÃO --- */}
       {usuarioLogado.cargo === 'GERENTE' && (
         <div style={{ display: 'flex', background: 'white', padding: '0 30px', borderBottom: '1px solid #e2e8f0', overflowX: 'auto' }}>
-          {['caixa', 'clientes', 'financeiro', 'vendas', 'orcamentos', 'dashboard', 'entregas'].map((menu) => (
+          {['caixa', 'clientes', 'financeiro', 'vendas', 'orcamentos', 'dashboard', 'entregas', 'equipe'].map((menu) => (
             <button 
               key={menu}
               onClick={() => { setAba(menu); if(menu==='entregas') carregarEntregas(); if(menu==='dashboard') carregarDashboard(); }} 
@@ -960,8 +961,11 @@ async function cancelarVenda(id: number) {
                menu === 'vendas' ? '📄 VENDAS' :
                menu === 'orcamentos' ? '📝 ORÇAMENTOS' :
                menu === 'dashboard' ? '📊 DASHBOARD' :
-               '🚚 ENTREGAS'}
-            </button>
+               menu === 'entregas'  ? '🚚 ENTREGAS' :
+                        '👥 EQUIPE'
+                }  {/* <--- VOCÊ PRECISA ADICIONAR ESSA CHAVE AQUI! */}
+              </button>
+            
           ))}
         </div>
       )}
@@ -1491,6 +1495,9 @@ async function cancelarVenda(id: number) {
           </div>
         </div>
       )}
+
+{/* === ABA: EQUIPE (A peça que faltava!) === */}
+        {aba === 'equipe' && <TelaEquipe />}
 
     </div>      
   )

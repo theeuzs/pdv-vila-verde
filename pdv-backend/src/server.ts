@@ -652,6 +652,38 @@ app.get('/resetar-chefe', async (req, res) => {
   }
 });
 
+// --- GESTÃO DE EQUIPE (Só o Gerente usa) ---
+
+// 1. Listar funcionários
+app.get('/usuarios', async (req, res) => {
+  const usuarios = await prisma.user.findMany({
+    orderBy: { nome: 'asc' }
+  });
+  return res.send(usuarios);
+});
+
+// 2. Criar novo funcionário
+app.post('/usuarios', async (req, res) => {
+  const { nome, senha, cargo } = req.body as any;
+  // Cria um email falso automático pro banco não reclamar
+  const emailAuto = `${nome.toLowerCase().replace(/\s/g, '')}${Math.floor(Math.random()*999)}@vila.com`;
+
+  try {
+    const novo = await prisma.user.create({
+      data: { nome, senha, cargo, email: emailAuto }
+    });
+    return res.send(novo);
+  } catch (err) {
+    return res.status(500).send({ error: "Erro ao criar. Tente outro nome." });
+  }
+});
+
+// 3. Demitir funcionário
+app.delete('/usuarios/:id', async (req, res) => {
+  const { id } = req.params as any;
+await prisma.user.delete({ where: { id: String(id) } });  return res.send({ ok: true });
+});
+
 // --- INICIALIZAÇÃO ---
 const start = async () => {
   try {
