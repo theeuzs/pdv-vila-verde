@@ -1232,19 +1232,35 @@ function removerItemCarrinho(index: number) {
                     />
                     
                     {termoCliente.length > 0 && (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #ccc', borderRadius: '0 0 8px 8px', maxHeight: '200px', overflowY: 'auto', zIndex: 100, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                      <div style={{ 
+                        position: 'absolute', 
+                        top: '100%', 
+                        left: 0, 
+                        right: 0, 
+                        // MUDANÇA 1: Fundo e Borda reagem ao Modo Escuro
+                        backgroundColor: modoEscuro ? '#2d3748' : 'white', 
+                        border: modoEscuro ? '1px solid #4a5568' : '1px solid #ccc',
+                        borderRadius: '0 0 8px 8px', 
+                        maxHeight: '200px', 
+                        overflowY: 'auto', 
+                        zIndex: 100, 
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                        // MUDANÇA 2: Cor do Texto
+                        color: modoEscuro ? 'white' : '#2d3748'
+                      }}>
                         {clientes
                           .filter(c => c.nome.toLowerCase().includes(termoCliente.toLowerCase()))
                           .map(c => (
                             <div 
                               key={c.id} 
                               onClick={() => { setClienteSelecionado(String(c.id)); setTermoCliente(''); }}
-                              style={{ padding: '10px', borderBottom: '1px solid #eee', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = '#f7fafc'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                              style={{ padding: '10px', borderBottom: modoEscuro ? '1px solid #4a5568' : '1px solid #eee', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
+                              // Efeito Hover simples (Muda a opacidade pra não brigar com as cores)
+                              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                             >
                               <span>{c.nome}</span>
-                              <small style={{ color: '#aaa' }}>{c.cpfCnpj || 'Sem Doc'}</small>
+                              <small style={{ color: modoEscuro ? '#a0aec0' : '#aaa' }}>{c.cpfCnpj || 'Sem Doc'}</small>
                             </div>
                           ))
                         }
@@ -1347,7 +1363,21 @@ function removerItemCarrinho(index: number) {
                   🚛 É para entregar?
                 </label>
                 {entrega && (
-                  <input type="text" placeholder="Digite o endereço de entrega..." value={endereco} onChange={(e) => setEndereco(e.target.value)} style={{ width: '100%', marginTop: 10, padding: 8, borderRadius: 4, border: '1px solid #cbd5e0' }} />
+                  <input 
+                    type="text" 
+                    placeholder="Digite o endereço de entrega..." 
+                    value={endereco} 
+                    onChange={(e) => setEndereco(e.target.value)} 
+                    style={{ 
+                      width: '100%', 
+                      marginTop: 10, 
+                      padding: 8, 
+                      borderRadius: 4, 
+                      border: '1px solid #cbd5e0',
+                      // MUDANÇA AQUI: Isso impede que a caixa estoure o tamanho 👇
+                      boxSizing: 'border-box' 
+                    }} 
+                  />
                 )}
               </div>
 
