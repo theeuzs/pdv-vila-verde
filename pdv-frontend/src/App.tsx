@@ -1052,8 +1052,13 @@ function removerItemCarrinho(index: number) {
 
      {/* --- MENU DE NAVEGAÇÃO (AGORA COM OS 3 CARGOS) --- */}
       {usuarioLogado && (
-        <div style={{ display: 'flex', background: 'white', padding: '0 30px', borderBottom: '1px solid #e2e8f0', overflowX: 'auto' }}>
-          
+<div style={{ 
+  display: 'flex', 
+  background: modoEscuro ? '#2d3748' : 'white', // <--- MUDANÇA AQUI
+  padding: '0 30px', 
+  borderBottom: modoEscuro ? '1px solid #4a5568' : '1px solid #e2e8f0', // <--- E AQUI (Borda mais escura)
+  overflowX: 'auto' 
+}}>          
           {/* DEFINIÇÃO DOS BOTÕES POR CARGO */}
           {(usuarioLogado.cargo === 'GERENTE' 
               ? ['caixa', 'clientes', 'financeiro', 'vendas', 'orcamentos', 'dashboard', 'entregas', 'equipe'] 
@@ -1068,17 +1073,16 @@ function removerItemCarrinho(index: number) {
                 if(menu==='entregas') carregarEntregas(); 
                 if(menu==='dashboard') carregarDashboard(); 
               }} 
-              style={{ 
-                padding: '20px', 
-                background: 'none', 
-                border: 'none', 
-                borderBottom: aba === menu ? '4px solid #2b6cb0' : 'none', 
-                fontWeight: 'bold', 
-                cursor: 'pointer', 
-                color: aba === menu ? '#2b6cb0' : '#718096',
-                textTransform: 'uppercase',
-                whiteSpace: 'nowrap'
-              }}
+              style={{
+  padding: '20px',
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer', // Adicionei pra ficar melhor
+  fontWeight: 'bold', // Adicionei pra ficar melhor
+  color: modoEscuro ? 'white' : '#4a5568', // <--- ADICIONE ESSA LINHA!
+  borderBottom: aba === menu ? '4px solid #2b6cb0' : 'none',
+  // ... resto do código ...
+}}
             >
               {
                 menu === 'caixa' ? '🛒 CAIXA' : 
