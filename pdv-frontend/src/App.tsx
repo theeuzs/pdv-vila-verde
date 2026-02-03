@@ -929,7 +929,31 @@ function removerItemCarrinho(index: number) {
   if (!usuarioLogado) {
     return <TelaLogin onLoginSucesso={(u) => setUsuarioLogado(u)} />;
   }
-  
+  // Função para abrir o WhatsApp com o resumo da venda
+  const enviarZap = (venda: any) => {
+    // 1. Tenta pegar o celular do cliente ou pede um se não tiver
+    let telefone = venda.cliente?.celular || '';
+    
+    // Limpa o numero (tira parenteses, traços, espaços)
+    telefone = telefone.replace(/\D/g, '');
+
+    // Se não tiver numero valido, avisa (opcional: podia abrir sem numero pra escolher o contato)
+    if (telefone.length < 10) {
+      const novoNumero = prompt("Cliente sem celular cadastrado! Digite o número (com DDD) para enviar:");
+      if (!novoNumero) return;
+      telefone = novoNumero.replace(/\D/g, '');
+    }
+
+    // 2. Monta a mensagem bonitinha
+    const itensTexto = venda.itens.map((i: any) => `▪️ ${i.quantidade}x ${i.produto.nome}`).join('%0A'); // %0A é pular linha
+    const totalTexto = Number(venda.total).toFixed(2);
+    
+    const mensagem = `Olá ${venda.cliente?.nome || 'Cliente'}, tudo bem? 🏗️%0A%0AAqui é da *Vila Verde*! Segue o resumo da sua compra:%0A%0A${itensTexto}%0A%0A*💰 TOTAL: R$ ${totalTexto}*%0A%0AObrigado pela preferência! 🤝`;
+
+    // 3. Abre o link do Zap
+    window.open(`https://wa.me/55${telefone}?text=${mensagem}`, '_blank');
+  };
+
   return (
     <div style={{ 
       fontFamily: 'Segoe UI, sans-serif', 
@@ -1574,6 +1598,7 @@ function removerItemCarrinho(index: number) {
                     <td style={{padding:15,fontWeight:'bold'}}>R$ {Number(v.total).toFixed(2)}</td>
                     <td style={{padding:15}}>
                       <button onClick={() => reimprimirVenda(v)} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem', color: modoEscuro ? 'white' : 'black' }}>🖨️</button>
+                      <button onClick={() => enviarZap(v)} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem', marginRight: 5 }} title="Enviar no WhatsApp">📱</button>
                       <button onClick={() => tentarCancelarVenda(v.id)} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem', marginLeft: 10 }} title="Estornar Venda">🚫</button>
                     </td>
                   </tr>
