@@ -141,6 +141,8 @@ export function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);  
   // Estado para controlar o tema
   const [modoEscuro, setModoEscuro] = useState(false);
+  // Estado para controlar a quantidade da próxima adição
+  const [qtdParaAdicionar, setQtdParaAdicionar] = useState(1);
 
   useEffect(() => {
     function handleResize() {
@@ -454,16 +456,32 @@ setContasReceber(await resContas.json());
 
   function adicionarAoCarrinho(p: Produto) {
     if (Number(p.estoque) <= 0) {
-      alert("Produto sem estoque!")
-      return
+      alert("Produto sem estoque!");
+      return;
     }
+
+    // 1. Pega o número que você digitou na caixinha (ou usa 1 se estiver vazio)
+    const qtd = qtdParaAdicionar > 0 ? qtdParaAdicionar : 1;
+
     setCarrinho(lista => {
-      const existe = lista.find(item => item.produto.id === p.id)
+      // Verifica se o produto já está no carrinho
+      const existe = lista.find(item => item.produto.id === p.id);
+
       if (existe) {
-        return lista.map(item => item.produto.id === p.id ? { ...item, quantidade: item.quantidade + 1 } : item)
+        // 2. Se já existe, soma a quantidade escolhida (+ qtd)
+        return lista.map(item => 
+          item.produto.id === p.id 
+            ? { ...item, quantidade: item.quantidade + qtd } 
+            : item
+        );
       }
-      return [...lista, { produto: p, quantidade: 1 }]
-    })
+
+      // 3. Se é novo, adiciona com a quantidade escolhida
+      return [...lista, { produto: p, quantidade: qtd }];
+    });
+
+    // 4. (Opcional) Volta a caixinha para 1 depois de adicionar
+    setQtdParaAdicionar(1); 
   }
 
   // Cálculos do Carrinho
@@ -1087,6 +1105,23 @@ function removerItemCarrinho(index: number) {
             {/* COLUNA ESQUERDA: PRODUTOS */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '10px', overflowY: 'auto' }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                {/* === NOVO CAMPO DE QUANTIDADE === */}
+            <input 
+              type="number" 
+              min="1"
+              value={qtdParaAdicionar}
+              onChange={e => setQtdParaAdicionar(Number(e.target.value))}
+              placeholder="Qtd"
+              style={{ 
+                width: 80, 
+                padding: '15px', 
+                borderRadius: '10px', 
+                border: '1px solid #ddd', 
+                textAlign: 'center', 
+                fontSize: '1.2rem', 
+                fontWeight: 'bold'
+              }} 
+            />
                 <input
                   autoFocus
                   type="text"
