@@ -902,12 +902,11 @@ function removerItemCarrinho(index: number) {
   return (
     <div style={{ 
       fontFamily: 'Segoe UI, sans-serif', 
-      height: '100vh', 
+      minHeight: '100vh', // Mudei de height para minHeight (permite crescer)
       display: 'flex', 
       flexDirection: 'column',
-      // MUDANÇA AQUI 👇
-      background: modoEscuro ? '#1a202c' : '#f7fafc', // Cinza escuro ou Claro
-      color: modoEscuro ? '#f7fafc' : '#2d3748'       // Texto Branco ou Preto
+      background: modoEscuro ? '#1a202c' : '#f7fafc',
+      color: modoEscuro ? '#f7fafc' : '#2d3748'
     }}>      
       {/* --- INÍCIO DA BARRA DE CAIXA (ADMIN) --- */}
       {(usuarioLogado.cargo === 'GERENTE' || usuarioLogado.cargo === 'VENDEDOR') && (
@@ -919,7 +918,8 @@ function removerItemCarrinho(index: number) {
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          marginBottom: 20
+          flexWrap: 'wrap', // Permite quebrar linha se a tela for pequena
+          gap: 10
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: '1.5rem' }}>{caixaAberto ? '✅' : '🔒'}</span>
@@ -977,7 +977,7 @@ function removerItemCarrinho(index: number) {
       )}
 
       {/* --- HEADER --- */}
-      <div style={{ background: '#1a202c', padding: '10px 30px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ background: '#1a202c', padding: '10px 30px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 24 }}>🏗️</span>
           <div>
@@ -1011,10 +1011,8 @@ function removerItemCarrinho(index: number) {
         )}
 
        <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-          
-        {/* LADO DIREITO: Modo Escuro + Nome + Sair */}
+        {/* LADO DIREITO */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-          
           {/* BOTÃO MODO ESCURO */}
           <button 
             onClick={() => setModoEscuro(!modoEscuro)} 
@@ -1035,12 +1033,10 @@ function removerItemCarrinho(index: number) {
             {modoEscuro ? '☀️' : '🌙'}
           </button>
 
-          {/* Nome do Usuário */}
           <div style={{ textAlign: 'right', fontSize: '0.9rem', color: '#cbd5e0' }}>
             Olá, <strong style={{ color: 'white' }}>{usuarioLogado.nome}</strong>
           </div>
 
-          {/* Botão Sair */}
           <button 
             onClick={() => setUsuarioLogado(null)}
             style={{ background: '#e53e3e', color: 'white', border: 'none', padding: '8px 15px', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 5 }} 
@@ -1081,6 +1077,7 @@ function removerItemCarrinho(index: number) {
                 fontWeight: 'bold',
                 color: modoEscuro ? 'white' : '#4a5568',
                 borderBottom: aba === menu ? '4px solid #2b6cb0' : 'none',
+                whiteSpace: 'nowrap'
               }}
             >
               {
@@ -1098,17 +1095,20 @@ function removerItemCarrinho(index: number) {
         </div>
       )}
 
-      {/* --- CONTEÚDO PRINCIPAL --- */}
-      <div style={{ flex: 1, padding: '30px', overflow: 'hidden' }}>
+      {/* --- CONTEÚDO PRINCIPAL (COM SCROLL ATIVADO) --- */}
+      <div style={{ flex: 1, padding: '30px', overflowY: 'auto' }}> 
+        {/* AQUI ESTAVA O PROBLEMA: "overflow: hidden" cortava a tela. Mudei para "auto". */}
         
         {/* === ABA: CAIXA === */}
         {aba === 'caixa' && (
-          <div style={{ display: 'flex', height: '100%', gap: 30, flexDirection: isMobile ? 'column' : 'row', overflowY: isMobile ? 'auto' : 'hidden' }}>
+          <div style={{ display: 'flex', gap: 30, flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start' }}>
+            {/* Removi height: 100% daqui para deixar o carrinho crescer se precisar */}
             
             {/* COLUNA ESQUERDA: PRODUTOS */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '10px', overflowY: 'auto' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', height: '75vh' }}> 
+              {/* Fixei height 75vh AQUI para a lista de produtos ter seu próprio scroll, mas a página toda rolar se precisar */}
+              
               <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                {/* === NOVO CAMPO DE QUANTIDADE === */}
                 <input 
                   type="number" 
                   min="1"
@@ -1146,42 +1146,45 @@ function removerItemCarrinho(index: number) {
                 </button>
               </div>
 
-              {busca === '' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, opacity: 0.6, color: '#888' }}>
-                  <div style={{ fontSize: '80px', marginBottom: '20px' }}>🏪</div>
-                  <h2>Vila Verde PDV</h2>
-                  <p>Pesquise para vender.</p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  {produtosFiltrados.map(produto => (
-                    <div 
-                      key={produto.id} 
-                      onClick={() => adicionarAoCarrinho(produto)}
-                      style={{
-                        display: 'flex', alignItems: 'center', backgroundColor: 'white', padding: '15px', borderRadius: '12px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', cursor: 'pointer',
-                        borderLeft: Number(produto.estoque) <= 0 ? '5px solid #e74c3c' : '5px solid #2ecc71', transition: 'transform 0.1s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.01)'}
-                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    >
-                      <div style={{ width: '60px', height: '60px', backgroundColor: '#f4f6f8', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '25px', marginRight: '15px' }}>📦</div>
-                      <div style={{ flex: 1 }}>
-                        <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: '#2c3e50' }}>{produto.nome}</h3>
-                        <div style={{ fontSize: '0.9rem', color: '#7f8c8d' }}>Estoque: <strong>{produto.estoque}</strong> {produto.unidade}</div>
-                      </div>
-                      <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#27ae60' }}>R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}</div>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                          <button onClick={(e) => { e.stopPropagation(); setProdutoEmEdicao(produto); setFormProduto({...produto, precoCusto: String(produto.precoCusto), precoVenda: String(produto.precoVenda), estoque: String(produto.estoque)} as any); setModalAberto(true); }} style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>✏️</button>
-                          <button onClick={(e) => { e.stopPropagation(); excluirProduto(produto.id); }} style={{ backgroundColor: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>🗑️</button>
+              <div style={{ flex: 1, overflowY: 'auto', paddingRight: 5 }}>
+              {/* Scroll interno dos produtos */}
+                {busca === '' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.6, color: '#888' }}>
+                    <div style={{ fontSize: '80px', marginBottom: '20px' }}>🏪</div>
+                    <h2>Vila Verde PDV</h2>
+                    <p>Pesquise para vender.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    {produtosFiltrados.map(produto => (
+                      <div 
+                        key={produto.id} 
+                        onClick={() => adicionarAoCarrinho(produto)}
+                        style={{
+                          display: 'flex', alignItems: 'center', backgroundColor: 'white', padding: '15px', borderRadius: '12px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', cursor: 'pointer',
+                          borderLeft: Number(produto.estoque) <= 0 ? '5px solid #e74c3c' : '5px solid #2ecc71', transition: 'transform 0.1s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.01)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                      >
+                        <div style={{ width: '60px', height: '60px', backgroundColor: '#f4f6f8', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '25px', marginRight: '15px' }}>📦</div>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: '#2c3e50' }}>{produto.nome}</h3>
+                          <div style={{ fontSize: '0.9rem', color: '#7f8c8d' }}>Estoque: <strong>{produto.estoque}</strong> {produto.unidade}</div>
+                        </div>
+                        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#27ae60' }}>R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}</div>
+                          <div style={{ display: 'flex', gap: '5px' }}>
+                            <button onClick={(e) => { e.stopPropagation(); setProdutoEmEdicao(produto); setFormProduto({...produto, precoCusto: String(produto.precoCusto), precoVenda: String(produto.precoVenda), estoque: String(produto.estoque)} as any); setModalAberto(true); }} style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>✏️</button>
+                            <button onClick={(e) => { e.stopPropagation(); excluirProduto(produto.id); }} style={{ backgroundColor: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>🗑️</button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                  {produtosFiltrados.length === 0 && <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Nenhum produto encontrado.</div>}
-                </div>
-              )}
+                    ))}
+                    {produtosFiltrados.length === 0 && <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>Nenhum produto encontrado.</div>}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* COLUNA DIREITA: CARRINHO E PAGAMENTO */}
@@ -1190,7 +1193,7 @@ function removerItemCarrinho(index: number) {
               
               <div style={{ marginBottom: 15 }}>
                 <label style={estiloLabel}>Cliente</label>
-                {/* CENÁRIO 1: CLIENTE JÁ SELECIONADO (MOSTRA O NOME FIXO) */}
+                {/* CENÁRIO 1: CLIENTE JÁ SELECIONADO */}
                 {clienteSelecionado ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', background: '#e6fffa', border: '1px solid #b2f5ea', borderRadius: 8, color: '#285e61' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1207,7 +1210,7 @@ function removerItemCarrinho(index: number) {
                     </button>
                   </div>
                 ) : (
-                  /* CENÁRIO 2: NINGUÉM SELECIONADO (MOSTRA A BUSCA) */
+                  /* CENÁRIO 2: NINGUÉM SELECIONADO */
                   <div style={{ position: 'relative' }}>
                     <input 
                       type="text" 
@@ -1217,7 +1220,6 @@ function removerItemCarrinho(index: number) {
                       style={{ ...estiloInput, marginBottom: 0 }} 
                     />
                     
-                    {/* LISTA FILTRADA */}
                     {termoCliente.length > 0 && (
                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #ccc', borderRadius: '0 0 8px 8px', maxHeight: '200px', overflowY: 'auto', zIndex: 100, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
                         {clientes
@@ -1241,7 +1243,6 @@ function removerItemCarrinho(index: number) {
                       </div>
                     )}
                     
-                    {/* OPÇÃO RÁPIDA: CONSUMIDOR FINAL */}
                     {termoCliente.length === 0 && (
                       <div style={{ marginTop: 5, fontSize: '0.85rem', color: '#718096' }}>
                         Ou mantenha vazio para <b>Consumidor Final</b>.
@@ -1257,7 +1258,7 @@ function removerItemCarrinho(index: number) {
                 </div>
               )}
               
-              <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #edf2f7', borderRadius: 8, padding: 10, marginBottom: 10, maxHeight: 200 }}>
+              <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #edf2f7', borderRadius: 8, padding: 10, marginBottom: 10, maxHeight: 200, minHeight: 100 }}>
                 {carrinho.map((item, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                     <div>{item.produto.nome} ({item.quantidade}x)</div>
