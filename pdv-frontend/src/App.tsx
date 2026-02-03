@@ -1188,8 +1188,19 @@ function removerItemCarrinho(index: number) {
             </div>
 
             {/* COLUNA DIREITA: CARRINHO E PAGAMENTO */}
-            <div style={{ width: 400, backgroundColor: 'white', borderRadius: 12, padding: 25, display: 'flex', flexDirection: 'column', boxShadow: '0 10px 15px rgba(0,0,0,0.05)' }}>
-              <h2 style={{ margin: '0 0 20px 0', borderBottom: '1px solid #edf2f7', paddingBottom: 15 }}>🛒 Carrinho</h2>
+<div style={{ 
+              width: 400, 
+              // MUDANÇA AQUI: Fundo escuro se estiver no modo escuro
+              backgroundColor: modoEscuro ? '#2d3748' : 'white', 
+              borderRadius: 12, 
+              padding: 25, 
+              display: 'flex', 
+              flexDirection: 'column', 
+              boxShadow: '0 10px 15px rgba(0,0,0,0.05)',
+              // MUDANÇA AQUI: Texto branco se estiver no modo escuro
+              color: modoEscuro ? 'white' : '#2d3748' 
+            }}>
+                            <h2 style={{ margin: '0 0 20px 0', borderBottom: '1px solid #edf2f7', paddingBottom: 15 }}>🛒 Carrinho</h2>
               
               <div style={{ marginBottom: 15 }}>
                 <label style={estiloLabel}>Cliente</label>
@@ -1264,7 +1275,21 @@ function removerItemCarrinho(index: number) {
                     <div>{item.produto.nome} ({item.quantidade}x)</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <b>R$ {(item.quantidade * Number(item.produto.precoVenda)).toFixed(2)}</b>
-                      <button onClick={() => removerItemCarrinho(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: 0 }} title="Remover item">🗑️</button>
+                      <button 
+  onClick={() => removerItemCarrinho(i)} 
+  style={{ 
+    background: 'none', 
+    border: 'none', 
+    cursor: 'pointer', 
+    fontSize: '1.1rem', 
+    padding: 0,
+    // ADICIONE ISSO 👇
+    color: modoEscuro ? '#fc8181' : 'inherit' // Vermelho claro no modo escuro
+  }} 
+  title="Remover item"
+>
+  🗑️
+</button>
                     </div>
                   </div>
                 ))}
@@ -1276,7 +1301,14 @@ function removerItemCarrinho(index: number) {
               </div>
 
               {/* Área de Pagamento */}
-              <div style={{ backgroundColor: '#f7fafc', padding: 15, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 15 }}>
+<div style={{ 
+                // MUDANÇA AQUI: Fundo mais escuro no modo noturno para destacar
+                backgroundColor: modoEscuro ? '#1a202c' : '#f7fafc', 
+                padding: 15, 
+                borderRadius: 8, 
+                border: modoEscuro ? '1px solid #4a5568' : '1px solid #e2e8f0', 
+                marginBottom: 15 
+              }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, color: faltaPagar > 0 ? '#e53e3e' : '#48bb78', fontWeight: 'bold' }}>
                   <span>Falta Pagar:</span>
                   <span>R$ {Math.max(0, faltaPagar).toFixed(2)}</span>
