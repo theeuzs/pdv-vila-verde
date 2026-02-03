@@ -129,6 +129,7 @@ export function App() {
   const [modalAbrirCaixa, setModalAbrirCaixa] = useState(false);
   const [valorAbertura, setValorAbertura] = useState("");
   const [dashboard, setDashboard] = useState<any>(null);
+  const [termoCliente, setTermoCliente] = useState('');
   // ... outros useStates ...
   const [entrega, setEntrega] = useState(false);
   const [endereco, setEndereco] = useState('');
@@ -1068,10 +1069,66 @@ async function cancelarVenda(id: number) {
               
               <div style={{ marginBottom: 15 }}>
                 <label style={estiloLabel}>Cliente</label>
-                <select value={clienteSelecionado} onChange={e => setClienteSelecionado(e.target.value)} style={estiloInput}>
-                  <option value="">👤 Consumidor Final</option>
-                  {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
+                {/* CENÁRIO 1: CLIENTE JÁ SELECIONADO (MOSTRA O NOME FIXO) */}
+                {clienteSelecionado ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', background: '#e6fffa', border: '1px solid #b2f5ea', borderRadius: 8, color: '#285e61' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: '1.2rem' }}>👤</span>
+                      <strong>
+                        {clientes.find(c => String(c.id) === String(clienteSelecionado))?.nome || 'Cliente'}
+                      </strong>
+                    </div>
+                    <button 
+                      onClick={() => { setClienteSelecionado(''); setTermoCliente(''); }} 
+                      style={{ background: 'transparent', border: 'none', color: '#e53e3e', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' }}
+                    >
+                      Trocar ✖
+                    </button>
+                  </div>
+                ) : (
+                  /* CENÁRIO 2: NINGUÉM SELECIONADO (MOSTRA A BUSCA) */
+                  <div style={{ position: 'relative' }}>
+                    <input 
+                      type="text" 
+                      placeholder="🔍 Digite o nome do cliente..."
+                      value={termoCliente}
+                      onChange={e => setTermoCliente(e.target.value)}
+                      style={{ ...estiloInput, marginBottom: 0 }} // Reaproveita seu estilo
+                    />
+                    
+                    {/* LISTA FILTRADA (SÓ APARECE SE TIVER DIGITADO ALGO OU CLICADO) */}
+                    {termoCliente.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #ccc', borderRadius: '0 0 8px 8px', maxHeight: '200px', overflowY: 'auto', zIndex: 100, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                        {clientes
+                          .filter(c => c.nome.toLowerCase().includes(termoCliente.toLowerCase()))
+                          .map(c => (
+                            <div 
+                              key={c.id} 
+                              onClick={() => { setClienteSelecionado(String(c.id)); setTermoCliente(''); }}
+                              style={{ padding: '10px', borderBottom: '1px solid #eee', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f7fafc'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                            >
+                              <span>{c.nome}</span>
+                              <small style={{ color: '#aaa' }}>{c.cpfCnpj || 'Sem Doc'}</small>
+                            </div>
+                          ))
+                        }
+                        {/* Se não achar ninguém */}
+                        {clientes.filter(c => c.nome.toLowerCase().includes(termoCliente.toLowerCase())).length === 0 && (
+                          <div style={{ padding: 10, color: '#999', fontStyle: 'italic' }}>Nenhum cliente encontrado.</div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* OPÇÃO RÁPIDA: CONSUMIDOR FINAL */}
+                    {termoCliente.length === 0 && (
+                      <div style={{ marginTop: 5, fontSize: '0.85rem', color: '#718096' }}>
+                        Ou mantenha vazio para <b>Consumidor Final</b>.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {clienteObjSelecionado && Number(clienteObjSelecionado.saldoHaver) > 0 && (
