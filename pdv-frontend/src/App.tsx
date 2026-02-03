@@ -130,6 +130,10 @@ export function App() {
   const [valorAbertura, setValorAbertura] = useState("");
   const [dashboard, setDashboard] = useState<any>(null);
   const [termoCliente, setTermoCliente] = useState('');
+  // Estados para autorização de gerente
+  const [modalAutorizacao, setModalAutorizacao] = useState(false);
+  const [senhaGerente, setSenhaGerente] = useState('');
+  const [idVendaParaCancelar, setIdVendaParaCancelar] = useState<number | null>(null);
   // ... outros useStates ...
   const [entrega, setEntrega] = useState(false);
   const [endereco, setEndereco] = useState('');
@@ -725,21 +729,58 @@ function removerItemCarrinho(index: number) {
     }
   }
   
-async function cancelarVenda(id: number) {
-    if (confirm("Tem certeza que deseja cancelar esta venda? O estoque será devolvido.")) {
-        try {
-            const res = await fetch(`${API_URL}/vendas/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                alert("Venda cancelada com sucesso!");
-                carregarDados(); // Atualiza a lista e o estoque na tela
-            } else {
-                alert("Erro ao cancelar venda no servidor.");
-            }
-        } catch (error) {
-            alert("Erro de conexão ao tentar cancelar.");
-        }
+// Função inteligente: Se for gerente, cancela. Se for vendedor, pede senha.
+  async function tentarCancelarVenda(id: number) {
+    // Se quem está logado JÁ É O GERENTE, cancela direto
+    if (usuarioLogado.cargo === 'GERENTE') {
+       executarCancelamento(id);
+    } else {
+       // Se for VENDEDOR, abre o modal pedindo senha
+       setIdVendaParaCancelar(id);
+       setSenhaGerente('');
+       setModalAutorizacao(true);
     }
-}
+  }
+
+  // Essa é a função que realmente vai no servidor e apaga (executada após a senha ou direto pelo gerente)
+  async function executarCancelamento(id: number) {
+    if (!confirm("Tem certeza que deseja cancelar e estornar o estoque?")) return;
+
+    try {
+        const res = await fetch(`${API_URL}/vendas/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            alert("Venda cancelada com sucesso!");
+            carregarDados();
+            setModalAutorizacao(false); // Fecha o modal se estiver aberto
+        } else {
+            alert("Erro ao cancelar venda.");
+        }
+    } catch (error) {
+        alert("Erro de conexão.");
+    }
+  }
+
+  // Função chamada pelo botão do Modal de Senha
+  async function validarAutorizacao() {
+    try {
+      const res = await fetch(`${API_URL}/verificar-gerente`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ senha: senhaGerente })
+      });
+
+      if (res.ok) {
+        // Senha correta! Executa o cancelamento da venda que estava na espera
+        if (idVendaParaCancelar) {
+          await executarCancelamento(idVendaParaCancelar);
+        }
+      } else {
+        alert("Senha de gerente INVÁLIDA! 🚫");
+      }
+    } catch (error) {
+      alert("Erro ao validar senha.");
+    }
+  }
 
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault()
@@ -1359,7 +1400,7 @@ async function cancelarVenda(id: number) {
                     <td style={{padding:15,fontWeight:'bold'}}>R$ {Number(v.total).toFixed(2)}</td>
                     <td style={{padding:15}}>
                       <button onClick={() => reimprimirVenda(v)} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem' }}>🖨️</button>
-                      <button onClick={() => cancelarVenda(v.id)} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem', marginLeft: 10 }} title="Estornar Venda">🚫</button>
+                      <button onClick={() => tentarCancelarVenda(v.id)} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem', marginLeft: 10 }} title="Estornar Venda">🚫</button>
                     </td>
                   </tr>
                 ))}
@@ -1597,6 +1638,34 @@ async function cancelarVenda(id: number) {
 
 {/* === ABA: EQUIPE (A peça que faltava!) === */}
         {aba === 'equipe' && <TelaEquipe />}
+
+{/* === MODAL DE AUTORIZAÇÃO DE GERENTE === */}
+      {modalAutorizacao && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
+          <div style={{ backgroundColor: 'white', padding: 30, borderRadius: 10, width: 350, textAlign: 'center' }}>
+            <div style={{ fontSize: '3rem', marginBottom: 10 }}>👮‍♂️</div>
+            <h3 style={{ color: '#c53030' }}>Autorização Necessária</h3>
+            <p style={{ color: '#718096' }}>Vendedor não pode cancelar venda.<br/>Peça para um gerente digitar a senha:</p>
+            
+            <input 
+              type="password" 
+              autoFocus
+              placeholder="Senha do Gerente" 
+              value={senhaGerente} 
+              onChange={e => setSenhaGerente(e.target.value)}
+              style={{ width: '100%', padding: 12, fontSize: '1.1rem', border: '1px solid #ccc', borderRadius: 5, marginBottom: 15 }}
+            />
+
+            <button onClick={validarAutorizacao} style={{ width: '100%', padding: 12, background: '#c53030', color: 'white', border: 'none', borderRadius: 5, fontWeight: 'bold', cursor: 'pointer', marginBottom: 10 }}>
+              CONFIRMAR CANCELAMENTO
+            </button>
+            
+            <button onClick={() => setModalAutorizacao(false)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#718096', cursor: 'pointer' }}>
+              Voltar
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>      
   )

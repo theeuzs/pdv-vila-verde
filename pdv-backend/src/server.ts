@@ -700,6 +700,25 @@ app.put('/usuarios/:id', async (req, res) => {
   }
 });
 
+// Rota para verificar se uma senha pertence a ALGUM gerente
+app.post('/verificar-gerente', async (req, res) => {
+  const { senha } = req.body as any;
+  
+  // Procura no banco se existe algum usuário que seja GERENTE e tenha essa senha
+  const gerente = await prisma.user.findFirst({
+    where: { 
+      cargo: 'GERENTE',
+      senha: senha 
+    }
+  });
+
+  if (gerente) {
+    return res.send({ autorizado: true, nome: gerente.nome });
+  } else {
+    return res.status(401).send({ error: "Senha de gerente incorreta!" });
+  }
+});
+
 // --- INICIALIZAÇÃO ---
 const start = async () => {
   try {
