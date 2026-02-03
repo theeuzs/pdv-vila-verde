@@ -841,7 +841,7 @@ async function cancelarVenda(id: number) {
     <div style={{ fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
       {/* --- INÍCIO DA BARRA DE CAIXA (ADMIN) --- */}
-      {usuarioLogado.cargo === 'GERENTE' && (
+      {(usuarioLogado.cargo === 'GERENTE' || usuarioLogado.cargo === 'VENDEDOR') && (
         <div style={{ 
           padding: '15px 20px', 
           backgroundColor: caixaAberto ? '#d4edda' : '#f8d7da', 
@@ -941,12 +941,31 @@ async function cancelarVenda(id: number) {
           </div>
         )}
 
-        <button 
-          onClick={() => setUsuarioLogado(null)}
-          style={{ background: '#e53e3e', color: 'white', border: 'none', padding: '8px 15px', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 5 }}
-        >
-          SAIR 🚪
-        </button>
+       <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+          
+          {/* Mostra o nome de quem está logado */}
+          <div style={{ textAlign: 'right', fontSize: '0.9rem', color: '#cbd5e0' }}>
+            Olá, <strong style={{ color: 'white' }}>{usuarioLogado.nome}</strong>
+          </div>
+
+          <button 
+            onClick={() => setUsuarioLogado(null)}
+            style={{ 
+              background: '#e53e3e', 
+              color: 'white', 
+              border: 'none', 
+              padding: '8px 15px', 
+              borderRadius: 5, 
+              cursor: 'pointer', 
+              fontWeight: 'bold', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 5 
+            }}
+          >
+            SAIR 🚪
+          </button>
+        </div>
       </div>
 
      {/* --- MENU DE NAVEGAÇÃO (AGORA COM OS 3 CARGOS) --- */}
