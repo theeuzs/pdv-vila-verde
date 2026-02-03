@@ -225,41 +225,39 @@ app.get('/vendas', async () => {
 
 // CANCELAR VENDA (COM ESTORNO DE CAIXA E ESTOQUE CORRIGIDO)
 // CANCELAR VENDA (VERSÃO CORRIGIDA E LIMPA)
+// CANCELAR VENDA (VERSÃO SEGURA)
 app.delete('/vendas/:id', async (req, res) => {
   const { id } = req.params as any;
 
   try {
-    // 1. Busca a venda para saber quais produtos devolver
+    // 1. Busca a venda
     const venda = await prisma.venda.findUnique({
-      where: { id: Number(id) }, // Se der erro, use String(id)
+      where: { id: Number(id) }, // Garante que é número
       include: { itens: true }
     });
 
     if (!venda) return res.status(404).send({ error: "Venda não encontrada" });
 
-    // 2. Devolve os produtos para o estoque (CORRIGIDO O ERRO DECIMAL)
+    // 2. Devolve itens pro estoque
     for (const item of venda.itens) {
       await prisma.produto.update({
         where: { id: item.produtoId },
-        data: { 
-          estoque: { increment: Number(item.quantidade) } // Adicionei o Number() aqui!
-        }
+        data: { estoque: { increment: Number(item.quantidade) } }
       });
     }
 
-    // 3. Apaga a venda e tudo relacionado a ela
-    // (O saldo do caixa vai baixar automaticamente porque essa venda sumirá da soma)
-    const deleteItens = prisma.itemVenda.deleteMany({ where: { vendaId: Number(id) } });
-    const deletePags = prisma.pagamento.deleteMany({ where: { vendaId: Number(id) } });
-    const deleteVenda = prisma.venda.delete({ where: { id: Number(id) } });
-
-    await prisma.$transaction([deleteItens, deletePags, deleteVenda]);
+    // 3. Apaga tudo (usando transaction para não dar erro de ordem)
+    await prisma.$transaction([
+      prisma.itemVenda.deleteMany({ where: { vendaId: Number(id) } }),
+      prisma.pagamento.deleteMany({ where: { vendaId: Number(id) } }),
+      prisma.venda.delete({ where: { id: Number(id) } })
+    ]);
 
     return res.send({ ok: true });
 
   } catch (error) {
-    console.log(error);
-    return res.status(500).send({ error: "Erro ao cancelar venda" });
+    console.error("ERRO AO CANCELAR:", error); // Isso vai aparecer nos logs do Render
+    return res.status(500).send({ error: "Erro interno no servidor" });
   }
 });
 
