@@ -139,6 +139,8 @@ export function App() {
   const [endereco, setEndereco] = useState('');
   // --- DETECTOR DE CELULAR ---
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);  
+  // Estado para controlar o tema
+  const [modoEscuro, setModoEscuro] = useState(false);
 
   useEffect(() => {
     function handleResize() {
@@ -880,8 +882,15 @@ function removerItemCarrinho(index: number) {
   }
   
   return (
-    <div style={{ fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      
+<div style={{ 
+      fontFamily: 'Segoe UI, sans-serif', 
+      height: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column',
+      // MUDANÇA AQUI 👇
+      background: modoEscuro ? '#1a202c' : '#f7fafc', // Cinza escuro ou Claro
+      color: modoEscuro ? '#f7fafc' : '#2d3748'       // Texto Branco ou Preto
+    }}>      
       {/* --- INÍCIO DA BARRA DE CAIXA (ADMIN) --- */}
       {(usuarioLogado.cargo === 'GERENTE' || usuarioLogado.cargo === 'VENDEDOR') && (
         <div style={{ 
@@ -985,25 +994,38 @@ function removerItemCarrinho(index: number) {
 
        <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
           
-          {/* Mostra o nome de quem está logado */}
+        {/* LADO DIREITO: Modo Escuro + Nome + Sair */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+          
+          {/* BOTÃO MODO ESCURO */}
+          <button 
+            onClick={() => setModoEscuro(!modoEscuro)} 
+            style={{ 
+              background: 'transparent', 
+              border: '1px solid #4a5568', 
+              borderRadius: '50%', 
+              width: 35, 
+              height: 35, 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              fontSize: '1.2rem'
+            }}
+            title="Alternar Tema"
+          >
+            {modoEscuro ? '☀️' : '🌙'}
+          </button>
+
+          {/* Nome do Usuário */}
           <div style={{ textAlign: 'right', fontSize: '0.9rem', color: '#cbd5e0' }}>
             Olá, <strong style={{ color: 'white' }}>{usuarioLogado.nome}</strong>
           </div>
 
+          {/* Botão Sair */}
           <button 
             onClick={() => setUsuarioLogado(null)}
-            style={{ 
-              background: '#e53e3e', 
-              color: 'white', 
-              border: 'none', 
-              padding: '8px 15px', 
-              borderRadius: 5, 
-              cursor: 'pointer', 
-              fontWeight: 'bold', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 5 
-            }}
+            style={{ background: '#e53e3e', color: 'white', border: 'none', padding: '8px 15px', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 5 }}
           >
             SAIR 🚪
           </button>
@@ -1669,7 +1691,8 @@ function removerItemCarrinho(index: number) {
       )}
 
     </div>      
-  )
+    </div> 
+  );
 }
 
 export default App;
