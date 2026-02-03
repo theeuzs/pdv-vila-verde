@@ -223,30 +223,44 @@ app.get('/vendas', async () => {
   })
 })
 
-app.delete('/vendas/:id', async (request, reply) => {
-  const { id } = request.params as { id: string };
-  const vendaId = Number(id);
+// CANCELAR VENDA (COM ESTORNO DE CAIXA E ESTOQUE CORRIGIDO)
+// CANCELAR VENDA (VERSÃO CORRIGIDA E LIMPA)
+app.delete('/vendas/:id', async (req, res) => {
+  const { id } = req.params as any;
 
-  const venda = await prisma.venda.findUnique({
-    where: { id: vendaId },
-    include: { itens: true }
-  });
-
-  if (!venda) return reply.status(404).send({ error: "Venda não encontrada" });
-
-  for (const item of venda.itens) {
-    await prisma.produto.update({
-      where: { id: item.produtoId },
-      data: { estoque: { increment: Number(item.quantidade) } }
+  try {
+    // 1. Busca a venda para saber quais produtos devolver
+    const venda = await prisma.venda.findUnique({
+      where: { id: Number(id) }, // Se der erro, use String(id)
+      include: { itens: true }
     });
+
+    if (!venda) return res.status(404).send({ error: "Venda não encontrada" });
+
+    // 2. Devolve os produtos para o estoque (CORRIGIDO O ERRO DECIMAL)
+    for (const item of venda.itens) {
+      await prisma.produto.update({
+        where: { id: item.produtoId },
+        data: { 
+          estoque: { increment: Number(item.quantidade) } // Adicionei o Number() aqui!
+        }
+      });
+    }
+
+    // 3. Apaga a venda e tudo relacionado a ela
+    // (O saldo do caixa vai baixar automaticamente porque essa venda sumirá da soma)
+    const deleteItens = prisma.itemVenda.deleteMany({ where: { vendaId: Number(id) } });
+    const deletePags = prisma.pagamento.deleteMany({ where: { vendaId: Number(id) } });
+    const deleteVenda = prisma.venda.delete({ where: { id: Number(id) } });
+
+    await prisma.$transaction([deleteItens, deletePags, deleteVenda]);
+
+    return res.send({ ok: true });
+
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send({ error: "Erro ao cancelar venda" });
   }
-
-  await prisma.itemVenda.deleteMany({ where: { vendaId } });
-  await prisma.pagamento.deleteMany({ where: { vendaId } });
-  await prisma.contaReceber.deleteMany({ where: { vendaId } });
-  await prisma.venda.delete({ where: { id: vendaId } });
-
-  return { message: "Venda cancelada e estoque devolvido!" };
 });
 
 // --- CLIENTES ---

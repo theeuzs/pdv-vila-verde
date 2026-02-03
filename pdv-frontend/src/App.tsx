@@ -751,6 +751,7 @@ function removerItemCarrinho(index: number) {
         if (res.ok) {
             alert("Venda cancelada com sucesso!");
             carregarDados();
+            verificarStatusCaixa();
             setModalAutorizacao(false); // Fecha o modal se estiver aberto
         } else {
             alert("Erro ao cancelar venda.");
