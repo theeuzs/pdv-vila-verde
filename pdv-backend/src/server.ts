@@ -691,7 +691,7 @@ app.put('/usuarios/:id', async (req, res) => {
   
   try {
     await prisma.user.update({
-      where: { id: Number(id) }, // Se der erro, use String(id) se mudou antes
+      where: { id: String(id) }, // Se der erro, use String(id) se mudou antes
       data: { senha }
     });
     return res.send({ ok: true });
