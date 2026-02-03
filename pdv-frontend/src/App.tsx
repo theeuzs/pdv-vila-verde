@@ -405,8 +405,14 @@ setContasReceber(await resContas.json());
         const nome = clientes.find(c => c.id === Number(clienteSelecionado))?.nome || 'Consumidor'
         
         // Imprime como Orçamento
-        imprimirCupom(carrinho, Number(orc.total), orc.id, nome, 'ORÇAMENTO')
-        
+imprimirCupom({
+          id: orc.id,
+          data: new Date(),
+          cliente: { nome: nome || 'Consumidor' },
+          itens: carrinho,
+          total: orc.total,
+          pagamentos: [] 
+        });        
         setCarrinho([])
         setClienteSelecionado('')
         setListaPagamentos([])
@@ -559,12 +565,14 @@ async function finalizarVenda() {
 
         if (confirm("Deseja imprimir o cupom? 🧾")) {
           // Agora temos certeza que vendaCriada.id existe
-          imprimirCupom(
-            carrinho, 
-            totalCarrinho, 
-            vendaCriada.id, 
-            clienteObjSelecionado?.nome || 'Consumidor Final', 'VENDA'
-          );
+          imprimirCupom({
+              id: vendaCriada.id,
+              data: new Date(),
+              cliente: { nome: clienteObjSelecionado?.nome || 'Consumidor Final' },
+              itens: carrinho,
+              total: totalCarrinho,
+              pagamentos: listaPagamentos
+            });
         }
 
         // Limpa tudo para a próxima venda
@@ -590,104 +598,133 @@ async function finalizarVenda() {
     const itens = v.itens.map(i => ({ produto: i.produto, quantidade: Number(i.quantidade) }))
     const nome = v.cliente?.nome || 'Consumidor'
     
-    imprimirCupom(itens, Number(v.total), v.id, nome, 'VENDA')
+    // Correção 3: Usa as variáveis 'itens' e 'nome' que você já criou nas linhas acima
+      imprimirCupom({
+        id: v.id,
+        data: v.data,
+        cliente: { nome: nome },
+        itens: itens,
+        total: v.total,
+        pagamentos: []
+      });
   }
 
   function reimprimirOrcamento(o: Orcamento) {
     const itens = o.itens.map(i => ({ produto: i.produto, quantidade: Number(i.quantidade) }))
     const nome = o.cliente?.nome || 'Consumidor'
-    imprimirCupom(itens, Number(o.total), o.id, nome, 'ORÇAMENTO')
+    imprimirCupom({
+        id: o.id,
+        data: o.data,
+        cliente: { nome: nome },
+        itens: itens,
+        total: o.total,
+        pagamentos: [] // Orçamento não tem pagamento
+      });
   }
 
   // --- FUNÇÃO DE IMPRESSÃO (AGORA COM TÍTULO E CORREÇÃO DE PREÇO) ---
-  function imprimirCupom(itens: any[], total: number, id: number | string, nomeCliente: string, titulo: string = "VENDA") {
-    const larguraPapel = '80mm'; // Mude para 58mm se precisar
+  function imprimirCupom(venda: any) {
+    const janela = window.open('', '', 'width=350,height=600');
     
+    // Calcula o total dos itens caso não venha pronto
+    const totalVenda = Number(venda.total).toFixed(2);
+
     const conteudo = `
       <html>
         <head>
-          <title>${titulo} #${id}</title>
+          <title>Cupom Vila Verde</title>
           <style>
+            /* CONFIGURAÇÕES GERAIS PARA FICAR PRETO E FORTE */
             @page { margin: 0; }
-            body { 
-              font-family: 'Courier New', Courier, monospace;
-              width: ${larguraPapel};
+            body {
+              font-family: 'Courier New', Courier, monospace; /* Fonte alinhada */
+              font-weight: 900; /* NEGRITO EXTREMO */
+              color: #000;      /* Preto absoluto */
               margin: 0;
               padding: 5px;
-              font-size: 12px;
-              color: black;
+              width: 100%;
+              font-size: 14px;  /* Tamanho base maior */
             }
-            .centralizado { text-align: center; }
-            .negrito { font-weight: bold; }
-            .divisoria { border-top: 1px dashed black; margin: 5px 0; }
-            .tabela { width: 100%; border-collapse: collapse; }
-            .tabela td { padding: 2px 0; vertical-align: top; }
-            .direita { text-align: right; }
-            .esquerda { text-align: left; }
-            .grande { font-size: 16px; }
+            
+            /* Títulos */
+            .loja { font-size: 20px; text-align: center; margin-bottom: 5px; }
+            .info { font-size: 12px; text-align: center; margin-bottom: 10px; }
+            
+            /* Linhas Divisórias */
+            .divisor { 
+              border-top: 3px dashed #000; 
+              margin: 10px 0; 
+              width: 100%;
+            }
+
+            /* Tabela de Produtos */
+            table { width: 100%; border-collapse: collapse; }
+            th { text-align: left; font-size: 14px; border-bottom: 2px solid #000; padding-bottom: 5px; }
+            td { padding: 5px 0; vertical-align: top; }
+            .col-qtd { width: 30px; }
+            .col-nome { }
+            .col-preco { text-align: right; white-space: nowrap; }
+
+            /* Totais */
+            .total-area { 
+              font-size: 24px; /* BEM GRANDE */
+              text-align: right; 
+              margin-top: 10px;
+            }
+            .agradecimento { text-align: center; margin-top: 20px; font-size: 14px; }
           </style>
         </head>
         <body>
           
-          <div class="centralizado">
-            <div class="negrito grande">MAT. CONSTRUÇÃO</div>
-            <div class="negrito grande">VILA VERDE 🏗️</div>
-            <br>
+          <div class="loja">MAT. CONSTRUÇÃO<br>VILA VERDE 🏗️</div>
+          <div class="info">
             Rua Jornalista Rubens Avila, 530 - CIC<br>
             Tel/Zap: (41) 98438-7167<br>
             CNPJ: 12.820.608/0001-41
           </div>
 
-          <div class="divisoria"></div>
+          <div class="divisor"></div>
 
-          <div>
-            <strong class="grande">${titulo}: #${id}</strong><br>
-            Data: ${new Date().toLocaleString()}<br>
-            Cliente: ${nomeCliente || 'Consumidor Final'}
-            ${titulo.includes('ORÇAMENTO') ? '<br><i>* Não vale como recibo</i>' : ''}
-          </div>
+          <div><strong>VENDA: #${venda.id}</strong></div>
+          <div>Data: ${new Date(venda.data).toLocaleString()}</div>
+          <div>Cliente: ${venda.cliente ? venda.cliente.nome : 'Consumidor Final'}</div>
 
-          <div class="divisoria"></div>
+          <div class="divisor"></div>
 
-          <table class="tabela">
+          <table>
             <thead>
-              <tr class="negrito" style="border-bottom: 1px solid black;">
-                <td class="esquerda">QTD</td>
-                <td class="esquerda">ITEM</td>
-                <td class="direita">TOTAL</td>
+              <tr>
+                <th class="col-qtd">QTD</th>
+                <th class="col-nome">ITEM</th>
+                <th class="col-preco">TOTAL</th>
               </tr>
             </thead>
             <tbody>
-              ${itens.map(item => {
-                // Lógica reforçada para achar o preço
-                const preco = Number(item.precoUnit || item.preco || item.precoVenda || item.produto?.precoVenda || 0);
-                const totalItem = preco * item.quantidade;
-                
-                return `
+              ${venda.itens.map((item: any) => `
                 <tr>
-                  <td>${item.quantidade}x</td>
-                  <td>${item.produto?.nome || item.nome || 'Produto'}</td>
-                  <td class="direita">R$ ${totalItem.toFixed(2)}</td>
+                  <td class="col-qtd">${item.quantidade}x</td>
+                  <td class="col-nome">${item.produto.nome}</td>
+                  <td class="col-preco">R$ ${(item.quantidade * Number(item.produto.precoVenda)).toFixed(2)}</td>
                 </tr>
-                `;
-              }).join('')}
+              `).join('')}
             </tbody>
           </table>
 
-          <div class="divisoria"></div>
+          <div class="divisor"></div>
 
-          <table class="tabela grande negrito">
-            <tr>
-              <td class="esquerda">TOTAL:</td>
-              <td class="direita">R$ ${Number(total).toFixed(2)}</td>
-            </tr>
-          </table>
+          <div class="total-area">
+            TOTAL: R$ ${totalVenda}
+          </div>
 
-          <div class="divisoria"></div>
+          <div style="text-align: right; font-size: 12px; margin-top: 5px;">
+            Pagamento: ${venda.pagamentos ? venda.pagamentos.map((p:any) => p.forma).join(' + ') : 'Dinheiro'}
+          </div>
 
-          <div class="centralizado" style="margin-top: 10px;">
-            ${titulo === 'VENDA' ? 'Obrigado pela preferência! 👍' : 'Orçamento válido por 7 dias.'}<br>
-            <small>Sistema PDV Vila Verde</small>
+          <div class="divisor"></div>
+
+          <div class="agradecimento">
+            Obrigado pela preferência! 👍<br>
+            Sistema PDV Vila Verde
           </div>
           
           <br><br>.
@@ -695,15 +732,9 @@ async function finalizarVenda() {
       </html>
     `;
 
-    const janela = window.open('', '', 'height=600,width=400');
-    if(janela) {
-      janela.document.write(conteudo);
-      janela.document.close();
-      setTimeout(() => {
-        janela.print();
-        janela.close();
-      }, 500);
-    }
+    janela?.document.write(conteudo);
+    janela?.document.close();
+    janela?.print();
   }
   
   // ==========================================================================
@@ -1556,17 +1587,32 @@ function removerItemCarrinho(index: number) {
           <div style={{ padding: 20 }}>
             <h2>🚚 Entregas Pendentes</h2>
             {listaEntregas.length === 0 ? (
-              <p style={{ color: '#718096' }}>Nenhuma entrega pendente no momento. Tudo limpo! ✨</p>
+              <p style={{ color: modoEscuro ? '#cbd5e0' : '#718096' }}>Nenhuma entrega pendente no momento. Tudo limpo! ✨</p>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                 {listaEntregas.map((entrega: any) => (
-                  <div key={entrega.id} style={{ background: 'white', padding: 20, borderRadius: 10, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', borderLeft: '5px solid #ecc94b' }}>
+                  <div key={entrega.id} style={{ 
+                    // MUDANÇA 1: Fundo do cartão cinza escuro no modo noturno
+                    background: modoEscuro ? '#2d3748' : 'white', 
+                    padding: 20, 
+                    borderRadius: 10, 
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.1)', 
+                    borderLeft: '5px solid #ecc94b',
+                    // MUDANÇA 2: Texto branco no modo noturno
+                    color: modoEscuro ? 'white' : '#2d3748' 
+                  }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                       <span style={{ fontWeight: 'bold', fontSize: 18 }}>#{entrega.id} - {entrega.cliente?.nome || 'Consumidor'}</span>
-                      <span style={{ background: '#ecc94b', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 'bold' }}>PENDENTE</span>
+                      <span style={{ background: '#ecc94b', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 'bold', color: 'black' }}>PENDENTE</span>
                     </div>
-                    <div style={{ marginBottom: 15, color: '#4a5568' }}><strong>📍 Destino:</strong> {entrega.enderecoEntrega}</div>
-                    <div style={{ background: '#f7fafc', padding: 10, borderRadius: 5, marginBottom: 15 }}>
+                    <div style={{ marginBottom: 15, color: modoEscuro ? '#cbd5e0' : '#4a5568' }}><strong>📍 Destino:</strong> {entrega.enderecoEntrega}</div>
+                    <div style={{ 
+                      // MUDANÇA 3: Fundo da listinha de produtos ainda mais escuro para contraste
+                      background: modoEscuro ? '#1a202c' : '#f7fafc', 
+                      padding: 10, 
+                      borderRadius: 5, 
+                      marginBottom: 15 
+                    }}>
                       <strong>📦 Levar:</strong>
                       <ul style={{ paddingLeft: 20, margin: '5px 0' }}>
                         {entrega.itens.map((item: any) => (
