@@ -1043,7 +1043,7 @@ function removerItemCarrinho(index: number) {
           {/* Botão Sair */}
           <button 
             onClick={() => setUsuarioLogado(null)}
-            style={{ background: '#e53e3e', color: 'white', border: 'none', padding: '8px 15px', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 5 }}
+            style={{ background: '#e53e3e', color: 'white', border: 'none', padding: '8px 15px', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 5 }} 
           >
             SAIR 🚪
           </button>
