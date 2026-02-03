@@ -150,6 +150,15 @@ export function App() {
   // --- CONTROLE DE ENTREGAS ---
   const [listaEntregas, setListaEntregas] = useState<any[]>([]);
 
+  // --- REDIRECIONAMENTO INTELIGENTE ---
+  // Se for motorista, joga direto pra tela de entregas e sai do caixa
+  useEffect(() => {
+    if (usuarioLogado?.cargo === 'MOTORISTA') {
+      setAba('entregas');
+      carregarEntregas();
+    }
+  }, [usuarioLogado]);
+
   async function carregarEntregas() {
     try {
       const res = await fetch(`${API_URL}/entregas/pendentes`);
@@ -939,15 +948,16 @@ async function cancelarVenda(id: number) {
         </button>
       </div>
 
-      {/* --- MENU DE NAVEGAÇÃO --- */}
-      {/* --- MENU DE NAVEGAÇÃO INTELIGENTE --- */}
-      {(usuarioLogado.cargo === 'GERENTE' || usuarioLogado.cargo === 'VENDEDOR') && (
+     {/* --- MENU DE NAVEGAÇÃO (AGORA COM OS 3 CARGOS) --- */}
+      {usuarioLogado && (
         <div style={{ display: 'flex', background: 'white', padding: '0 30px', borderBottom: '1px solid #e2e8f0', overflowX: 'auto' }}>
           
-          {/* Aqui definimos quais botões aparecem para quem */}
+          {/* DEFINIÇÃO DOS BOTÕES POR CARGO */}
           {(usuarioLogado.cargo === 'GERENTE' 
-              ? ['caixa', 'clientes', 'financeiro', 'vendas', 'orcamentos', 'dashboard', 'entregas', 'equipe'] // Gerente vê tudo
-              : ['caixa', 'clientes', 'vendas', 'orcamentos', 'entregas'] // Vendedor vê o essencial
+              ? ['caixa', 'clientes', 'financeiro', 'vendas', 'orcamentos', 'dashboard', 'entregas', 'equipe'] 
+              : usuarioLogado.cargo === 'VENDEDOR'
+                  ? ['caixa', 'clientes', 'vendas', 'orcamentos', 'entregas']
+                  : ['entregas'] // <--- MOTORISTA SÓ VÊ ISSO AGORA
           ).map((menu) => (
             <button 
               key={menu}
