@@ -684,6 +684,22 @@ app.delete('/usuarios/:id', async (req, res) => {
 await prisma.user.delete({ where: { id: String(id) } });  return res.send({ ok: true });
 });
 
+// 4. Alterar senha do funcionário (Para o gerente resetar)
+app.put('/usuarios/:id', async (req, res) => {
+  const { id } = req.params as any;
+  const { senha } = req.body as any;
+  
+  try {
+    await prisma.user.update({
+      where: { id: Number(id) }, // Se der erro, use String(id) se mudou antes
+      data: { senha }
+    });
+    return res.send({ ok: true });
+  } catch (error) {
+    return res.status(500).send({ error: "Erro ao atualizar senha." });
+  }
+});
+
 // --- INICIALIZAÇÃO ---
 const start = async () => {
   try {
