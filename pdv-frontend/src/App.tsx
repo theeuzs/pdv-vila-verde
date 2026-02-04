@@ -143,6 +143,56 @@ export function App() {
   const [modoEscuro, setModoEscuro] = useState(false);
   // Estado para controlar a quantidade da próxima adição
   const [qtdParaAdicionar, setQtdParaAdicionar] = useState(1);
+  // --- NOVOS ESTADOS PARA SANGRIA/SUPRIMENTO ---
+  const [modalMovimentacao, setModalMovimentacao] = useState(false);
+  const [tipoMovimentacao, setTipoMovimentacao] = useState<'SANGRIA' | 'SUPRIMENTO'>('SANGRIA');
+  const [valorMovimentacao, setValorMovimentacao] = useState('');
+  const [descMovimentacao, setDescMovimentacao] = useState('');
+
+  // --- FUNÇÃO 1: SALVAR BACKUP (SEGURANÇA TOTAL) ---
+  const salvarBackup = () => {
+    const dadosBackup = {
+      data_backup: new Date(),
+      produtos: produtosFiltrados,
+      clientes: clientes,
+      vendas: vendasRealizadas,
+      orcamentos: orcamentos,
+      caixa: caixaAberto
+    };
+
+    const nomeArquivo = `BACKUP_VILA_VERDE_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
+    const blob = new Blob([JSON.stringify(dadosBackup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivo;
+    a.click();
+    
+    alert(`✅ Backup salvo na sua pasta de Downloads!\nNome: ${nomeArquivo}\nGuarde esse arquivo com carinho!`);
+  };
+
+  // --- FUNÇÃO 2: REGISTRAR MOVIMENTAÇÃO (LOCAL) ---
+  const salvarMovimentacao = () => {
+    if (!valorMovimentacao || Number(valorMovimentacao) <= 0) return alert("Digite um valor válido!");
+    
+    const valor = Number(valorMovimentacao);
+    
+    // Atualiza o saldo VISUALMENTE (já que não temos endpoint no backend pra isso ainda)
+    if (caixaAberto) {
+      const novoSaldo = tipoMovimentacao === 'SUPRIMENTO' 
+        ? Number(caixaAberto.saldoAtual) + valor 
+        : Number(caixaAberto.saldoAtual) - valor;
+
+      setCaixaAberto({ ...caixaAberto, saldoAtual: novoSaldo });
+      
+      alert(`${tipoMovimentacao} de R$ ${valor.toFixed(2)} realizada!\nNovo Saldo: R$ ${novoSaldo.toFixed(2)}`);
+    }
+    
+    setModalMovimentacao(false);
+    setValorMovimentacao('');
+    setDescMovimentacao('');
+  };
 
   useEffect(() => {
     function handleResize() {
@@ -1007,9 +1057,28 @@ function removerItemCarrinho(index: number) {
               ABRIR CAIXA 🔓
             </button>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-              <div style={{ background: '#fff', padding: '5px 15px', borderRadius: 5, border: '1px solid #c3e6cb', color: '#155724' }}>
-                <strong>Saldo:</strong> R$ {Number(caixaAberto.saldoAtual).toFixed(2)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              
+              {/* ÁREA DO SALDO COM BOTÕES DE MOVIMENTAÇÃO */}
+              <div style={{ background: '#fff', padding: '5px 10px', borderRadius: 5, border: '1px solid #c3e6cb', color: '#155724', display:'flex', alignItems:'center', gap: 10 }}>
+                <strong>Saldo: R$ {Number(caixaAberto.saldoAtual).toFixed(2)}</strong>
+                
+                <div style={{display:'flex', gap:2}}>
+                  <button 
+                    onClick={() => { setTipoMovimentacao('SUPRIMENTO'); setModalMovimentacao(true); }}
+                    title="Adicionar Dinheiro (Troco/Aporte)"
+                    style={{ background: '#48bb78', color: 'white', border:'none', borderRadius:4, width:25, height:25, cursor:'pointer', fontWeight:'bold' }}
+                  >
+                    +
+                  </button>
+                  <button 
+                    onClick={() => { setTipoMovimentacao('SANGRIA'); setModalMovimentacao(true); }}
+                    title="Retirar Dinheiro (Sangria/Pagamentos)"
+                    style={{ background: '#e53e3e', color: 'white', border:'none', borderRadius:4, width:25, height:25, cursor:'pointer', fontWeight:'bold' }}
+                  >
+                    -
+                  </button>
+                </div>
               </div>
               <button 
                 onClick={fecharCaixa}
@@ -1102,6 +1171,29 @@ function removerItemCarrinho(index: number) {
           <div style={{ textAlign: 'right', fontSize: '0.9rem', color: '#cbd5e0' }}>
             Olá, <strong style={{ color: 'white' }}>{usuarioLogado.nome}</strong>
           </div>
+
+{/* BOTÃO BACKUP DE SEGURANÇA */}
+          <button 
+            onClick={salvarBackup}
+            style={{ 
+              background: '#2b6cb0', 
+              color: 'white', 
+              border: 'none', 
+              padding: '8px 15px', 
+              borderRadius: 5, 
+              cursor: 'pointer', 
+              fontWeight: 'bold', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 5,
+              marginRight: 10 
+            }} 
+            title="Salvar todos os dados no computador"
+          >
+            💾 BACKUP
+          </button>
+
+          {/* Botão Sair (Mantenha o seu botão sair aqui) */}
 
           <button 
             onClick={() => setUsuarioLogado(null)}
@@ -1887,6 +1979,44 @@ function removerItemCarrinho(index: number) {
             
             <button onClick={() => setModalAutorizacao(false)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#718096', cursor: 'pointer' }}>
               Voltar
+            </button>
+          </div>
+        </div>
+      )}
+
+{/* === MODAL DE SANGRIA / SUPRIMENTO === */}
+      {modalMovimentacao && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
+          <div style={{ backgroundColor: 'white', padding: 30, borderRadius: 10, width: 350, textAlign: 'center' }}>
+            <h2 style={{ color: tipoMovimentacao === 'SANGRIA' ? '#e53e3e' : '#48bb78', marginTop:0 }}>
+              {tipoMovimentacao === 'SANGRIA' ? '💸 Retirar Dinheiro' : '💰 Adicionar Dinheiro'}
+            </h2>
+            
+            <label style={{display:'block', textAlign:'left', marginBottom:5, fontWeight:'bold', color: '#4a5568'}}>Valor (R$)</label>
+            <input 
+              type="number" 
+              autoFocus
+              placeholder="0.00" 
+              value={valorMovimentacao} 
+              onChange={e => setValorMovimentacao(e.target.value)}
+              style={{ width: '100%', padding: 12, fontSize: '1.2rem', border: '1px solid #ccc', borderRadius: 5, marginBottom: 15, boxSizing:'border-box' }}
+            />
+
+            <label style={{display:'block', textAlign:'left', marginBottom:5, fontWeight:'bold', color: '#4a5568'}}>Motivo (Opcional)</label>
+            <input 
+              type="text" 
+              placeholder={tipoMovimentacao === 'SANGRIA' ? "Ex: Pagamento Fornecedor" : "Ex: Troco Inicial"} 
+              value={descMovimentacao} 
+              onChange={e => setDescMovimentacao(e.target.value)}
+              style={{ width: '100%', padding: 10, border: '1px solid #ccc', borderRadius: 5, marginBottom: 20, boxSizing:'border-box' }}
+            />
+
+            <button onClick={salvarMovimentacao} style={{ width: '100%', padding: 12, background: tipoMovimentacao === 'SANGRIA' ? '#e53e3e' : '#48bb78', color: 'white', border: 'none', borderRadius: 5, fontWeight: 'bold', cursor: 'pointer', marginBottom: 10 }}>
+              CONFIRMAR {tipoMovimentacao}
+            </button>
+            
+            <button onClick={() => setModalMovimentacao(false)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#718096', cursor: 'pointer' }}>
+              Cancelar
             </button>
           </div>
         </div>
