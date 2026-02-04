@@ -129,23 +129,41 @@ app.post('/vendas', async (request, reply) => {
   // 4. SALVA A VENDA NO BANCO
   const venda = await prisma.venda.create({
     data: {
-      total: totalVenda,
+      // CORREÇÃO: Usa dados.total (que vem do frontend)
+      total: Number(dados.total), 
+      
       clienteId: dados.clienteId ? Number(dados.clienteId) : null,
       entrega: dados.entrega || false,
       enderecoEntrega: dados.enderecoEntrega || '',
       statusEntrega: dados.entrega ? 'PENDENTE' : 'RETIRADO',
-      itens: { create: itensParaSalvar as any },
-      pagamentos: { create: dados.pagamentos }
+      
+      // Cria os itens
+      itens: { 
+        create: dados.itens.map((item: any) => ({
+          produtoId: Number(item.produtoId),
+          quantidade: Number(item.quantidade)
+        }))
+      },
+      
+      // Cria os pagamentos
+      pagamentos: {
+        create: dados.pagamentos.map((pag: any) => ({
+          forma: pag.forma,
+          valor: Number(pag.valor)
+        }))
+      }
     },
     include: { itens: { include: { produto: true } }, cliente: true, pagamentos: true }
   })
 
- if (dados.caixaId) {  // Mudança 1: É dados.caixaId, não apenas caixaId
+  // 5. ATUALIZA O SALDO DO CAIXA (CORRIGIDO)
+  // Verifica se veio o caixaId do frontend
+  if (dados.caixaId) { 
     await prisma.caixa.update({
       where: { id: Number(dados.caixaId) },
       data: { 
-        // Mudança 2: É totalVenda, não apenas total
-        saldoAtual: { increment: Number(totalVenda) } 
+        // CORREÇÃO: Usa dados.total aqui também
+        saldoAtual: { increment: Number(dados.total) } 
       }
     });
   }
