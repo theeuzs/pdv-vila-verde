@@ -112,7 +112,10 @@ app.put('/produtos/:id', async (request, reply) => {
           // Cria os itens
           itens: { 
             create: dados.itens.map((item: any) => ({
-              produtoId: Number(item.produtoId),
+              // 🔴 ANTES: produtoId: Number(item.produtoId),
+              // 🟢 AGORA: Usamos 'connect' para garantir o link
+              produto: { connect: { id: Number(item.produtoId) } },
+              
               quantidade: Number(item.quantidade),
               precoUnit: Number(item.precoUnit)
             }))
