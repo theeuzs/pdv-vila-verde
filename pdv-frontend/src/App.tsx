@@ -624,6 +624,7 @@ imprimirCupom({
   }
 
 async function finalizarVenda() {
+  console.log("🕵️ O QUE TEM NO CARRINHO??", carrinho);
     if (carrinho.length === 0) return alert("Carrinho vazio!");
     if (!clienteSelecionado && !confirm("Vender sem cliente identificado?")) return;
 
