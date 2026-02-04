@@ -150,6 +150,7 @@ model Caixa {
   dataAbertura  DateTime  @default(now())
   dataFechamento DateTime? // Pode ser nulo se o caixa ainda estiver aberto
   saldoInicial  Decimal   @db.Decimal(10, 2)
+  saldoAtual     Decimal   @default(0)
   saldoFinal    Decimal?  @db.Decimal(10, 2)
   status        String    @default("ABERTO") // "ABERTO" ou "FECHADO"
   observacoes   String?

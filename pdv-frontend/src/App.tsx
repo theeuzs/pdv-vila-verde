@@ -148,6 +148,8 @@ export function App() {
   const [tipoMovimentacao, setTipoMovimentacao] = useState<'SANGRIA' | 'SUPRIMENTO'>('SANGRIA');
   const [valorMovimentacao, setValorMovimentacao] = useState('');
   const [descMovimentacao, setDescMovimentacao] = useState('');
+  // Estado para guardar os dados da sangria enquanto pede a senha
+  const [sangriaPendente, setSangriaPendente] = useState<{valor: number, motivo: string} | null>(null);
 
   // --- FUNÇÃO 1: SALVAR BACKUP (SEGURANÇA TOTAL) ---
   const salvarBackup = () => {
@@ -172,26 +174,65 @@ export function App() {
     alert(`✅ Backup salvo na sua pasta de Downloads!\nNome: ${nomeArquivo}\nGuarde esse arquivo com carinho!`);
   };
 
-  // --- FUNÇÃO 2: REGISTRAR MOVIMENTAÇÃO (LOCAL) ---
+  // --- FUNÇÃO 2: REGISTRAR MOVIMENTAÇÃO (COM SEGURANÇA 👮‍♂️) ---
   const salvarMovimentacao = () => {
     if (!valorMovimentacao || Number(valorMovimentacao) <= 0) return alert("Digite um valor válido!");
     
     const valor = Number(valorMovimentacao);
-    
-    // Atualiza o saldo VISUALMENTE (já que não temos endpoint no backend pra isso ainda)
-    if (caixaAberto) {
-      const novoSaldo = tipoMovimentacao === 'SUPRIMENTO' 
-        ? Number(caixaAberto.saldoAtual) + valor 
-        : Number(caixaAberto.saldoAtual) - valor;
 
-      setCaixaAberto({ ...caixaAberto, saldoAtual: novoSaldo });
-      
-      alert(`${tipoMovimentacao} de R$ ${valor.toFixed(2)} realizada!\nNovo Saldo: R$ ${novoSaldo.toFixed(2)}`);
+    // REGRA DE OURO: Se for SANGRIA e não for GERENTE, pede senha!
+    if (tipoMovimentacao === 'SANGRIA' && usuarioLogado.cargo !== 'GERENTE') {
+      // 1. Guarda os dados pra usar depois da senha
+      setSangriaPendente({ valor, motivo: descMovimentacao });
+      // 2. Fecha o modal da Sangria
+      setModalMovimentacao(false);
+      // 3. Abre o modal da Senha
+      setModalAutorizacao(true);
+      return; // Para tudo por aqui e espera a senha
     }
     
-    setModalMovimentacao(false);
-    setValorMovimentacao('');
-    setDescMovimentacao('');
+    // Se chegou aqui, é porque é Gerente OU é Suprimento (que não precisa de senha)
+    executarMovimentacao(valor, descMovimentacao, tipoMovimentacao);
+  };
+
+  // Função auxiliar que faz a conta (chamada direto ou após a senha)
+  // Função que salva no banco e atualiza a tela
+  const executarMovimentacao = async (valor: number, motivo: string, tipo: string) => {
+    
+    if (!caixaAberto) return;
+
+    try {
+      const res = await fetch(`${API_URL}/movimentacao`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caixaId: caixaAberto.id,
+          tipo: tipo,
+          valor: valor,
+          motivo: motivo
+        })
+      });
+
+      if (res.ok) {
+        const caixaAtualizado = await res.json();
+        
+        // Atualiza a tela com o valor que veio do banco (garantia de sincronia)
+        setCaixaAberto({ ...caixaAberto, saldoAtual: caixaAtualizado.saldoAtual });
+        
+        // Limpa os campos
+        setModalMovimentacao(false);
+        setValorMovimentacao('');
+        setDescMovimentacao('');
+        setSangriaPendente(null);
+
+        console.log(`MOVIMENTAÇÃO SALVA: ${tipo} de R$ ${valor}`);
+        alert(`✅ ${tipo} realizada com sucesso!`);
+      } else {
+        alert("Erro ao salvar movimentação no sistema.");
+      }
+    } catch (error) {
+      alert("Erro de conexão com o servidor.");
+    }
   };
 
   useEffect(() => {
@@ -872,10 +913,18 @@ function removerItemCarrinho(index: number) {
       });
 
       if (res.ok) {
-        // Senha correta! Executa o cancelamento da venda que estava na espera
-        if (idVendaParaCancelar) {
-          await executarCancelamento(idVendaParaCancelar);
+        // --- NOVO: Se tiver uma Sangria pendente, executa ela ---
+        if (sangriaPendente) {
+           executarMovimentacao(sangriaPendente.valor, sangriaPendente.motivo, 'SANGRIA');
+        } 
+        // --- ANTIGO: Se não, segue a vida com o Cancelamento ---
+        else if (idVendaParaCancelar) {
+           await executarCancelamento(idVendaParaCancelar);
         }
+
+        // Fecha o modal e limpa a senha
+        setModalAutorizacao(false);
+        setSenhaGerente('');
       } else {
         alert("Senha de gerente INVÁLIDA! 🚫");
       }
@@ -1173,25 +1222,27 @@ function removerItemCarrinho(index: number) {
           </div>
 
 {/* BOTÃO BACKUP DE SEGURANÇA */}
-          <button 
-            onClick={salvarBackup}
-            style={{ 
-              background: '#2b6cb0', 
-              color: 'white', 
-              border: 'none', 
-              padding: '8px 15px', 
-              borderRadius: 5, 
-              cursor: 'pointer', 
-              fontWeight: 'bold', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 5,
-              marginRight: 10 
-            }} 
-            title="Salvar todos os dados no computador"
-          >
-            💾 BACKUP
-          </button>
+          {usuarioLogado.cargo === 'GERENTE' && (
+            <button 
+              onClick={salvarBackup}
+              style={{ 
+                background: '#2b6cb0', 
+                color: 'white', 
+                border: 'none', 
+                padding: '8px 15px', 
+                borderRadius: 5, 
+                cursor: 'pointer', 
+                fontWeight: 'bold', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 5,
+                marginRight: 10 
+              }} 
+              title="Salvar todos os dados no computador"
+            >
+              💾 BACKUP
+            </button>
+          )}
 
           {/* Botão Sair (Mantenha o seu botão sair aqui) */}
 
@@ -1963,6 +2014,12 @@ function removerItemCarrinho(index: number) {
             <div style={{ fontSize: '3rem', marginBottom: 10 }}>👮‍♂️</div>
             <h3 style={{ color: '#c53030' }}>Autorização Necessária</h3>
             <p style={{ color: '#718096' }}>Vendedor não pode cancelar venda.<br/>Peça para um gerente digitar a senha:</p>
+            <p style={{ color: '#718096' }}>
+              {sangriaPendente 
+                ? `Autorizar SANGRIA de R$ ${sangriaPendente.valor.toFixed(2)}?`
+                : 'Autorizar CANCELAMENTO da venda?'}
+              <br/>Insira a senha do Gerente:
+            </p>
             
             <input 
               type="password" 

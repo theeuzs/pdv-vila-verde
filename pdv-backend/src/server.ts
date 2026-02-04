@@ -522,6 +522,48 @@ app.post('/caixa/movimentar', async (req, reply) => {
   return reply.send(movimento)
 })
 
+// Rota para Atualizar Saldo (Sangria/Suprimento)
+  // Rota para Atualizar Saldo (Versão Fastify ⚡)
+  app.post('/movimentacao', async (request, reply) => {
+    // 1. "Avisa" pro TypeScript o que tem dentro do corpo da requisição
+    const { caixaId, tipo, valor, motivo } = request.body as { 
+      caixaId: number | string, 
+      tipo: string, 
+      valor: number | string, 
+      motivo: string 
+    };
+
+    try {
+      // 2. Busca o caixa atual
+      const caixa = await prisma.caixa.findUnique({ where: { id: Number(caixaId) } });
+      
+      if (!caixa) {
+        return reply.status(404).send({ error: "Caixa não encontrado" });
+      }
+
+      // 3. Calcula o novo saldo (Convertendo Decimal do banco para JS Number)
+      const valorNumerico = Number(valor);
+      const saldoAtualNumerico = Number(caixa.saldoAtual);
+
+      const novoSaldo = tipo === 'SUPRIMENTO' 
+        ? saldoAtualNumerico + valorNumerico 
+        : saldoAtualNumerico - valorNumerico;
+
+      // 4. Atualiza no banco
+      const caixaAtualizado = await prisma.caixa.update({
+        where: { id: Number(caixaId) },
+        data: { saldoAtual: novoSaldo }
+      });
+
+      // No Fastify, basta retornar o objeto que ele vira JSON sozinho
+      return caixaAtualizado;
+
+    } catch (error) {
+      console.log(error);
+      return reply.status(500).send({ error: "Erro ao realizar movimentação" });
+    }
+  });
+
 // --- ROTA DO DASHBOARD (ESTATÍSTICAS) ---
 app.get('/dashboard', async () => {
   const hoje = new Date();
