@@ -319,22 +319,37 @@ export function App() {
     }
   }
 
-  async function fecharCaixa() {
-    if (!confirm("Tem certeza que deseja FECHAR o caixa agora?")) return;
+// Função para Fechar o Caixa
+  const fecharCaixa = async () => {
+    if (!caixaAberto) return;
+
+    // Pergunta de segurança
+    const confirmacao = window.confirm(
+      `Deseja realmente FECHAR o caixa?\n\nSaldo Final: R$ ${Number(caixaAberto.saldoAtual).toFixed(2)}`
+    );
+
+    if (!confirmacao) return;
 
     try {
-      const res = await fetch(`${API_URL}/caixa/fechar`, { method: 'POST' });
-      
+      const res = await fetch(`${API_URL}/caixa/fechar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caixaId: caixaAberto.id })
+      });
+
       if (res.ok) {
-        alert("Caixa fechado com sucesso! Até amanhã. 🌙");
-        verificarStatusCaixa(); // Atualiza a tela para bloquear as vendas
+        alert("🔒 Caixa fechado com sucesso!");
+        setCaixaAberto(null); // Isso faz a tela voltar para "Abrir Caixa"
+        // Se tiver carrinho ou pagamentos pendentes, é bom limpar também:
+        setCarrinho([]);
+        setListaPagamentos([]);
       } else {
         alert("Erro ao fechar o caixa.");
       }
     } catch (error) {
       alert("Erro de conexão.");
     }
-  }
+  };
 
   // ==========================================================================
   // 3. ESTADOS (STATES)

@@ -464,6 +464,31 @@ app.post('/caixa/abrir', async (req, reply) => {
   return reply.send(novoCaixa)
 })
 
+app.post('/caixa/fechar', async (request, reply) => {
+    const { caixaId } = request.body as { caixaId: number };
+
+    // 1. Busca o caixa para pegar o saldo atual
+    const caixa = await prisma.caixa.findUnique({
+      where: { id: Number(caixaId) }
+    });
+
+    if (!caixa) {
+      return reply.status(404).send({ error: "Caixa não encontrado" });
+    }
+
+    // 2. Fecha o caixa gravando o saldo final igual ao saldo atual
+    const caixaFechado = await prisma.caixa.update({
+      where: { id: Number(caixaId) },
+      data: {
+        status: "FECHADO",
+        dataFechamento: new Date(), // Grava a data/hora de agora
+        saldoFinal: caixa.saldoAtual // Define o saldo final
+      }
+    });
+
+    return caixaFechado;
+  });
+
 // --- FECHAR O CAIXA ---
 app.post('/caixa/fechar', async (request, reply) => {
   // 1. Procura se tem um caixa aberto
