@@ -634,9 +634,9 @@ async function finalizarVenda() {
       entrega: entrega,            // Usa o estado que você já tem
       enderecoEntrega: endereco,   // Usa o estado que você já tem
       itens: carrinho.map((item: any) => ({
-        produtoId: item.id,
+        produtoId: item.produto.id,
         quantidade: Number(item.quantidade),
-        precoUnit: Number(item.preco)
+        precoUnit: Number(item.produto.precoVenda)
       })),
       pagamentos: listaPagamentos.map((p: any) => ({
         forma: p.forma,
