@@ -150,6 +150,8 @@ export function App() {
   const [descMovimentacao, setDescMovimentacao] = useState('');
   // Estado para guardar os dados da sangria enquanto pede a senha
   const [sangriaPendente, setSangriaPendente] = useState<{valor: number, motivo: string} | null>(null);
+  const [historicoCaixas, setHistoricoCaixas] = useState<any[]>([]);
+  const [vendoHistorico, setVendoHistorico] = useState(false);
 
   // --- FUNÇÃO 1: SALVAR BACKUP (SEGURANÇA TOTAL) ---
   const salvarBackup = () => {
@@ -266,6 +268,17 @@ export function App() {
       setListaEntregas(dados);
     } catch (error) {
       console.error("Erro ao carregar entregas");
+    }
+  }
+
+  async function carregarHistorico() {
+    try {
+      const res = await fetch(`${API_URL}/caixas/historico`);
+      const dados = await res.json();
+      setHistoricoCaixas(dados);
+      setVendoHistorico(true); // Abre a tela de histórico
+    } catch (error) {
+      alert("Erro ao buscar histórico.");
     }
   }
 
@@ -1186,6 +1199,46 @@ function removerItemCarrinho(index: number) {
           <span style={{ fontSize: 24 }}>🏗️</span>
           <div>
             <h1 style={{ fontSize: 18, margin: 0, lineHeight: '1' }}>PDV Vila Verde</h1>
+            {/* BOTÃO PARA CHAMAR O HISTÓRICO */}
+    <button onClick={carregarHistorico} style={{ margin: '10px', padding: '10px' }}>
+       📜 Ver Histórico de Caixas
+    </button>
+
+    {/* A TELA DE HISTÓRICO (MODAL SIMPLES) */}
+    {vendoHistorico && (
+      <div style={{
+        background: 'rgba(0,0,0,0.8)', position: 'fixed', top:0, left:0, 
+        width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 
+      }}>
+        <div style={{ background: 'white', padding: '20px', borderRadius: '10px', width: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2>📜 Histórico de Fechamentos</h2>
+                <button onClick={() => setVendoHistorico(false)}>❌ Fechar</button>
+            </div>
+            
+            <table width="100%" border={1} style={{ marginTop: '10px', borderCollapse: 'collapse' }}>
+                <thead>
+                    <tr style={{ background: '#eee' }}>
+                        <th>Data</th>
+                        <th>Saldo Inicial</th>
+                        <th>Saldo Final</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {historicoCaixas.map((cx) => (
+                        <tr key={cx.id}>
+                            <td>{new Date(cx.dataAbertura).toLocaleDateString()}</td>
+                            <td>R$ {Number(cx.saldoInicial).toFixed(2)}</td>
+                            <td>R$ {Number(cx.saldoFinal || cx.saldoAtual).toFixed(2)}</td>
+                            <td>{cx.status}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+      </div>
+    )}
             <span style={{ background: '#4a5568', padding: '2px 6px', borderRadius: 4, fontSize: 10, textTransform: 'uppercase' }}>
               {usuarioLogado.cargo === 'GERENTE' ? '👤 MODO CHEFE' : 
                usuarioLogado.cargo === 'VENDEDOR' ? '🛒 MODO VENDEDOR' : 
