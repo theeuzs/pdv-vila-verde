@@ -274,11 +274,15 @@ export function App() {
   async function carregarHistorico() {
     try {
       const res = await fetch(`${API_URL}/caixas/historico`);
-      const dados = await res.json();
-      setHistoricoCaixas(dados);
-      setVendoHistorico(true); // Abre a tela de histórico
+      if (res.ok) {
+        const dados = await res.json();
+        setHistoricoCaixas(dados);
+        setVendoHistorico(true); // Abre a janela
+      } else {
+        alert("Erro ao buscar histórico.");
+      }
     } catch (error) {
-      alert("Erro ao buscar histórico.");
+      alert("Erro de conexão.");
     }
   }
 
@@ -1130,46 +1134,7 @@ function removerItemCarrinho(index: number) {
               )}
             </div>
           </div>
-          {/* BOTÃO PARA CHAMAR O HISTÓRICO */}
-    <button onClick={carregarHistorico} style={{ margin: '10px', padding: '10px' }}>
-       📜 Ver Histórico de Caixas
-    </button>
-
-    {/* A TELA DE HISTÓRICO (MODAL SIMPLES) */}
-    {vendoHistorico && (
-      <div style={{
-        background: 'rgba(0,0,0,0.8)', position: 'fixed', top:0, left:0, 
-        width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 
-      }}>
-        <div style={{ background: 'white', padding: '20px', borderRadius: '10px', width: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2>📜 Histórico de Fechamentos</h2>
-                <button onClick={() => setVendoHistorico(false)}>❌ Fechar</button>
-            </div>
-            
-            <table width="100%" border={1} style={{ marginTop: '10px', borderCollapse: 'collapse' }}>
-                <thead>
-                    <tr style={{ background: '#eee' }}>
-                        <th>Data</th>
-                        <th>Saldo Inicial</th>
-                        <th>Saldo Final</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {historicoCaixas.map((cx) => (
-                        <tr key={cx.id}>
-                            <td>{new Date(cx.dataAbertura).toLocaleDateString()}</td>
-                            <td>R$ {Number(cx.saldoInicial).toFixed(2)}</td>
-                            <td>R$ {Number(cx.saldoFinal || cx.saldoAtual).toFixed(2)}</td>
-                            <td>{cx.status}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-      </div>
-    )}
+          
           
           {(!caixaAberto || caixaAberto.status === 'FECHADO') ? (
             <button 
@@ -1181,7 +1146,29 @@ function removerItemCarrinho(index: number) {
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               
-              {/* ÁREA DO SALDO COM BOTÕES DE MOVIMENTAÇÃO */}
+          {/* 👇 BOTÃO HISTÓRICO (Ao lado do saldo) 👇 */}
+          <button 
+            onClick={carregarHistorico}
+            style={{
+              backgroundColor: '#fff',
+              color: '#1a1a1a',
+              border: '1px solid #ddd',
+              padding: '8px 15px',
+              borderRadius: '8px', // Borda arredondada
+              fontWeight: '600',
+              cursor: 'pointer',
+              marginRight: '15px', // Empurra o saldo para a direita
+              boxShadow: '0 2px 5px rgba(0,0,0,0.05)', // Sombra suave
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+             📜 Histórico de Caixa
+          </button>
               <div style={{ background: '#fff', padding: '5px 10px', borderRadius: 5, border: '1px solid #c3e6cb', color: '#155724', display:'flex', alignItems:'center', gap: 10 }}>
                 <strong>Saldo: R$ {Number(caixaAberto.saldoAtual).toFixed(2)}</strong>
                 
@@ -2149,6 +2136,50 @@ function removerItemCarrinho(index: number) {
             <button onClick={() => setModalMovimentacao(false)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#718096', cursor: 'pointer' }}>
               Cancelar
             </button>
+          </div>
+        </div>
+      )}
+
+{/* 👇 JANELA DE HISTÓRICO (MODAL) 👇 */}
+      {vendoHistorico && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999,
+          display: 'flex', justifyContent: 'center', alignItems: 'center'
+        }}>
+          <div style={{ 
+            backgroundColor: 'white', padding: '25px', borderRadius: '15px', 
+            width: '600px', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' 
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>📜 Histórico de Fechamentos</h2>
+              <button onClick={() => setVendoHistorico(false)} style={{ border: 'none', background: 'transparent', fontSize: '20px', cursor: 'pointer' }}>❌</button>
+            </div>
+
+            <table width="100%" style={{ borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#f3f4f6', textAlign: 'left' }}>
+                  <th style={{ padding: '10px' }}>Data</th>
+                  <th style={{ padding: '10px' }}>Saldo Final</th>
+                  <th style={{ padding: '10px' }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historicoCaixas.map((cx: any) => (
+                  <tr key={cx.id} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '10px' }}>{new Date(cx.dataFechamento || cx.dataAbertura).toLocaleDateString()}</td>
+                    <td style={{ padding: '10px', color: 'green', fontWeight: 'bold' }}>
+                      R$ {Number(cx.saldoFinal || cx.saldoAtual).toFixed(2)}
+                    </td>
+                    <td style={{ padding: '10px' }}>
+                      <span style={{ padding: '4px 8px', borderRadius: '4px', background: '#e5e7eb', fontSize: '12px' }}>
+                        {cx.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
