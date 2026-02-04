@@ -629,28 +629,30 @@ async function finalizarVenda() {
     // Monta os dados para enviar ao backend
     const dadosVenda = {
       clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
-      entrega: entrega,
-    enderecoEntrega: endereco,
-      itens: carrinho.map(item => ({
-        produtoId: item.produto.id,
+      entrega: entrega,            // Usa o estado que você já tem
+      enderecoEntrega: endereco,   // Usa o estado que você já tem
+      itens: carrinho.map((item: any) => ({
+        produtoId: item.id,
         quantidade: item.quantidade
       })),
-      pagamentos: listaPagamentos.map(p => ({
+      pagamentos: listaPagamentos.map((p: any) => ({
         forma: p.forma,
         valor: Number(p.valor)
-      }))
+      })),
+      total: totalCarrinho,        // ⬅️ FALTAVA ISSO
+      caixaId: caixaAberto?.id     // ⬅️ FALTAVA ISSO (Vital para o saldo!)
     };
 
     try {
+      // 2. Envia o pacote 'dadosVenda' para o servidor
       const res = await fetch(`${API_URL}/vendas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dadosVenda)
+        body: JSON.stringify(dadosVenda) // ⬅️ AQUI ESTÁ A MÁGICA (Usando a variável)
       });
 
-      // AQUI ESTÁ A CORREÇÃO: Pegamos a resposta (ID) antes de qualquer coisa
       const vendaCriada = await res.json();
-
+      
       if (res.ok) {
         alert("Venda realizada com sucesso! 🎉");
 
