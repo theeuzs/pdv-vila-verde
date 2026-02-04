@@ -941,20 +941,23 @@ function removerItemCarrinho(index: number) {
       telefone = novoNumero.replace(/\D/g, '');
     }
 
-    // 2. Monta a mensagem com \n (quebra de linha normal)
-    const itensTexto = venda.itens.map((i: any) => `▪️ ${i.quantidade}x ${i.produto.nome}`).join('\n');
+    // 2. Monta a mensagem usando códigos \u em vez de emojis diretos
+    // \u25AA = Quadrado preto pequeno (▪️)
+    const itensTexto = venda.itens.map((i: any) => `\u25AA ${i.quantidade}x ${i.produto.nome}`).join('\n');
     const totalTexto = Number(venda.total).toFixed(2);
     
-    // Cria o texto normal, com emojis e acentos
-    const textoPuro = `Olá ${venda.cliente?.nome || 'Cliente'}, tudo bem? 🏗️\n\nAqui é da *Vila Verde*! Segue o resumo da sua compra:\n\n${itensTexto}\n\n*💰 TOTAL: R$ ${totalTexto}*\n\nObrigado pela preferência! 🤝`;
+    // \uD83C\uDFD7 = Guindaste (🏗️)
+    // \uD83D\uDCB0 = Saco de Dinheiro (💰)
+    // \uD83E\uDD1D = Aperto de mão (🤝)
+    const textoPuro = `Olá ${venda.cliente?.nome || 'Cliente'}, tudo bem? \uD83C\uDFD7\n\nAqui é da *Vila Verde*! Segue o resumo da sua compra:\n\n${itensTexto}\n\n*\uD83D\uDCB0 TOTAL: R$ ${totalTexto}*\n\nObrigado pela preferência! \uD83E\uDD1D`;
 
-    // 3. "Traduz" o texto inteiro para URL (Isso conserta os emojis!)
+    // 3. Traduz para URL
     const textoCodificado = encodeURIComponent(textoPuro);
 
     // 4. Abre o link
     window.open(`https://wa.me/55${telefone}?text=${textoCodificado}`, '_blank');
   };
-  
+
   return (
     <div style={{ 
       fontFamily: 'Segoe UI, sans-serif', 
