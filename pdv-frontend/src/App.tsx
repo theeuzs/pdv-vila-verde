@@ -931,29 +931,30 @@ function removerItemCarrinho(index: number) {
   }
   // Função para abrir o WhatsApp com o resumo da venda
   const enviarZap = (venda: any) => {
-    // 1. Tenta pegar o celular do cliente ou pede um se não tiver
+    // 1. Tenta pegar o celular do cliente
     let telefone = venda.cliente?.celular || '';
-    
-    // Limpa o numero (tira parenteses, traços, espaços)
-    telefone = telefone.replace(/\D/g, '');
+    telefone = telefone.replace(/\D/g, ''); // Limpa tudo que não é número
 
-    // Se não tiver numero valido, avisa (opcional: podia abrir sem numero pra escolher o contato)
     if (telefone.length < 10) {
-      const novoNumero = prompt("Cliente sem celular cadastrado! Digite o número (com DDD) para enviar:");
+      const novoNumero = prompt("Cliente sem celular cadastrado! Digite o número (com DDD):");
       if (!novoNumero) return;
       telefone = novoNumero.replace(/\D/g, '');
     }
 
-    // 2. Monta a mensagem bonitinha
-    const itensTexto = venda.itens.map((i: any) => `▪️ ${i.quantidade}x ${i.produto.nome}`).join('%0A'); // %0A é pular linha
+    // 2. Monta a mensagem com \n (quebra de linha normal)
+    const itensTexto = venda.itens.map((i: any) => `▪️ ${i.quantidade}x ${i.produto.nome}`).join('\n');
     const totalTexto = Number(venda.total).toFixed(2);
     
-    const mensagem = `Olá ${venda.cliente?.nome || 'Cliente'}, tudo bem? 🏗️%0A%0AAqui é da *Vila Verde*! Segue o resumo da sua compra:%0A%0A${itensTexto}%0A%0A*💰 TOTAL: R$ ${totalTexto}*%0A%0AObrigado pela preferência! 🤝`;
+    // Cria o texto normal, com emojis e acentos
+    const textoPuro = `Olá ${venda.cliente?.nome || 'Cliente'}, tudo bem? 🏗️\n\nAqui é da *Vila Verde*! Segue o resumo da sua compra:\n\n${itensTexto}\n\n*💰 TOTAL: R$ ${totalTexto}*\n\nObrigado pela preferência! 🤝`;
 
-    // 3. Abre o link do Zap
-    window.open(`https://wa.me/55${telefone}?text=${mensagem}`, '_blank');
+    // 3. "Traduz" o texto inteiro para URL (Isso conserta os emojis!)
+    const textoCodificado = encodeURIComponent(textoPuro);
+
+    // 4. Abre o link
+    window.open(`https://wa.me/55${telefone}?text=${textoCodificado}`, '_blank');
   };
-
+  
   return (
     <div style={{ 
       fontFamily: 'Segoe UI, sans-serif', 
