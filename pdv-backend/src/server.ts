@@ -416,24 +416,23 @@ app.post('/clientes/:id/haver', async (request, reply) => {
 // --- ROTAS DE CONTROLE DE CAIXA ---
 
 // 1. VERIFICAR STATUS DO CAIXA (O Frontend vai perguntar isso toda hora)
-app.get('/caixa/status', async () => {
-  const caixaAberto = await prisma.caixa.findFirst({
-    where: { status: 'ABERTO' },
-    include: { movimentacoes: true }, // <--- O SEGREDO: Traz os movimentos para somar
-    orderBy: { id: 'desc' }
-  })
-  
-  if (!caixaAberto) return { status: 'FECHADO' }
+// ROTA PARA SABER O SALDO (Versão Corrigida: Lê o valor real do banco)
+  app.get('/caixa/status', async (request, reply) => {
+    
+    // 1. Busca o caixa aberto
+    const caixaAberto = await prisma.caixa.findFirst({
+      where: { status: 'ABERTO' },
+      // Não precisamos mais incluir movimentações para fazer conta, o saldo já está pronto!
+    });
 
-  // CALCULA O SALDO ATUAL (Soma tudo que entrou e tira o que saiu)
-  const saldoAtual = caixaAberto.movimentacoes.reduce((acc, mov) => {
-    if (mov.tipo === 'SANGRIA') return acc - Number(mov.valor)
-    return acc + Number(mov.valor) // SOMA (Abertura, Venda, Suprimento, Recebimento)
-  }, 0)
+    if (!caixaAberto) {
+      return null; // Se não tiver caixa aberto, retorna nada
+    }
 
-  // Retorna os dados do caixa + o saldo calculado na hora
-  return { ...caixaAberto, saldoAtual } 
-})
+    // 2. RETORNA O VALOR REAL QUE ESTÁ NO BANCO
+    // Antes a gente recalculava aqui e estragava o valor. Agora não mais!
+    return caixaAberto; 
+  });
 
 // 2. ABRIR CAIXA
 app.post('/caixa/abrir', async (req, reply) => {
