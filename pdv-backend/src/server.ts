@@ -93,152 +93,59 @@ app.put('/produtos/:id', async (request, reply) => {
   }
 })
 
-// --- ROTA DE VENDAS COMPLETA (CAIXA + ESTOQUE + FIADO) ---
-app.post('/vendas', async (request, reply) => {
-  const dados = request.body as any
+// ROTA DE NOVA VENDA (CORRIGIDA)
+  app.post('/vendas', async (request, reply) => {
+    // 1. Pega os dados que vieram do Frontend
+    const dados = request.body as any;
 
-  // 1. VERIFICA SE O CAIXA ESTÁ ABERTO
-  const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } })
-  if (!caixaAberto) {
-    return reply.status(400).send({ erro: "O Caixa está FECHADO. Abra o caixa antes de vender!" })
-  }
-
-  // 2. VERIFICA SE TEM CLIENTE PARA VENDA A PRAZO
-  const temFiado = dados.pagamentos.some((p: any) => p.forma === 'A PRAZO')
-  if (temFiado && !dados.clienteId) {
-    return reply.status(400).send({ erro: "Para vender A PRAZO, é obrigatório selecionar um Cliente!" })
-  }
-
-  // 3. VALIDA ESTOQUE E CALCULA TOTAL
-  let totalVenda = 0
-  const itensParaSalvar = []
-
-  for (const item of dados.itens) {
-    const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } })
-    if (!produto) return reply.status(400).send({ erro: "Produto não encontrado" })
-    if (produto.estoque < item.quantidade) return reply.status(400).send({ erro: `Estoque insuficiente: ${produto.nome}` })
-    
-    totalVenda += Number(produto.precoVenda) * item.quantidade
-    itensParaSalvar.push({
-      produtoId: item.produtoId,
-      quantidade: item.quantidade,
-      precoUnit: produto.precoVenda // Ajustado para o nome curto que seu banco aceitou
-    })
-  }
-
-  // 4. SALVA A VENDA NO BANCO
-  const venda = await prisma.venda.create({
-    data: {
-      // CORREÇÃO: Usa dados.total (que vem do frontend)
-      total: Number(dados.total), 
-      
-      clienteId: dados.clienteId ? Number(dados.clienteId) : null,
-      entrega: dados.entrega || false,
-      enderecoEntrega: dados.enderecoEntrega || '',
-      statusEntrega: dados.entrega ? 'PENDENTE' : 'RETIRADO',
-      
-      // Cria os itens
-      itens: { 
-        create: dados.itens.map((item: any) => ({
-          produtoId: Number(item.produtoId),
-          quantidade: Number(item.quantidade)
-        }))
-      },
-      
-      // Cria os pagamentos
-      pagamentos: {
-        create: dados.pagamentos.map((pag: any) => ({
-          forma: pag.forma,
-          valor: Number(pag.valor)
-        }))
-      }
-    },
-    include: { itens: { include: { produto: true } }, cliente: true, pagamentos: true }
-  })
-
-  // 5. ATUALIZA O SALDO DO CAIXA (CORRIGIDO)
-  // Verifica se veio o caixaId do frontend
-  if (dados.caixaId) { 
-    await prisma.caixa.update({
-      where: { id: Number(dados.caixaId) },
-      data: { 
-        // CORREÇÃO: Usa dados.total aqui também
-        saldoAtual: { increment: Number(dados.total) } 
-      }
-    });
-  }
-
-  // 5. FINANCEIRO: SEPARA O QUE É CAIXA E O QUE É FIADO
-  // 5. FINANCEIRO E SALDOS (Versão Corrigida)
-    for (const pag of dados.pagamentos) {
-      const valor = Number(pag.valor);
-console.log("💳 Processando pagamento:", pag.forma);
-        console.log("💰 Valor:", pag.valor);
-        console.log("👤 Cliente ID:", dados.clienteId);
-      // --- PARTE A: REGISTRO FINANCEIRO (Dinheiro ou Dívida?) ---
-      
-      if (pag.forma === 'A PRAZO') {
-        // 1. Se for Fiado, cria a conta a receber
-        await prisma.contaReceber.create({
-          data: {
-            descricao: `Venda #${venda.id} - A Prazo`,
-            valor: valor,
-            clienteId: Number(dados.clienteId),
-            vendaId: venda.id,
-            dataVencimento: new Date(new Date().setDate(new Date().getDate() + 30)),
-            status: 'PENDENTE'
-          }
-        });
-      } 
-      // 2. Se NÃO for Fiado e NEM Crédito/Haver, então é Dinheiro/Pix entrando no caixa
-      else if (pag.forma !== 'Crédito' && pag.forma !== 'Haver' && pag.forma !== 'Crédito em Haver') {
-        await prisma.movimentacaoCaixa.create({
-          data: {
-            caixaId: caixaAberto.id,
-            tipo: 'VENDA',
-            valor: valor,
-            descricao: `Venda #${venda.id} (${pag.forma})`
-          }
-        });
-      }
-
-      // --- PARTE B: ATUALIZA A FICHA DO CLIENTE ---
-      
-      if (dados.clienteId) {
-        
-        // CASO 1: CLIENTE COMPROU NO FIADO (Aumenta a Dívida)
-        // Adicionei variações comuns de nome
-        if (['A PRAZO', 'Fiado', 'Crediario', 'A Prazo'].includes(pag.forma)) {
-          console.log("Simulando: Aumentando Dívida..."); // Log para confirmar
-          await prisma.cliente.update({
-            where: { id: Number(dados.clienteId) },
-            data: { saldoDevedor: { increment: Number(pag.valor) } } 
-          });
-        }
-
-        // CASO 2: CLIENTE PAGOU USANDO CRÉDITO/HAVER (Diminui o Haver)
-        // ATENÇÃO: Verifique se o nome que aparece no seu Terminal está nesta lista abaixo!
-        if (['Haver', 'HAVER', 'Crédito', 'CREDITO', 'Saldo', 'Uso de Haver'].includes(pag.forma)) {
+    try {
+      // 2. SALVA A VENDA NO BANCO
+      const venda = await prisma.venda.create({
+        data: {
+          total: Number(dados.total), // Usa o total que veio da tela
           
-          console.log("Simulando: Baixando Haver..."); 
-          await prisma.cliente.update({
-            where: { id: Number(dados.clienteId) },
-            data: { saldoHaver: { decrement: Number(pag.valor) } } 
-          });
-        }
+          clienteId: dados.clienteId ? Number(dados.clienteId) : null,
+          entrega: dados.entrega || false,
+          enderecoEntrega: dados.enderecoEntrega || '',
+          // REMOVIDO: statusEntrega (causava o erro 500)
+          
+          // Cria os itens
+          itens: { 
+            create: dados.itens.map((item: any) => ({
+              produtoId: Number(item.produtoId),
+              quantidade: Number(item.quantidade)
+            }))
+          },
+          
+          // Cria os pagamentos
+          pagamentos: {
+            create: dados.pagamentos.map((pag: any) => ({
+              forma: pag.forma,
+              valor: Number(pag.valor)
+            }))
+          }
+        },
+        include: { itens: { include: { produto: true } }, cliente: true, pagamentos: true }
+      });
+
+      // 3. ATUALIZA O SALDO DO CAIXA (Se tiver caixa aberto)
+      if (dados.caixaId) { 
+        await prisma.caixa.update({
+          where: { id: Number(dados.caixaId) },
+          data: { 
+            saldoAtual: { increment: Number(dados.total) } 
+          }
+        });
       }
+
+      // 4. Retorna sucesso
+      return venda;
+
+    } catch (error) {
+      console.error(error); // Isso mostra o erro real no terminal preto
+      return reply.status(500).send({ error: "Erro ao salvar venda" });
     }
-
-  // 6. BAIXA NO ESTOQUE
-  for (const item of dados.itens) {
-    await prisma.produto.update({
-      where: { id: item.produtoId },
-      data: { estoque: { decrement: item.quantidade } }
-    })
-  }
-
-  return reply.status(201).send(venda)
-})
+  });
 
 app.get('/vendas', async () => {
   return await prisma.venda.findMany({
