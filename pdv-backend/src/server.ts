@@ -174,6 +174,30 @@ app.put('/produtos/:id', async (request, reply) => {
 
       // 👆👆👆 FIM DO ESPIÃO 👆👆👆
 
+// ... (código que atualiza o caixa) ...
+      // } else {
+      //   console.log("⚠️ AVISO: ... ");
+      // }
+
+      // 👇👇👇 4. BAIXA DE ESTOQUE (NOVO CÓDIGO) 👇👇👇
+      console.log("📦 ATUALIZANDO ESTOQUE DOS PRODUTOS...");
+      
+      for (const item of dados.itens) {
+        // Pega o ID seguro do produto
+        const idProd = Number(item.produtoId || item.id || item.produto?.id);
+        
+        if (idProd) {
+          await prisma.produto.update({
+            where: { id: idProd },
+            data: { 
+              estoque: { decrement: Number(item.quantidade) } // Tira a quantidade vendida
+            }
+          });
+        }
+      }
+      console.log("✅ ESTOQUE ATUALIZADO!");
+      // 👆👆👆 FIM DA BAIXA DE ESTOQUE 👆👆👆
+
       return venda; // <--- O return tem que ficar DEPOIS do espião
 
       // 3. ATUALIZA O SALDO DO CAIXA (Se tiver caixa aberto)
@@ -757,6 +781,16 @@ app.post('/verificar-gerente', async (req, res) => {
     return res.status(401).send({ error: "Senha de gerente incorreta!" });
   }
 });
+
+// ROTA DE HISTÓRICO DE CAIXAS 📜
+  app.get('/caixas/historico', async () => {
+    // Busca os últimos 50 caixas fechados
+    return await prisma.caixa.findMany({
+      where: { status: 'FECHADO' }, // Só mostra os fechados
+      orderBy: { dataAbertura: 'desc' }, // Do mais recente para o antigo
+      take: 50
+    });
+  });
 
 // --- INICIALIZAÇÃO ---
 const start = async () => {
