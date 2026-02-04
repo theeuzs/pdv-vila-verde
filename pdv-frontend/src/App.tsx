@@ -941,21 +941,28 @@ function removerItemCarrinho(index: number) {
       telefone = novoNumero.replace(/\D/g, '');
     }
 
-    // 2. Monta a mensagem usando códigos \u em vez de emojis diretos
-    // \u25AA = Quadrado preto pequeno (▪️)
-    const itensTexto = venda.itens.map((i: any) => `\u25AA ${i.quantidade}x ${i.produto.nome}`).join('\n');
+    // 2. Prepara os dados (Codifica textos para URL, mas deixa emojis manuais)
+    const nomeCliente = encodeURIComponent(venda.cliente?.nome || 'Cliente');
     const totalTexto = Number(venda.total).toFixed(2);
     
-    // \uD83C\uDFD7 = Guindaste (🏗️)
-    // \uD83D\uDCB0 = Saco de Dinheiro (💰)
-    // \uD83E\uDD1D = Aperto de mão (🤝)
-    const textoPuro = `Olá ${venda.cliente?.nome || 'Cliente'}, tudo bem? \uD83C\uDFD7\n\nAqui é da *Vila Verde*! Segue o resumo da sua compra:\n\n${itensTexto}\n\n*\uD83D\uDCB0 TOTAL: R$ ${totalTexto}*\n\nObrigado pela preferência! \uD83E\uDD1D`;
+    // Lista de Itens (Usa %E2%96%AA para o quadradinho ▪️ e %0A para pular linha)
+    const itensTexto = venda.itens.map((i: any) => 
+      `%E2%96%AA%20${i.quantidade}x%20${encodeURIComponent(i.produto.nome)}`
+    ).join('%0A');
 
-    // 3. Traduz para URL
-    const textoCodificado = encodeURIComponent(textoPuro);
+    // 3. Monta a URL Manualmente (Usando códigos % diretos para os emojis)
+    // 🏗️ = %F0%9F%8F%97%EF%B8%8F
+    // 💰 = %F0%9F%92%B0
+    // 🤝 = %F0%9F%A4%9D
+    const linkFinal = `https://wa.me/55${telefone}?text=` +
+      `Ol%C3%A1%20*${nomeCliente}*,%20tudo%20bem%3F%20%F0%9F%8F%97%EF%B8%8F%0A%0A` +
+      `Aqui%20%C3%A9%20da%20*Vila%20Verde*!%20Segue%20o%20resumo%20da%20sua%20compra:%0A%0A` +
+      `${itensTexto}%0A%0A` +
+      `*%F0%9F%92%B0%20TOTAL:%20R$%20${totalTexto}*%0A%0A` +
+      `Obrigado%20pela%20prefer%C3%AAncia!%20%F0%9F%A4%9D`;
 
     // 4. Abre o link
-    window.open(`https://wa.me/55${telefone}?text=${textoCodificado}`, '_blank');
+    window.open(linkFinal, '_blank');
   };
 
   return (
