@@ -111,14 +111,24 @@ app.put('/produtos/:id', async (request, reply) => {
           
           // Cria os itens
           itens: { 
-            create: dados.itens.map((item: any) => ({
-              // 🔴 ANTES: produtoId: Number(item.produtoId),
-              // 🟢 AGORA: Usamos 'connect' para garantir o link
-              produto: { connect: { id: Number(item.produtoId) } },
+            create: dados.itens.map((item: any) => {
+              // 🛡️ REDE DE SEGURANÇA: Tenta achar o ID de qualquer jeito
+              const idProdutoSeguro = Number(item.produtoId || item.id || item.produto?.id);
               
-              quantidade: Number(item.quantidade),
-              precoUnit: Number(item.precoUnit)
-            }))
+              // Se mesmo assim for inválido, avisa no console (pra gente saber)
+              if (!idProdutoSeguro || isNaN(idProdutoSeguro)) {
+                console.error("❌ ERRO GRAVE: Produto sem ID neste item:", item);
+                throw new Error(`Produto inválido na venda (ID faltando).`);
+              }
+
+              return {
+                // Conecta usando o ID seguro que encontramos
+                produto: { connect: { id: idProdutoSeguro } },
+                
+                quantidade: Number(item.quantidade),
+                precoUnit: Number(item.precoUnit || item.preco || 0) // Segurança pro preço também
+              };
+            })
           },
           
           // Cria os pagamentos
