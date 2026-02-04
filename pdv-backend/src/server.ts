@@ -140,6 +140,16 @@ app.post('/vendas', async (request, reply) => {
     include: { itens: { include: { produto: true } }, cliente: true, pagamentos: true }
   })
 
+ if (dados.caixaId) {  // Mudança 1: É dados.caixaId, não apenas caixaId
+    await prisma.caixa.update({
+      where: { id: Number(dados.caixaId) },
+      data: { 
+        // Mudança 2: É totalVenda, não apenas total
+        saldoAtual: { increment: Number(totalVenda) } 
+      }
+    });
+  }
+
   // 5. FINANCEIRO: SEPARA O QUE É CAIXA E O QUE É FIADO
   // 5. FINANCEIRO E SALDOS (Versão Corrigida)
     for (const pag of dados.pagamentos) {
@@ -463,6 +473,7 @@ app.post('/caixa/abrir', async (req, reply) => {
   const novoCaixa = await prisma.caixa.create({
     data: {
       saldoInicial: Number(saldoInicial),
+      saldoAtual: Number(saldoInicial),
       status: 'ABERTO',
       observacoes: observacoes
     }
