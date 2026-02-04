@@ -645,7 +645,7 @@ async function finalizarVenda() {
       total: totalCarrinho,        // ⬅️ FALTAVA ISSO
       caixaId: caixaAberto?.id     // ⬅️ FALTAVA ISSO (Vital para o saldo!)
     };
-
+console.log("📦 DADOS ENVIADOS:", JSON.stringify(dadosVenda, null, 2));
     try {
       // 2. Envia o pacote 'dadosVenda' para o servidor
       const res = await fetch(`${API_URL}/vendas`, {
