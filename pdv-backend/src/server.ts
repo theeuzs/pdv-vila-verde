@@ -113,7 +113,8 @@ app.put('/produtos/:id', async (request, reply) => {
           itens: { 
             create: dados.itens.map((item: any) => ({
               produtoId: Number(item.produtoId),
-              quantidade: Number(item.quantidade)
+              quantidade: Number(item.quantidade),
+              precoUnit: Number(item.precoUnit)
             }))
           },
           

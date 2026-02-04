@@ -486,6 +486,7 @@ setContasReceber(await resContas.json());
           itens: carrinho.map(i => ({ 
             produtoId: i.produto.id, 
             quantidade: i.quantidade 
+            
           })), 
           clienteId: clienteSelecionado || null 
         })
@@ -633,7 +634,8 @@ async function finalizarVenda() {
       enderecoEntrega: endereco,   // Usa o estado que você já tem
       itens: carrinho.map((item: any) => ({
         produtoId: item.id,
-        quantidade: item.quantidade
+        quantidade: item.quantidade,
+        precoUnit: item.preco
       })),
       pagamentos: listaPagamentos.map((p: any) => ({
         forma: p.forma,
