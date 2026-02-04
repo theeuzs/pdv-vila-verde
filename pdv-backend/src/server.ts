@@ -142,6 +142,40 @@ app.put('/produtos/:id', async (request, reply) => {
         include: { itens: { include: { produto: true } }, cliente: true, pagamentos: true }
       });
 
+// ... aqui em cima estava o código do prisma.venda.create ...
+      // }); <--- Procure onde fecha a venda
+
+      // 👇👇👇 COLE O ESPIÃO AQUI (LOGO DEPOIS DE CRIAR A VENDA) 👇👇👇
+      
+      console.log("---------------------------------------------------");
+      console.log("🕵️ ESPIÃO DO SALDO EM AÇÃO:");
+      console.log("👉 ID DO CAIXA QUE CHEGOU:", dados.caixaId);
+      console.log("👉 VALOR PARA SOMAR:", dados.total);
+
+      if (dados.caixaId) {
+        console.log("⏳ Tentando atualizar o banco de dados agora...");
+        
+        try {
+          await prisma.caixa.update({
+            where: { id: Number(dados.caixaId) },
+            data: { 
+              saldoAtual: { increment: Number(dados.total) } 
+            }
+          });
+          console.log("✅ SUCESSO! O saldo foi atualizado no banco.");
+        } catch (err) {
+          console.log("❌ ERRO AO ATUALIZAR CAIXA:", err);
+        }
+      } else {
+        console.log("⚠️ ALERTA: O 'caixaId' veio vazio ou nulo! Não vou atualizar nada.");
+      }
+      
+      console.log("---------------------------------------------------");
+
+      // 👆👆👆 FIM DO ESPIÃO 👆👆👆
+
+      return venda; // <--- O return tem que ficar DEPOIS do espião
+
       // 3. ATUALIZA O SALDO DO CAIXA (Se tiver caixa aberto)
       if (dados.caixaId) { 
         await prisma.caixa.update({
