@@ -489,29 +489,6 @@ app.post('/caixa/fechar', async (request, reply) => {
     return caixaFechado;
   });
 
-// --- FECHAR O CAIXA ---
-app.post('/caixa/fechar', async (request, reply) => {
-  // 1. Procura se tem um caixa aberto
-  const caixaAberto = await prisma.caixa.findFirst({
-    where: { status: 'ABERTO' }
-  });
-
-  if (!caixaAberto) {
-    return reply.status(400).send({ erro: "Não existe nenhum caixa aberto para fechar." });
-  }
-
-  // 2. Fecha o caixa (registra a hora do fechamento)
-  const caixaFechado = await prisma.caixa.update({
-    where: { id: caixaAberto.id },
-    data: { 
-      status: 'FECHADO',
-      dataFechamento: new Date() // Salva a hora exata que você clicou no botão
-    }
-  });
-
-  return reply.send(caixaFechado);
-});
-
 // 3. SANGRIA (Retirada) ou SUPRIMENTO (Entrada extra)
 app.post('/caixa/movimentar', async (req, reply) => {
   const { tipo, valor, descricao } = req.body as any // tipo: "SANGRIA" ou "SUPRIMENTO"
