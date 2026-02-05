@@ -231,42 +231,51 @@ app.get('/vendas', async () => {
 })
 
 // CANCELAR VENDA (CORRIGIDO PARA NÚMERO)
-app.delete('/vendas/:id', async (req, res) => {
-  const { id } = req.params as any;
+app.delete('/vendas/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
 
-  try {
-    // 1. Busca a venda (USANDO NUMBER)
+    // 1. Busca a venda antes de apagar (precisamos saber o valor e os produtos)
     const venda = await prisma.venda.findUnique({
-      where: { id: Number(id) }, // <--- VENDAS SÃO NÚMEROS!
+      where: { id: Number(id) },
       include: { itens: true }
     });
 
-    if (!venda) return res.status(404).send({ error: "Venda não encontrada" });
+    if (!venda) {
+      return reply.status(404).send({ error: "Venda não encontrada" });
+    }
 
-    // 2. Devolve itens pro estoque
-    for (const item of venda.itens) {
+    // 2. DEVOLVE OS PRODUTOS PARA O ESTOQUE
+   for (const item of venda.itens) {
       await prisma.produto.update({
         where: { id: item.produtoId },
         data: { 
+          // 👇 ADICIONAMOS O Number() AQUI PARA CORRIGIR O ERRO 👇
           estoque: { increment: Number(item.quantidade) } 
         }
       });
     }
 
-    // 3. Apaga tudo (USANDO NUMBER)
-    await prisma.$transaction([
-      prisma.itemVenda.deleteMany({ where: { vendaId: Number(id) } }),
-      prisma.pagamento.deleteMany({ where: { vendaId: Number(id) } }),
-      prisma.venda.delete({ where: { id: Number(id) } })
-    ]);
+    const caixaAberto = await prisma.caixa.findFirst({
+        where: { status: 'ABERTO' }
+    });
 
-    return res.send({ ok: true });
+    // 👇👇👇 3. TIRA O DINHEIRO DO CAIXA (A PEÇA QUE FALTAVA) 👇👇👇
+    if (caixaAberto) {
+      await prisma.caixa.update({
+        where: { id: caixaAberto.id },
+        data: { 
+          // Tira o valor do saldo (sem converter para Number, usa o formato original)
+          saldoAtual: { decrement: venda.total } 
+        }
+      });
+    }
+    // 👆👆👆 FIM DA CORREÇÃO 👆👆👆
 
-  } catch (error) {
-    console.error("ERRO AO CANCELAR:", error);
-    return res.status(500).send({ error: "Erro interno no servidor" });
-  }
-});
+    // 4. Finalmente, apaga a venda (e os itens vão junto em cascata)
+    await prisma.venda.delete({ where: { id: Number(id) } });
+
+    return reply.send({ message: "Venda cancelada, estoque devolvido e caixa atualizado!" });
+  });
 
 // --- CLIENTES ---
 app.get('/clientes', async () => {
