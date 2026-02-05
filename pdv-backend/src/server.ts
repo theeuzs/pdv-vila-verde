@@ -235,7 +235,7 @@ app.get('/vendas', async () => {
   app.delete('/vendas/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
 
-    // 1. Busca a venda e seus itens
+    // 1. Busca a venda
     const venda = await prisma.venda.findUnique({
       where: { id: Number(id) },
       include: { itens: true }
@@ -245,32 +245,30 @@ app.get('/vendas', async () => {
       return reply.status(404).send({ error: "Venda não encontrada" });
     }
 
-    // 2. DEVOLVE O ESTOQUE (Com a correção do Number)
-    console.log("🔄 Devolvendo estoque...");
+    // 2. DEVOLVE O ESTOQUE
     for (const item of venda.itens) {
       await prisma.produto.update({
         where: { id: item.produtoId },
         data: { 
-          estoque: { increment: Number(item.quantidade) } // ✅ Corrigido aqui
+          estoque: { increment: Number(item.quantidade) } // ✅ Seu Number() já está aqui
         }
       });
     }
 
-    // 3. TIRA O DINHEIRO DO CAIXA ABERTO (Sem usar caixaId antigo)
+    // 3. TIRA O DINHEIRO DO CAIXA ABERTO (A Mágica para remover o erro do caixaId)
+    // Em vez de procurar "qual caixa fez a venda", pegamos o CAIXA ABERTO AGORA.
     const caixaAberto = await prisma.caixa.findFirst({
         where: { status: 'ABERTO' }
     });
 
     if (caixaAberto) {
-      console.log(`💰 Retirando R$ ${venda.total} do caixa ${caixaAberto.id}...`);
       await prisma.caixa.update({
         where: { id: caixaAberto.id },
         data: { 
-          saldoAtual: { decrement: venda.total } // O Prisma aceita Decimal aqui direto
+          // O Prisma aceita subtrair o Decimal direto aqui
+          saldoAtual: { decrement: venda.total } 
         }
       });
-    } else {
-       console.log("⚠️ Aviso: Nenhum caixa aberto para estornar o valor (mas o estoque voltou).");
     }
 
     // 4. APAGA A VENDA
