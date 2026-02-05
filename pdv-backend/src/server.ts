@@ -266,7 +266,7 @@ app.get('/vendas', async () => {
         where: { id: caixaAberto.id },
         data: { 
           // O Prisma aceita subtrair o Decimal direto aqui
-          saldoAtual: { decrement: venda.total } 
+          saldoAtual: { decrement: Number(venda.total) } 
         }
       });
     }
