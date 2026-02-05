@@ -231,10 +231,11 @@ app.get('/vendas', async () => {
 })
 
 // CANCELAR VENDA (CORRIGIDO PARA NÚMERO)
-app.delete('/vendas/:id', async (request, reply) => {
+// ROTA PARA CANCELAR VENDA (Versão Final Blindada 🛡️)
+  app.delete('/vendas/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
 
-    // 1. Busca a venda antes de apagar (precisamos saber o valor e os produtos)
+    // 1. Busca a venda e seus itens
     const venda = await prisma.venda.findUnique({
       where: { id: Number(id) },
       include: { itens: true }
@@ -244,37 +245,38 @@ app.delete('/vendas/:id', async (request, reply) => {
       return reply.status(404).send({ error: "Venda não encontrada" });
     }
 
-    // 2. DEVOLVE OS PRODUTOS PARA O ESTOQUE
-   for (const item of venda.itens) {
+    // 2. DEVOLVE O ESTOQUE (Com a correção do Number)
+    console.log("🔄 Devolvendo estoque...");
+    for (const item of venda.itens) {
       await prisma.produto.update({
         where: { id: item.produtoId },
         data: { 
-          // 👇 ADICIONAMOS O Number() AQUI PARA CORRIGIR O ERRO 👇
-          estoque: { increment: Number(item.quantidade) } 
+          estoque: { increment: Number(item.quantidade) } // ✅ Corrigido aqui
         }
       });
     }
 
+    // 3. TIRA O DINHEIRO DO CAIXA ABERTO (Sem usar caixaId antigo)
     const caixaAberto = await prisma.caixa.findFirst({
         where: { status: 'ABERTO' }
     });
 
-    // 👇👇👇 3. TIRA O DINHEIRO DO CAIXA (A PEÇA QUE FALTAVA) 👇👇👇
     if (caixaAberto) {
+      console.log(`💰 Retirando R$ ${venda.total} do caixa ${caixaAberto.id}...`);
       await prisma.caixa.update({
         where: { id: caixaAberto.id },
         data: { 
-          // Tira o valor do saldo (sem converter para Number, usa o formato original)
-          saldoAtual: { decrement: venda.total } 
+          saldoAtual: { decrement: venda.total } // O Prisma aceita Decimal aqui direto
         }
       });
+    } else {
+       console.log("⚠️ Aviso: Nenhum caixa aberto para estornar o valor (mas o estoque voltou).");
     }
-    // 👆👆👆 FIM DA CORREÇÃO 👆👆👆
 
-    // 4. Finalmente, apaga a venda (e os itens vão junto em cascata)
+    // 4. APAGA A VENDA
     await prisma.venda.delete({ where: { id: Number(id) } });
 
-    return reply.send({ message: "Venda cancelada, estoque devolvido e caixa atualizado!" });
+    return reply.send({ message: "Venda cancelada com sucesso!" });
   });
 
 // --- CLIENTES ---
