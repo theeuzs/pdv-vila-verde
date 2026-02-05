@@ -923,23 +923,40 @@ function removerItemCarrinho(index: number) {
 
   // Essa é a função que realmente vai no servidor e apaga (executada após a senha ou direto pelo gerente)
   async function executarCancelamento(id: number) {
-    if (!confirm("Tem certeza que deseja cancelar e estornar o estoque?")) return;
+    
+    // 1. Pega o valor da venda na lista ANTES de apagar ela
+    const vendaParaCancelar = vendasRealizadas.find((v: any) => v.id === id);
+    const valorDaVenda = vendaParaCancelar ? Number(vendaParaCancelar.total) : 0;
 
     try {
-        const res = await fetch(`${API_URL}/vendas/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-            alert("Venda cancelada com sucesso!");
-            carregarDados();
-            verificarStatusCaixa();
-            setModalAutorizacao(false); // Fecha o modal se estiver aberto
-        } else {
-            alert("Erro ao cancelar venda.");
+      const res = await fetch(`${API_URL}/vendas/${id}`, { method: 'DELETE' });
+
+      if (res.ok) {
+        alert("✅ Venda cancelada e estoque estornado!");
+
+        // 2. Remove da lista visual de vendas
+        setVendasRealizadas(vendasRealizadas.filter((v: any) => v.id !== id));
+
+        // 👇 3. ATUALIZA O SALDO VERDE NA HORA 👇
+        if (caixaAberto) {
+            setCaixaAberto({
+                ...caixaAberto,
+                // Pega o saldo atual e TIRA o valor da venda cancelada
+                saldoAtual: Number(caixaAberto.saldoAtual) - valorDaVenda
+            });
         }
+
+        // Fecha os modais de senha (caso estejam abertos)
+        setModalAutorizacao(false);
+        setSenhaGerente('');
+
+      } else {
+        alert("Erro ao cancelar venda.");
+      }
     } catch (error) {
-        alert("Erro de conexão.");
+      alert("Erro de conexão.");
     }
   }
-
   // Função chamada pelo botão do Modal de Senha
   async function validarAutorizacao() {
     try {
