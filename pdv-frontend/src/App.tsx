@@ -305,7 +305,8 @@ export function App() {
     try {
       const res = await fetch(`${API_URL}/caixa/status`);
       const dados = await res.json();
-      if (dados.status === 'ABERTO') {
+      // 👇 TROQUE O IF ANTIGO POR ESTE 👇
+      if (dados && dados.status === 'ABERTO') {
         setCaixaAberto(dados);
       } else {
         setCaixaAberto(null);
