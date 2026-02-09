@@ -42,18 +42,36 @@ model ItemVenda {
 // ... seus outros models (Produto, Venda, etc) ...
 
 model Cliente {
-  id        Int      @id @default(autoincrement())
-  nome      String
-  cpfCnpj   String?
-  celular   String?
-  endereco  String?
-  criadoEm  DateTime @default(now())
-  saldoHaver   Decimal @default(0) @db.Decimal(10, 2)
-  saldoDevedor Decimal @default(0) @db.Decimal(10, 2)
+  id           Int      @id @default(autoincrement())
+  nome         String
+  
+  // 👇 Seus dados de contato atuais
+  cpfCnpj      String?  @unique // Importante ser único para não duplicar cadastro
+  celular      String?
+  
+  // 👇 O Pulo do Gato para NF-e: Endereço Separado
+  // (Mantenha o 'endereco' antigo por segurança, mas comece a usar os novos)
+  endereco     String?  // Seu campo antigo (pode deixar aqui)
+  
+  email        String?  // Para enviar a nota por email
+  cep          String?
+  rua          String?
+  numero       String?
+  bairro       String?
+  cidade       String?
+  estado       String?  // UF (Ex: PR, SP)
 
-  vendas    Venda[]
-  contas    ContaReceber[] // <--- NOVO: Cliente tem contas a pagar
-  orcamentos Orcamento[]
+  // 👇 Seus campos financeiros (MANTIDOS IGUAIS)
+  saldoHaver   Decimal  @default(0) @db.Decimal(10, 2)
+  saldoDevedor Decimal  @default(0) @db.Decimal(10, 2)
+  
+  criadoEm     DateTime @default(now())
+
+  // 👇 Suas Relações (MANTIDAS IGUAIS)
+  vendas       Venda[]
+  contas       ContaReceber[]
+  orcamentos   Orcamento[]
+
   @@map("clientes")
 }
 
@@ -67,22 +85,35 @@ model User {
 }
 
 model Produto {
-  id          Int         @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   nome        String
-  codigoBarra String?     @unique
+  codigoBarra String?  @unique
+  
+  // Seus preços atuais (Mantenha Float se já está usando assim)
   precoCusto  Float
   precoVenda  Float
   estoque     Int
-  unidade     String?
+  
+  // Seus campos atuais
+  unidade     String?  // Vamos usar esse campo para enviar como 'uCom' (UN, KG...)
   categoria   String?
   fornecedor  String?
   localizacao String?
-  ipi         Float?      @default(0)
-  icms        Float?      @default(0)
-  frete       Float?      @default(0)
-  ncm         String?
-  cest        String?
-  cfop        String?
+  
+  // Seus impostos (Pode manter, mas a API fiscal foca mais no NCM/CSOSN)
+  ipi         Float?   @default(0)
+  icms        Float?   @default(0)
+  frete       Float?   @default(0)
+
+  // 👇 CAMPOS FISCAIS QUE VOCÊ JÁ TEM (MANTENHA) 👇
+  ncm         String?  // Essencial! Ex: "22021000" (Refrigerante)
+  cest        String?  
+  cfop        String?  // Ex: "5102" (Venda)
+
+  // 👇 O QUE FALTA ADICIONAR AGORA 👇
+  csosn       String   @default("102")  // 102 = Tributado pelo Simples Nacional
+  origem      String   @default("0")    // 0 = Nacional
+  
   itens       ItemVenda[]
   itensOrcamento ItemOrcamento[]
 }
