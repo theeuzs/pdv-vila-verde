@@ -710,6 +710,9 @@ imprimirCupom({
 
       if (resposta.ok) {
         alert("✅ " + resultado.mensagem);
+        if (resultado.url) {
+            window.open(resultado.url, '_blank');
+        }
         // Se deu certo, aqui a gente limparia o carrinho ou abriria o PDF
       } else {
         alert("❌ Erro ao emitir: " + resultado.erro);

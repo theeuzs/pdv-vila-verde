@@ -827,15 +827,31 @@ app.post('/verificar-gerente', async (req, res) => {
 
   // 👇 ROTA DE EMISSÃO FISCAL (SIMULAÇÃO) - COLE NO SERVER.TS 👇
   app.post('/emitir-fiscal', async (request, reply) => {
-    // Simula espera da SEFAZ
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  const dadosNota = request.body as any;
 
-    return reply.status(200).send({
-      mensagem: "Nota Fiscal Emitida com Sucesso! (Simulação)",
-      status: "autorizado",
-      url: "https://www.google.com.br" 
-    });
+  console.log("🔥 [MOCK] Iniciando emissão simulada...");
+  console.log("📦 Produtos:", dadosNota.itens.length);
+  console.log("💰 Total:", dadosNota.itens.reduce((acc: number, item: any) => acc + Number(item.valor_total), 0));
+
+  // 1. Simula o tempo real da SEFAZ (pra dar emoção na tela)
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  // 2. Finge que deu erro as vezes (Opcional: pra você testar seu tratamento de erro)
+  // if (Math.random() > 0.9) {
+  //   return reply.status(400).send({ erro: "Rejeição: Erro simulado da SEFAZ (Tente de novo)" });
+  // }
+
+  // 3. Resposta de Sucesso IDÊNTICA à da Nuvem Fiscal
+  return reply.status(200).send({
+    mensagem: "Nota Fiscal Emitida com Sucesso! (Ambiente de Teste Local)",
+    status: "autorizado",
+    id: "nfe_mock_" + Date.now(),
+    numero: Math.floor(Math.random() * 1000),
+    serie: 1,
+    // Link de um PDF de exemplo real para você ver abrindo na tela
+    url: "https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=URCYvjVMICI=" 
   });
+});
 
 // --- INICIALIZAÇÃO ---
 const start = async () => {
