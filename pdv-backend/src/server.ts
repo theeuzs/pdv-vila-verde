@@ -20,32 +20,40 @@ app.get('/produtos', async () => {
 })
 
 app.post('/produtos', async (request, reply) => {
-  const dados = request.body as any
-  try {
+    // 1. Recebe TODOS os campos, inclusive os fiscais
+    const { 
+      nome, codigoBarra, precoCusto, precoVenda, estoque, 
+      unidade, categoria, fornecedor, localizacao,
+      // 👇 Campos Fiscais Novos 👇
+      ncm, cest, cfop, csosn, origem, ipi, icms, frete
+    } = request.body as any;
+
+    // 2. Cria no banco salvando tudo
     const produto = await prisma.produto.create({
       data: {
-        nome: dados.nome,
-        codigoBarra: dados.codigoBarra,
-        precoCusto: dados.precoCusto,
-        precoVenda: dados.precoVenda,
-        estoque: dados.estoque,
-        unidade: dados.unidade,
-        categoria: dados.categoria,
-        fornecedor: dados.fornecedor,
-        localizacao: dados.localizacao,
-        frete: dados.frete,
-        ipi: dados.ipi,
-        icms: dados.icms,
-        ncm: dados.ncm,
-        cest: dados.cest,
-        cfop: dados.cfop
+        nome,
+        codigoBarra,
+        precoCusto: Number(precoCusto),
+        precoVenda: Number(precoVenda),
+        estoque: Number(estoque),
+        unidade: unidade || 'UN',
+        categoria,
+        fornecedor,
+        localizacao,
+        // 👇 Salvando o fiscal 👇
+        ncm: ncm || '',
+        cest: cest || '',
+        cfop: cfop || '5102',
+        csosn: csosn || '102',   // Agora vai salvar o 500 se você mandar!
+        origem: origem || '0',
+        ipi: Number(ipi || 0),
+        icms: Number(icms || 0),
+        frete: Number(frete || 0)
       }
-    })
-    return reply.status(201).send(produto)
-  } catch (error) {
-    return reply.status(500).send({ error: "Erro ao criar produto" })
-  }
-})
+    });
+
+    return reply.status(201).send(produto);
+  });
 
 app.delete('/produtos/:id', async (request, reply) => {
   const { id } = request.params as { id: string }
@@ -59,39 +67,42 @@ app.delete('/produtos/:id', async (request, reply) => {
 
 // --- ATUALIZAR PRODUTO (PUT) ---
 app.put('/produtos/:id', async (request, reply) => {
-  const { id } = request.params as { id: string }
-  const dados = request.body as any
+    const { id } = request.params as { id: string };
+    
+    // 1. Pega os dados novos
+    const { 
+      nome, codigoBarra, precoCusto, precoVenda, estoque, 
+      unidade, categoria, fornecedor, localizacao,
+      ncm, cest, cfop, csosn, origem, ipi, icms, frete
+    } = request.body as any;
 
-  try {
-    const produtoAtualizado = await prisma.produto.update({
+    // 2. Atualiza no banco
+    const produto = await prisma.produto.update({
       where: { id: Number(id) },
       data: {
-        // Atualiza todos os campos que vierem do formulário
-        nome: dados.nome,
-        codigoBarra: dados.codigoBarra,
-        precoCusto: dados.precoCusto,
-        precoVenda: dados.precoVenda,
-        estoque: dados.estoque,
-        unidade: dados.unidade,
-        categoria: dados.categoria,
-
-        // Campos Fiscais/Extras
-        fornecedor: dados.fornecedor,
-        localizacao: dados.localizacao,
-        frete: dados.frete,
-        ipi: dados.ipi,
-        icms: dados.icms,
-        ncm: dados.ncm,
-        cest: dados.cest,
-        cfop: dados.cfop
+        nome,
+        codigoBarra,
+        precoCusto: Number(precoCusto),
+        precoVenda: Number(precoVenda),
+        estoque: Number(estoque),
+        unidade,
+        categoria,
+        fornecedor,
+        localizacao,
+        // 👇 Atualizando o fiscal 👇
+        ncm,
+        cest,
+        cfop,
+        csosn,      // Aqui é onde a mágica acontece
+        origem,
+        ipi: Number(ipi || 0),
+        icms: Number(icms || 0),
+        frete: Number(frete || 0)
       }
-    })
-    return reply.send(produtoAtualizado)
-  } catch (error) {
-    console.error(error)
-    return reply.status(500).send({ error: "Erro ao atualizar produto no banco." })
-  }
-})
+    });
+
+    return reply.send(produto);
+  });
 
 // ROTA DE NOVA VENDA (CORRIGIDA)
   app.post('/vendas', async (request, reply) => {

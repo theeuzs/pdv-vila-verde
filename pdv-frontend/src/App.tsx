@@ -24,6 +24,8 @@ interface Produto {
   ncm?: string
   cest?: string
   cfop?: string
+  csosn?: string
+  origem?: string
 }
 
 interface Cliente {
@@ -1481,7 +1483,32 @@ function removerItemCarrinho(index: number) {
                         <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
                           <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#27ae60' }}>R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}</div>
                           <div style={{ display: 'flex', gap: '5px' }}>
-                            <button onClick={(e) => { e.stopPropagation(); setProdutoEmEdicao(produto); setFormProduto({...produto, precoCusto: String(produto.precoCusto), precoVenda: String(produto.precoVenda), estoque: String(produto.estoque)} as any); setModalAberto(true); }} style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>✏️</button>
+                            <button 
+  onClick={(e) => { 
+    e.stopPropagation(); 
+    setProdutoEmEdicao(produto); 
+    
+    // 👇 O SEGREDO ESTÁ AQUI: Carrega os dados fiscais do banco para o formulário
+    setFormProduto({
+        ...produto, 
+        precoCusto: String(produto.precoCusto), 
+        precoVenda: String(produto.precoVenda), 
+        estoque: String(produto.estoque),
+        // Força o carregamento dos fiscais (se vier vazio, usa o padrão)
+        ncm: produto.ncm || '',
+        cest: produto.cest || '',
+        cfop: produto.cfop || '5102',
+        csosn: produto.csosn || '102',   // <--- Garante que o 500 venha!
+        origem: produto.origem || '0',
+        unidade: produto.unidade || 'UN'
+    } as any); 
+    
+    setModalAberto(true); 
+  }} 
+  style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', marginRight: 5 }}
+>
+  ✏️
+</button>
                             <button onClick={(e) => { e.stopPropagation(); excluirProduto(produto.id); }} style={{ backgroundColor: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>🗑️</button>
                           </div>
                         </div>
