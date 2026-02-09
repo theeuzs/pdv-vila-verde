@@ -675,6 +675,32 @@ imprimirCupom({
     setValorPagamentoInput(""); 
   }
 
+// Cole isso antes de "async function finalizarVenda() {"
+  function prepararNotaFiscal() {
+    if (carrinho.length === 0) return alert("Carrinho vazio!");
+    
+    // Pega o cliente selecionado
+    const cliente = clientes.find(c => String(c.id) === String(clienteSelecionado));
+
+    // Monta o pacote
+    const pacoteNFCe = {
+      tipo: "NFC-e",
+      cliente: cliente ? { nome: cliente.nome, cpf: cliente.cpfCnpj } : "Consumidor",
+      itens: carrinho.map((item, i) => ({
+        nItem: i + 1,
+        prod: item.produto.nome,
+        ncm: item.produto.ncm || '00000000',
+        cfop: item.produto.cfop || '5102',
+        csosn: item.produto.csosn || '102',
+        valor: item.produto.precoVenda,
+        qtd: item.quantidade
+      }))
+    };
+
+    console.log("📦 PACOTE FISCAL:", pacoteNFCe);
+    alert("Olhe o Console (F12) para ver o JSON da nota!");
+  }
+
 async function finalizarVenda() {
   console.log("🕵️ O QUE TEM NO CARRINHO??", carrinho);
     if (carrinho.length === 0) return alert("Carrinho vazio!");
@@ -1714,6 +1740,27 @@ function removerItemCarrinho(index: number) {
                 )}
               </div>
 
+              <button 
+                 onClick={prepararNotaFiscal}
+                 style={{
+                   width: '100%', 
+                   marginBottom: 10, 
+                   padding: 12, 
+                   background: '#e67e22', // Laranja
+                   color: 'white', 
+                   border: 'none', 
+                   borderRadius: 8, 
+                   fontWeight: 'bold', 
+                   cursor: 'pointer',
+                   display: 'flex', 
+                   justifyContent: 'center', 
+                   alignItems: 'center', 
+                   gap: 10,
+                   fontSize: '1rem'
+                 }}
+               >
+                 📄 EMITIR NFC-e (Fiscal)
+               </button>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={salvarOrcamento} disabled={carrinho.length === 0} style={{ ...estiloBotao, flex: 1, backgroundColor: carrinho.length > 0 ? '#d69e2e' : '#cbd5e0', color: 'white' }}>📝 ORÇAMENTO</button>
                 <button onClick={finalizarVenda} disabled={carrinho.length === 0 || faltaPagar > 0.05} style={{ ...estiloBotao, flex: 1, backgroundColor: (faltaPagar <= 0.05 && carrinho.length > 0) ? '#48bb78' : '#cbd5e0', color: 'white' }}>✅ VENDER</button>
