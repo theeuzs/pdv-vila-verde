@@ -231,7 +231,6 @@ app.get('/vendas', async () => {
 })
 
 // CANCELAR VENDA (CORRIGIDO PARA NÚMERO)
-// ROTA PARA CANCELAR VENDA (Versão Final Blindada 🛡️)
   app.delete('/vendas/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
 
@@ -250,28 +249,24 @@ app.get('/vendas', async () => {
       await prisma.produto.update({
         where: { id: item.produtoId },
         data: { 
-          estoque: { increment: Number(item.quantidade) } // ✅ Seu Number() já está aqui
+          estoque: { increment: Number(item.quantidade) } // ✅ Já estava certo
         }
       });
     }
 
-    // 3. TIRA O DINHEIRO DO CAIXA ABERTO (A Mágica para remover o erro do caixaId)
-    // Em vez de procurar "qual caixa fez a venda", pegamos o CAIXA ABERTO AGORA.
-    const caixaAberto = await prisma.caixa.findFirst({
-        where: { status: 'ABERTO' }
-    });
+    // 3. TIRA O DINHEIRO DO CAIXA ABERTO
+    const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } });
 
     if (caixaAberto) {
       await prisma.caixa.update({
         where: { id: caixaAberto.id },
         data: { 
-          // O Prisma aceita subtrair o Decimal direto aqui
+          // 👇 A CORREÇÃO PRINCIPAL TÁ AQUI
           saldoAtual: { decrement: Number(venda.total) } 
         }
       });
     }
-
-    // 4. APAGA A VENDA
+    // 5. APAGA A VENDA FINALMENTE
     await prisma.venda.delete({ where: { id: Number(id) } });
 
     return reply.send({ message: "Venda cancelada com sucesso!" });
