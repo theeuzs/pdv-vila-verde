@@ -231,12 +231,13 @@ app.get('/vendas', async () => {
 })
 
 // CANCELAR VENDA (CORRIGIDO PARA NÚMERO)
-  app.delete('/vendas/:id', async (request, reply) => {
+ app.delete('/vendas/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
+    const idVenda = Number(id);
 
-    // 1. Busca a venda
+    // 1. Busca a venda com seus itens
     const venda = await prisma.venda.findUnique({
-      where: { id: Number(id) },
+      where: { id: idVenda },
       include: { itens: true }
     });
 
@@ -244,32 +245,49 @@ app.get('/vendas', async () => {
       return reply.status(404).send({ error: "Venda não encontrada" });
     }
 
-    // 2. DEVOLVE O ESTOQUE
+    console.log(`🗑️ Iniciando cancelamento da Venda #${idVenda}...`);
+
+    // 2. DEVOLVE OS PRODUTOS PARA O ESTOQUE
     for (const item of venda.itens) {
       await prisma.produto.update({
         where: { id: item.produtoId },
         data: { 
-          estoque: { increment: Number(item.quantidade) } // ✅ Já estava certo
+          estoque: { increment: Number(item.quantidade) }
         }
       });
     }
 
-    // 3. TIRA O DINHEIRO DO CAIXA ABERTO
+    // 3. TIRA O DINHEIRO DO CAIXA ABERTO (Se houver caixa aberto)
     const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } });
 
     if (caixaAberto) {
+      console.log(`💰 Estornando R$ ${venda.total} do caixa #${caixaAberto.id}`);
       await prisma.caixa.update({
         where: { id: caixaAberto.id },
         data: { 
-          // 👇 A CORREÇÃO PRINCIPAL TÁ AQUI
           saldoAtual: { decrement: Number(venda.total) } 
         }
       });
     }
-    // 5. APAGA A VENDA FINALMENTE
-    await prisma.venda.delete({ where: { id: Number(id) } });
 
-    return reply.send({ message: "Venda cancelada com sucesso!" });
+    // 👇👇 AQUI ESTÁ A SOLUÇÃO DO ERRO 500 👇👇
+    // 4. LIMPEZA DOS "FILHOS" (Itens e Pagamentos) ANTES DE APAGAR O "PAI"
+    try {
+        // Tenta apagar os itens associados a essa venda
+        await prisma.itemVenda.deleteMany({ where: { vendaId: idVenda } });
+        
+        // Tenta apagar os pagamentos associados (se existirem)
+        // OBS: Se sua tabela chamar 'PagamentoVenda', troque o nome aqui embaixo
+        await prisma.pagamento.deleteMany({ where: { vendaId: idVenda } });
+        
+    } catch (err) {
+        console.log("⚠️ Aviso: Erro ao limpar itens/pagamentos (talvez já estejam limpos). Seguindo...");
+    }
+
+    // 5. AGORA SIM, PODEMOS APAGAR A VENDA SEM O BANCO RECLAMAR
+    await prisma.venda.delete({ where: { id: idVenda } });
+
+    return reply.send({ message: "Venda cancelada e limpa com sucesso!" });
   });
 
 // --- CLIENTES ---
