@@ -825,6 +825,18 @@ app.post('/verificar-gerente', async (req, res) => {
     });
   });
 
+  // 👇 ROTA DE EMISSÃO FISCAL (SIMULAÇÃO) - COLE NO SERVER.TS 👇
+  app.post('/emitir-fiscal', async (request, reply) => {
+    // Simula espera da SEFAZ
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    return reply.status(200).send({
+      mensagem: "Nota Fiscal Emitida com Sucesso! (Simulação)",
+      status: "autorizado",
+      url: "https://www.google.com.br" 
+    });
+  });
+
 // --- INICIALIZAÇÃO ---
 const start = async () => {
   try {

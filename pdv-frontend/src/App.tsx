@@ -676,7 +676,7 @@ imprimirCupom({
   }
 
 // Cole isso antes de "async function finalizarVenda() {"
-  function prepararNotaFiscal() {
+  async function prepararNotaFiscal() {
     if (carrinho.length === 0) return alert("Carrinho vazio!");
     
     // Pega o cliente selecionado
@@ -697,8 +697,26 @@ imprimirCupom({
       }))
     };
 
-    console.log("📦 PACOTE FISCAL:", pacoteNFCe);
-    alert("Olhe o Console (F12) para ver o JSON da nota!");
+    // 3. Envia para o seu Servidor
+    try {
+      const resposta = await fetch(`${API_URL}/emitir-fiscal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pacoteNFCe)
+      });
+
+      const resultado = await resposta.json();
+
+      if (resposta.ok) {
+        alert("✅ " + resultado.mensagem);
+        // Se deu certo, aqui a gente limparia o carrinho ou abriria o PDF
+      } else {
+        alert("❌ Erro ao emitir: " + resultado.erro);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Erro de conexão com o servidor (Verifique se o backend está rodando).");
+    }
   }
 
 async function finalizarVenda() {
