@@ -1756,12 +1756,13 @@ function removerItemCarrinho(index: number) {
                </button>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={salvarOrcamento} disabled={carrinho.length === 0} style={{ ...estiloBotao, flex: 1, backgroundColor: carrinho.length > 0 ? '#d69e2e' : '#cbd5e0', color: 'white' }}>📝 ORÇAMENTO</button>
-               <button 
-  className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded flex items-center gap-2"
-  onClick={finalizarVendaNoBanco}
->
-  ✅ VENDER
-</button>
+               <button
+    className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded flex items-center justify-center gap-2"
+    style={{ flex: 1 }} // Garante que ele ocupe o mesmo tamanho do orçamento
+    onClick={finalizarVendaNoBanco}
+  >
+    ✅ VENDER
+  </button>
               </div>
             </div>
           </div>
