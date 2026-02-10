@@ -1754,16 +1754,35 @@ function removerItemCarrinho(index: number) {
                >
                  📄 EMITIR NFC-e (Fiscal)
                </button>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={salvarOrcamento} disabled={carrinho.length === 0} style={{ ...estiloBotao, flex: 1, backgroundColor: carrinho.length > 0 ? '#d69e2e' : '#cbd5e0', color: 'white' }}>📝 ORÇAMENTO</button>
-               <button
-    className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded flex items-center justify-center gap-2"
-    style={{ flex: 1 }} // Garante que ele ocupe o mesmo tamanho do orçamento
+              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+  {/* Botão de Orçamento (Cinza/Padrão) */}
+  <button 
+    onClick={salvarOrcamento} 
+    disabled={carrinho.length === 0} 
+    style={{ 
+      ...estiloBotao, 
+      flex: 1, 
+      backgroundColor: '#6b7280', // Cinza
+      color: 'white' 
+    }} 
+  >
+    📝 ORÇAMENTO
+  </button>
+
+  {/* Botão de Vender (Verde Bonitão) */}
+  <button
     onClick={finalizarVendaNoBanco}
+    disabled={carrinho.length === 0}
+    style={{ 
+      ...estiloBotao,      // Herda o mesmo formato do Orçamento
+      flex: 1,             // Divide o espaço 50/50
+      backgroundColor: '#22c55e', // Verde (Green-500)
+      color: 'white'       // Texto Branco
+    }}
   >
     ✅ VENDER
   </button>
-              </div>
+</div>
             </div>
           </div>
         )}
