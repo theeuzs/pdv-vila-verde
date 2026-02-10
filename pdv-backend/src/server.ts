@@ -4,6 +4,11 @@ import { PrismaClient } from '@prisma/client'
 import { compare } from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
+import axios from 'axios';
+import * as dotenv from 'dotenv';
+
+// Isso faz o código ler o arquivo .env
+dotenv.config();
 
 const app = Fastify()
 const prisma = new PrismaClient()
@@ -823,30 +828,36 @@ app.post('/verificar-gerente', async (req, res) => {
   });
 
   // 👇 ROTA DE EMISSÃO FISCAL (SIMULAÇÃO) - COLE NO SERVER.TS 👇
-  app.post('/emitir-fiscal', async (request, reply) => {
-  const dadosNota = request.body as any;
+  // ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
+app.post('/emitir-fiscal', async (request, reply) => {
+  const venda = request.body as any;
 
-  console.log("🔥 [MOCK] Iniciando emissão simulada...");
-  console.log("📦 Produtos:", dadosNota.itens.length);
-  console.log("💰 Total:", dadosNota.itens.reduce((acc: number, item: any) => acc + Number(item.valor_total), 0));
+  console.log("🔄 Tentando autenticar na Nuvem Fiscal...");
 
-  // 1. Simula o tempo real da SEFAZ (pra dar emoção na tela)
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  // 1. PEGAR O TOKEN DE ACESSO (O CRACHÁ)
+  // Aqui a gente usa as variáveis do .env
+  const credenciais = new URLSearchParams();
+  credenciais.append('grant_type', 'client_credentials');
+  credenciais.append('client_id', process.env.NUVEM_CLIENT_ID as string);
+  credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET as string);
+  credenciais.append('scope', 'nfce empresa'); 
 
-  // 2. Finge que deu erro as vezes (Opcional: pra você testar seu tratamento de erro)
-  // if (Math.random() > 0.9) {
-  //   return reply.status(400).send({ erro: "Rejeição: Erro simulado da SEFAZ (Tente de novo)" });
-  // }
+  let token = "";
 
-  // 3. Resposta de Sucesso IDÊNTICA à da Nuvem Fiscal
-  return reply.status(200).send({
-    mensagem: "Nota Fiscal Emitida com Sucesso! (Ambiente de Teste Local)",
-    status: "autorizado",
-    id: "nfe_mock_" + Date.now(),
-    numero: Math.floor(Math.random() * 1000),
-    serie: 1,
-    // Link de um PDF de exemplo real para você ver abrindo na tela
-    url: "https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=URCYvjVMICI=" 
+  try {
+    const authResponse = await axios.post('https://auth.nuvemfiscal.com.br/oauth/token', credenciais);
+    token = authResponse.data.access_token;
+    console.log("✅ Autenticado com sucesso! Token gerado.");
+  } catch (error) {
+    console.error("❌ Erro de autenticação:", error);
+    return reply.status(500).send({ erro: "Falha ao autenticar na Nuvem Fiscal. Verifique o .env" });
+  }
+
+  // 2. AQUI VAI O CÓDIGO DA EMISSÃO (O JSON GIGANTE)
+  // Por enquanto, vamos só retornar sucesso para testar se a senha funcionou
+  return reply.send({ 
+    mensagem: "Autenticação funcionou! Estamos prontos para emitir.",
+    token_gerado: "Sucesso (Oculto por segurança)"
   });
 });
 
