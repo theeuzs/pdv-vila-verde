@@ -13,6 +13,7 @@ model Venda {
   total     Decimal
   entrega         Boolean  @default(false)       // É pra entregar?
   pagamento String?  // <--- ADICIONE ESTA LINHA
+  urlFiscal   String?
   statusEntrega   String?  @default("PENDENTE")  // "PENDENTE" ou "ENTREGUE"
   enderecoEntrega String?                        // Onde entregar?
   

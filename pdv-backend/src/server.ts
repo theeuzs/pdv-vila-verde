@@ -863,7 +863,7 @@ app.post('/emitir-fiscal', async (request, reply) => {
 
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA AQUI
 app.post('/finalizar-venda', async (request: any, reply: any) => {
-  const { itens, total, pagamento, clienteId, caixaId } = request.body;
+  const { itens, total, pagamento, clienteId, caixaId, urlFiscal } = request.body;
 
   // 1. SEGURANÇA: Só vende se tiver caixa aberto
   const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } });
@@ -881,6 +881,7 @@ app.post('/finalizar-venda', async (request: any, reply: any) => {
         data: new Date(),
         clienteId: clienteId ? Number(clienteId) : null,
         caixaId: caixaAberto.id, // Agora o banco já aceita isso!
+        urlFiscal: urlFiscal || null, // 👈 SALVA O LINK AQUI!
         
         // Cria os itens na tabela certa
         itens: {

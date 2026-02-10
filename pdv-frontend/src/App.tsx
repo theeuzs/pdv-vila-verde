@@ -491,7 +491,7 @@ export function App() {
       if (resposta.ok) {
         alert("✅ " + resultado.mensagem);
         if (resultado.url) window.open(resultado.url, '_blank'); 
-        await finalizarVendaNoBanco(); 
+        await finalizarVendaNoBanco(resultado.url);
       } else {
         alert("❌ Erro ao emitir: " + resultado.erro);
       }
@@ -500,7 +500,7 @@ export function App() {
     }
   }
 
-  async function finalizarVendaNoBanco() {
+  async function finalizarVendaNoBanco(linkDaNota: string = "") {
     // 🛑 TRAVA DE SEGURANÇA: Verifica se o caixa está aberto
     if (!caixaAberto) {
       alert("⛔ CAIXA FECHADO!\n\nVocê precisa abrir o caixa (Botão 'Abrir Caixa') antes de realizar vendas.");
@@ -522,7 +522,9 @@ export function App() {
         total: totalVenda,
         pagamento: formaPagamento,
         pagamentos: listaPagamentos, // Envia lista detalhada se houver
-        clienteId: clienteSelecionado ? Number(clienteSelecionado) : null
+        clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
+        caixaId: caixaAberto.id,
+        urlFiscal: linkDaNota // 👈 ENVIA O LINK QUE RECEBEU (ou vazio)
       };
 
       const resposta = await fetch(`${API_URL}/finalizar-venda`, {
@@ -1221,7 +1223,7 @@ export function App() {
               <button onClick={prepararNotaFiscal} style={{ width: '100%', marginBottom: 10, padding: 12, background: '#e67e22', color: 'white', border: 'none', borderRadius: 8, fontWeight: 'bold', cursor: 'pointer' }}>📄 EMITIR NFC-e</button>
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
                 <button onClick={salvarOrcamento} disabled={carrinho.length === 0} style={{ ...estiloBotao, flex: 1, backgroundColor: '#6b7280', color: 'white' }}>📝 ORÇAMENTO</button>
-                <button onClick={finalizarVendaNoBanco} disabled={carrinho.length === 0} style={{ ...estiloBotao, flex: 1, backgroundColor: '#22c55e', color: 'white' }}>✅ VENDER</button>
+                <button onClick={() => finalizarVendaNoBanco()} disabled={carrinho.length === 0} style={{ ...estiloBotao, flex: 1, backgroundColor: '#22c55e', color: 'white' }}>✅ VENDER</button>
               </div>
             </div>
           </div>
@@ -1358,9 +1360,26 @@ export function App() {
                     </td>
                     <td style={{padding:15, textAlign:'right'}}>
                       <div style={{display:'flex', justifyContent:'flex-end', gap: 8}}>
-                        <button onClick={() => reimprimirVenda(v)} title="Imprimir" style={{padding:'6px 12px', background:'#718096', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>🖨️</button> 
-                        <button onClick={() => enviarZap(v)} title="WhatsApp" style={{padding:'6px 12px', background:'#25D366', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>📱</button> 
-                        <button onClick={() => tentarCancelarVenda(v.id)} title="Cancelar Venda" style={{padding:'6px 12px', background:'#e53e3e', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>🚫</button>
+                        
+                        {/* 👇 BOTÃO NOVO: SÓ APARECE SE TIVER LINK DA NOTA */}
+                        {v.urlFiscal && (
+                          <button 
+                            onClick={() => window.open(v.urlFiscal, '_blank')} 
+                            title="Ver Nota Fiscal Oficial (NFC-e)" 
+                            style={{padding:'6px 12px', background:'#e67e22', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem'}}
+                          >
+                            📄
+                          </button>
+                        )}
+
+                        {/* Botão Imprimir Recibo */}
+                        <button onClick={() => reimprimirVenda(v)} title="Imprimir Recibo Simples" style={{padding:'6px 12px', background:'#718096', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem'}}>🖨️</button> 
+                        
+                        {/* Botão WhatsApp */}
+                        <button onClick={() => enviarZap(v)} title="WhatsApp" style={{padding:'6px 12px', background:'#25D366', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem'}}>📱</button> 
+                        
+                        {/* Botão Cancelar */}
+                        <button onClick={() => tentarCancelarVenda(v.id)} title="Cancelar Venda" style={{padding:'6px 12px', background:'#e53e3e', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem'}}>🚫</button>
                       </div>
                     </td>
                   </tr>
