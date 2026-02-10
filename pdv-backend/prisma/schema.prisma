@@ -26,6 +26,8 @@ model Venda {
   
   contaReceber ContaReceber?
   @@map("vendas")
+   caixa       Caixa?   @relation(fields: [caixaId], references: [id])
+   caixaId     Int?
 }
 
 model ItemVenda {
@@ -188,6 +190,7 @@ model Caixa {
   observacoes   String?
   
   movimentacoes MovimentacaoCaixa[]
+  vendas        Venda[]
 }
 
 model MovimentacaoCaixa {
