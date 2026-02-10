@@ -862,73 +862,70 @@ app.post('/emitir-fiscal', async (request, reply) => {
 });
 
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA AQUI
-app.post('/finalizar-venda', async (req: any, res: any) => {
-  // Recebe clienteId também para ligar a venda ao cliente
-  const { itens, total, pagamento, clienteId } = req.body;
+app.post('/finalizar-venda', async (request: any, reply: any) => {
+  const { itens, total, pagamento, clienteId, caixaId } = request.body;
 
-  // 1. SEGURANÇA: Só vende se tiver caixa aberto no banco
+  // 1. SEGURANÇA: Só vende se tiver caixa aberto
   const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } });
   
   if (!caixaAberto) {
-    return res.status(400).json({ erro: "O Caixa está fechado no sistema! Abra antes de vender." });
+    return reply.status(400).send({ erro: "O Caixa está fechado! Abra antes de vender." });
   }
 
   try {
-    // 2. CRIA A VENDA (Corrigido: Cria a relação de itens em vez de texto)
+    // 2. CRIA A VENDA (Com relação de itens correta)
     const venda = await prisma.venda.create({
       data: {
         total: Number(total),
         pagamento: pagamento || "Dinheiro",
         data: new Date(),
-        clienteId: clienteId ? Number(clienteId) : null, // Liga ao cliente se existir
-        caixaId: caixaAberto.id, // Liga ao caixa correto
+        clienteId: clienteId ? Number(clienteId) : null,
+        caixaId: caixaAberto.id, // Agora o banco já aceita isso!
         
-        // 👇 AQUI É A CORREÇÃO CRÍTICA!
-        // Em vez de salvar um texto, salvamos os objetos na tabela de itens
+        // Cria os itens na tabela certa
         itens: {
           create: itens.map((item: any) => ({
-            produtoId: Number(item.id),
+            produtoId: Number(item.id || item.produtoId), // Garante pegar o ID certo
             quantidade: Number(item.quantidade),
-            precoUnit: 0 // Opcional, evita erro se o banco pedir
+            precoUnit: 0 
           }))
         }
       }
     });
 
-    // 3. Baixa Estoque (Mantendo sua lógica correta)
+    // 3. Baixa Estoque
     for (const item of itens) {
       await prisma.produto.update({
-        where: { id: Number(item.id) },
+        where: { id: Number(item.id || item.produtoId) },
         data: { 
           estoque: { decrement: Number(item.quantidade) } 
         }
       });
     }
 
-    // 4. ATUALIZA O SALDO DO CAIXA (Sua lógica financeira, preservada!)
+    // 4. Se for Dinheiro, atualiza o Saldo do Caixa
     if (pagamento === "Dinheiro") {
         await prisma.caixa.update({
             where: { id: caixaAberto.id },
             data: { saldoAtual: { increment: Number(total) } }
         });
 
-        // Cria o registro no extrato do caixa
         await prisma.movimentacaoCaixa.create({
             data: {
                 caixaId: caixaAberto.id,
                 tipo: "VENDA",
                 valor: Number(total),
-                descricao: `Venda #${venda.id} (Dinheiro)`
+                descricao: `Venda #${venda.id}`
             }
         });
     }
 
-    return res.status(200).json({ ok: true, vendaId: venda.id });
+    // ✅ RESPOSTA CERTA DO FASTIFY
+    return reply.status(200).send({ ok: true, vendaId: venda.id });
 
   } catch (error) {
-    console.error("Erro crítico na venda:", error);
-    // Retorna o erro detalhado para facilitar
-    return res.status(500).json({ erro: "Erro ao processar venda no servidor." });
+    console.error("Erro na venda:", error);
+    return reply.status(500).send({ erro: "Erro interno ao processar venda." });
   }
 });
 
