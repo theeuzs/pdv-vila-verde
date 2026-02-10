@@ -434,6 +434,10 @@ export function App() {
   const faltaPagar = totalCarrinho - totalPago
 
   function adicionarPagamento() {
+    // 🛑 TRAVA DE SEGURANÇA
+    if (!caixaAberto) {
+      return alert("⛔ O caixa está fechado! Abra o caixa para movimentar dinheiro.");
+    }
     const valorNum = Number(valorPagamentoInput.replace(',', '.')); 
     if (!valorNum || valorNum <= 0) return alert("Digite um valor válido");
 
@@ -445,7 +449,7 @@ export function App() {
     let valorParaRegistrar = valorNum;
 
     if (valorNum > faltaArredondada) {
-      if (formaPagamento === 'DINHEIRO') { 
+      if (formaPagamento === 'Dinheiro') { 
         const trocoCalculado = valorNum - faltaArredondada;
         setTroco(trocoCalculado);
         valorParaRegistrar = faltaArredondada;
@@ -497,6 +501,12 @@ export function App() {
   }
 
   async function finalizarVendaNoBanco() {
+    // 🛑 TRAVA DE SEGURANÇA: Verifica se o caixa está aberto
+    if (!caixaAberto) {
+      alert("⛔ CAIXA FECHADO!\n\nVocê precisa abrir o caixa (Botão 'Abrir Caixa') antes de realizar vendas.");
+      return; // Para tudo e não deixa continuar
+    }
+
     if (carrinho.length === 0) return alert("Carrinho vazio!");
 
     try {
@@ -1222,14 +1232,30 @@ export function App() {
           <div style={{ backgroundColor: modoEscuro ? '#2d3748' : 'white', color: modoEscuro ? 'white' : '#2d3748', borderRadius: 12, padding: 30 }}>
             <h2 style={{ margin: '0 0 20px 0', color: '#d69e2e' }}>📝 Orçamentos Salvos</h2>
             <table style={{width:'100%', borderCollapse:'collapse'}}>
-              <thead><tr style={{textAlign:'left'}}><th style={{padding:15}}>ID</th><th style={{padding:15}}>Data</th><th style={{padding:15}}>Cliente</th><th style={{padding:15}}>Total</th><th></th></tr></thead>
+              <thead>
+                <tr style={{textAlign:'left', color: modoEscuro ? '#cbd5e0' : '#718096', borderBottom: '2px solid #e2e8f0'}}>
+                  <th style={{padding:15}}>ID</th>
+                  <th style={{padding:15}}>Data</th>
+                  <th style={{padding:15}}>Cliente</th>
+                  <th style={{padding:15}}>Total</th>
+                  <th style={{textAlign:'right', padding:15}}>Ações</th>
+                </tr>
+              </thead>
               <tbody>
                 {orcamentos.map(o => (
                   <tr key={o.id} style={{borderBottom: '1px solid #eee'}}>
-                    <td style={{padding:15}}>#{o.id}</td><td style={{padding:15}}>{new Date(o.data).toLocaleDateString()}</td><td style={{padding:15}}><b>{o.cliente?.nome || 'Consumidor'}</b></td><td style={{padding:15}}>R$ {Number(o.total).toFixed(2)}</td>
-                    <td style={{padding:15}}>
-                      <button onClick={() => efetivarOrcamento(o)} style={{ marginRight: 10, padding: '5px 10px', backgroundColor: '#2b6cb0', color: 'white', border: 'none', borderRadius: 4 }}>Virar Venda</button>
-                      <button onClick={()=>reimprimirOrcamento(o)} style={{marginRight:10}}>🖨️</button><button onClick={()=>excluirOrcamento(o.id)} style={{color:'red'}}>🗑️</button>
+                    <td style={{padding:15}}>#{o.id}</td>
+                    <td style={{padding:15}}>{new Date(o.data).toLocaleDateString()}</td>
+                    <td style={{padding:15}}><b>{o.cliente?.nome || 'Consumidor'}</b></td>
+                    <td style={{padding:15}}>R$ {Number(o.total).toFixed(2)}</td>
+                    <td style={{padding:15, textAlign:'right'}}>
+                      <div style={{display:'flex', justifyContent:'flex-end', alignItems:'center', gap: 10}}>
+                        <button onClick={() => efetivarOrcamento(o)} style={{ padding: '8px 12px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}>
+                          Virar Venda 🛒
+                        </button>
+                        <button onClick={()=>reimprimirOrcamento(o)} title="Imprimir" style={{padding:'8px', background:'#718096', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>🖨️</button>
+                        <button onClick={()=>excluirOrcamento(o.id)} title="Excluir" style={{padding:'8px', background:'#e53e3e', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>🗑️</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1242,15 +1268,42 @@ export function App() {
         {aba === 'clientes' && (
           <div style={{ backgroundColor: modoEscuro ? '#2d3748' : 'white', color: modoEscuro ? 'white' : '#2d3748', borderRadius: 12, padding: 30 }}>
             <div style={{display:'flex',justifyContent:'space-between', marginBottom:20}}><h2>👥 Clientes</h2><button onClick={()=>{setModalClienteAberto(true);setClienteEmEdicao(null)}} style={{...estiloBotao,background:'#48bb78',color:'white'}}>+ Novo</button></div>
-            <table style={{width:'100%'}}>
-              <thead><tr style={{textAlign:'left'}}><th style={{padding:15}}>Nome</th><th style={{padding:15}}>CPF/End</th><th style={{padding:15}}>Haver</th><th>Ações</th></tr></thead>
+            <table style={{width:'100%', borderCollapse:'collapse'}}>
+              <thead>
+                <tr style={{textAlign:'left', color: modoEscuro ? '#cbd5e0' : '#718096', borderBottom: '2px solid #e2e8f0'}}>
+                  <th style={{padding:15}}>Nome</th>
+                  <th style={{padding:15}}>CPF / Endereço</th>
+                  <th style={{padding:15}}>Haver</th>
+                  <th style={{textAlign:'right', padding:15}}>Ações</th>
+                </tr>
+              </thead>
               <tbody>
                 {clientes.map(c => (
-                  <tr key={c.id} style={{borderBottom:'1px solid #eee'}}>
-                    <td style={{padding:15}}><b>{c.nome}</b><br/><small>{c.celular}</small></td><td style={{padding:15}}>{c.cpfCnpj}<br/><small>{c.endereco}</small></td>
-                    <td style={{padding:15}}><span style={{fontWeight:'bold', color:Number(c.saldoHaver)>0?'#2f855a':'#a0aec0'}}>R$ {Number(c.saldoHaver).toFixed(2)}</span></td>
+                  <tr key={c.id} style={{borderBottom: modoEscuro ? '1px solid #4a5568' : '1px solid #eee'}}>
                     <td style={{padding:15}}>
-                      <button onClick={()=>gerarHaver(c)}>💰</button> <button onClick={()=>verHistorico(c)}>📜</button> <button onClick={()=>{setClienteEmEdicao(c);setFormCliente({nome:c.nome,cpfCnpj:c.cpfCnpj||'',celular:c.celular||'',endereco:c.endereco||''});setModalClienteAberto(true)}}>✏️</button> <button onClick={()=>excluirCliente(c.id)}>🗑️</button>
+                      <div style={{fontWeight:'bold', fontSize:'1.05rem'}}>{c.nome}</div>
+                      <div style={{fontSize:'0.85rem', color: modoEscuro ? '#a0aec0' : 'gray'}}>{c.celular}</div>
+                    </td>
+                    <td style={{padding:15}}>
+                      <div>{c.cpfCnpj}</div>
+                      <div style={{fontSize:'0.85rem', color: modoEscuro ? '#a0aec0' : 'gray'}}>{c.endereco}</div>
+                    </td>
+                    <td style={{padding:15}}>
+                      {Number(c.saldoHaver) > 0 ? (
+                        <span style={{fontWeight:'bold', color:'#2f855a', background:'#c6f6d5', padding:'4px 8px', borderRadius:6}}>
+                          R$ {Number(c.saldoHaver).toFixed(2)}
+                        </span>
+                      ) : (
+                        <span style={{color:'#a0aec0'}}>R$ 0.00</span>
+                      )}
+                    </td>
+                    <td style={{padding:15, textAlign:'right'}}>
+                      <div style={{display:'flex', justifyContent:'flex-end', gap: 5}}>
+                        <button onClick={()=>gerarHaver(c)} title="Gerar Haver" style={{padding:'8px', background:'#38a169', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>💲</button> 
+                        <button onClick={()=>verHistorico(c)} title="Ver Histórico" style={{padding:'8px', background:'#3182ce', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>📜</button> 
+                        <button onClick={()=>{setClienteEmEdicao(c);setFormCliente({nome:c.nome,cpfCnpj:c.cpfCnpj||'',celular:c.celular||'',endereco:c.endereco||''});setModalClienteAberto(true)}} title="Editar" style={{padding:'8px', background:'#d69e2e', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>✏️</button> 
+                        <button onClick={()=>excluirCliente(c.id)} title="Excluir" style={{padding:'8px', background:'#e53e3e', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>🗑️</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1282,13 +1335,33 @@ export function App() {
           <div style={{ backgroundColor: modoEscuro ? '#2d3748' : 'white', color: modoEscuro ? 'white' : '#2d3748', borderRadius: 12, padding: 30 }}>
             <h2>📜 Histórico de Vendas</h2>
             <table style={{width:'100%', borderCollapse:'collapse'}}>
-              <thead><tr style={{textAlign:'left'}}><th style={{padding:15}}>ID</th><th style={{padding:15}}>Data</th><th style={{padding:15}}>Cliente</th><th style={{padding:15}}>Total</th><th></th></tr></thead>
+              <thead>
+                <tr style={{textAlign:'left', color: modoEscuro ? '#cbd5e0' : '#718096', borderBottom: '2px solid #e2e8f0'}}>
+                  <th style={{padding:15}}>ID</th>
+                  <th style={{padding:15}}>Data</th>
+                  <th style={{padding:15}}>Cliente</th>
+                  <th style={{padding:15}}>Total</th>
+                  <th style={{textAlign:'right', padding:15}}>Opções</th>
+                </tr>
+              </thead>
               <tbody>
                 {vendasRealizadas.map((v: any) => (
                   <tr key={v.id} style={{borderBottom:'1px solid #eee'}}>
-                    <td style={{padding:15}}>#{v.id}</td><td style={{padding:15}}>{new Date(v.data).toLocaleString()}</td><td style={{padding:15}}>{v.cliente?.nome}</td><td style={{padding:15}}>R$ {Number(v.total).toFixed(2)}</td>
+                    <td style={{padding:15, fontWeight:'bold'}}>#{v.id}</td>
+                    <td style={{padding:15}}>{new Date(v.data).toLocaleString()}</td>
                     <td style={{padding:15}}>
-                      <button onClick={() => reimprimirVenda(v)}>🖨️</button> <button onClick={() => enviarZap(v)}>📱</button> <button onClick={() => tentarCancelarVenda(v.id)}>🚫</button>
+                      <div>{v.cliente?.nome || 'Consumidor'}</div>
+                      <small style={{color:'#718096'}}>{v.pagamentos?.map((p: any) => p.forma).join(', ')}</small>
+                    </td>
+                    <td style={{padding:15, fontWeight:'bold', color: modoEscuro ? '#68d391' : '#2f855a'}}>
+                      R$ {Number(v.total).toFixed(2)}
+                    </td>
+                    <td style={{padding:15, textAlign:'right'}}>
+                      <div style={{display:'flex', justifyContent:'flex-end', gap: 8}}>
+                        <button onClick={() => reimprimirVenda(v)} title="Imprimir" style={{padding:'6px 12px', background:'#718096', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>🖨️</button> 
+                        <button onClick={() => enviarZap(v)} title="WhatsApp" style={{padding:'6px 12px', background:'#25D366', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>📱</button> 
+                        <button onClick={() => tentarCancelarVenda(v.id)} title="Cancelar Venda" style={{padding:'6px 12px', background:'#e53e3e', color:'white', border:'none', borderRadius:6, cursor:'pointer'}}>🚫</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
