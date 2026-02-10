@@ -1201,6 +1201,7 @@ function removerItemCarrinho(index: number) {
   }
 
   return (
+    <>
     <div style={{ 
       fontFamily: 'Segoe UI, sans-serif', 
       minHeight: '100vh', // Mudei de height para minHeight (permite crescer)
@@ -2478,7 +2479,9 @@ function removerItemCarrinho(index: number) {
       )}
 
     </div>
+    </>
   );
+  
 }
 
 export default App;
