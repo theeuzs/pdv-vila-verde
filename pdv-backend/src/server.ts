@@ -829,36 +829,106 @@ app.post('/verificar-gerente', async (req, res) => {
 
   // 👇 ROTA DE EMISSÃO FISCAL (SIMULAÇÃO) - COLE NO SERVER.TS 👇
   // ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
-app.post('/emitir-fiscal', async (request, reply) => {
-  const venda = request.body as any;
-
-  console.log("🔄 Tentando autenticar na Nuvem Fiscal...");
-
-  // 1. PEGAR O TOKEN DE ACESSO (O CRACHÁ)
-  // Aqui a gente usa as variáveis do .env
-  const credenciais = new URLSearchParams();
-  credenciais.append('grant_type', 'client_credentials');
-  credenciais.append('client_id', process.env.NUVEM_CLIENT_ID as string);
-  credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET as string);
-  credenciais.append('scope', 'nfce empresa'); 
-
-  let token = "";
+app.post('/emitir-fiscal', async (request: any, reply: any) => {
+  const { itens, total, pagamento, cliente } = request.body;
 
   try {
-    const authResponse = await axios.post('https://auth.nuvemfiscal.com.br/oauth/token', credenciais);
-    token = authResponse.data.access_token;
-    console.log("✅ Autenticado com sucesso! Token gerado.");
-  } catch (error) {
-    console.error("❌ Erro de autenticação:", error);
-    return reply.status(500).send({ erro: "Falha ao autenticar na Nuvem Fiscal. Verifique o .env" });
-  }
+    // 1. Busca os dados fiscais ATUALIZADOS no banco (Pega o CFOP 5405 novo!)
+    const idsProdutos = itens.map((i: any) => Number(i.id));
+    const produtosDb = await prisma.produto.findMany({
+      where: { id: { in: idsProdutos } }
+    });
 
-  // 2. AQUI VAI O CÓDIGO DA EMISSÃO (O JSON GIGANTE)
-  // Por enquanto, vamos só retornar sucesso para testar se a senha funcionou
-  return reply.send({ 
-    mensagem: "Autenticação funcionou! Estamos prontos para emitir.",
-    token_gerado: "Sucesso (Oculto por segurança)"
-  });
+    // 2. Autentica na Nuvem Fiscal (Gera o Token)
+    const credenciais = new URLSearchParams();
+    credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
+    credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
+    credenciais.append('grant_type', 'client_credentials');
+    credenciais.append('scope', 'nfce'); 
+
+    const authResponse = await fetch('https://auth.nuvemfiscal.com.br/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: credenciais
+    });
+    const authData = await authResponse.json();
+    
+    if (!authData.access_token) {
+       throw new Error("Falha na autenticação: Verifique ID e Secret no .env");
+    }
+
+    // 3. Monta a Nota Fiscal (O trabalho pesado!)
+    const corpoNota = {
+       ambiente: "homologacao", // Mude para "producao" quando for valer
+       natureza_operacao: "Venda ao Consumidor",
+       finalidade: "final",
+       emitente: { 
+           cpf_cnpj: "12820608000141" // <--- ⚠️ COLOQUE SEU CNPJ AQUI!!!
+       },
+       // Se tiver cliente, manda. Se não, é consumidor final.
+       destinatario: cliente ? { nome: cliente.nome, cpf_cnpj: cliente.cpfCnpj } : undefined,
+       
+       itens: itens.map((item: any, index: number) => {
+           // Pega os dados corretos do banco
+           const prod = produtosDb.find(p => p.id === Number(item.id));
+           
+           return {
+              item: index + 1,
+              codigo: String(prod?.id),
+              descricao: prod?.nome,
+              ncm: prod?.ncm,
+              cest: prod?.cest,
+              cfop: prod?.cfop, // Aqui vai vir o 5405 que você arrumou!
+              unidade: prod?.unidade,
+              quantidade: Number(item.quantidade),
+              valor_unitario: Number(prod?.precoVenda), // Preço original do cadastro
+              
+              impostos: {
+                 icms: {
+                    codigo_situacao_operacao_simples_nacional: prod?.csosn, // ex: "500"
+                    origem: prod?.origem || "0"
+                 }
+              }
+           };
+       }),
+       pagamentos: [{
+          meio_pagamento: pagamento === 'Dinheiro' ? '01' : '99', // 01=Dinheiro
+          valor: Number(total)
+       }]
+    };
+
+    // 4. Envia a nota para a Nuvem Fiscal
+    const emitirResponse = await fetch('https://api.nuvemfiscal.com.br/v2/nfce', {
+        method: 'POST',
+        headers: {
+           'Authorization': `Bearer ${authData.access_token}`,
+           'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(corpoNota)
+    });
+
+    const respostaNota = await emitirResponse.json();
+
+    // Se a Nuvem Fiscal recusar, avisa o motivo
+    if (respostaNota.error) {
+       console.error("Erro Nuvem Fiscal:", respostaNota.error);
+       throw new Error(respostaNota.error.message || "Recusa da Sefaz");
+    }
+
+    // 5. Sucesso! Retorna o link do PDF
+    // (A Nuvem Fiscal devolve a URL em campos diferentes dependendo do status, 
+    // mas geralmente é url_danfe ou similar. Ajuste conforme o retorno deles).
+    
+    // Vamos supor que deu certo e retornar o objeto inteiro para o front achar a URL
+    return reply.status(200).send({
+       mensagem: "Nota emitida com sucesso!",
+       url: respostaNota.url_danfe || respostaNota.link_pdf // Tenta pegar o link
+    });
+
+  } catch (error: any) {
+    console.error(error);
+    return reply.status(500).send({ erro: error.message || "Erro interno na emissão" });
+  }
 });
 
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA AQUI
