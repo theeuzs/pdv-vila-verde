@@ -2408,10 +2408,12 @@ function removerItemCarrinho(index: number) {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
-      </div> 
-      )}
+      )}  {/* <--- ESSE CARA AQUI ERA O CULPADO! (Fecha a aba de orçamentos) */}
+
+      {/* --- MODAL DE CONTROLE DE CAIXA --- */}
       {modalCaixaVisivel && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -2451,7 +2453,8 @@ function removerItemCarrinho(index: number) {
               // TELA DE FECHAR
               <>
                  <div style={{backgroundColor: '#d1fae5', padding: 15, borderRadius: 5, marginBottom: 20}}>
-                    <h3 style={{color: '#065f46', margin: 0}}>Saldo Atual: R$ {caixa.saldoAtual?.toFixed(2)}</h3>
+                    {/* Proteção contra saldo nulo */}
+                    <h3 style={{color: '#065f46', margin: 0}}>Saldo Atual: R$ {caixa.saldoAtual?.toFixed(2) || '0.00'}</h3>
                     <p style={{color: '#047857', margin: 5}}>Aberto em: {new Date(caixa.dataAbertura).toLocaleTimeString()}</p>
                  </div>
                  
@@ -2477,7 +2480,7 @@ function removerItemCarrinho(index: number) {
         </div>
       )}
 
-      </div> 
+    </div> 
   );
 }
 
