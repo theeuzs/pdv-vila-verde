@@ -1334,46 +1334,139 @@ export function App() {
           MODAIS GLOBAIS (ESTÃO AQUI PARA EVITAR ERROS DE LAYOUT)
       ===================================================================== */}
       
-      {/* 1. MODAL PRODUTO */}
+      {/* 1. MODAL PRODUTO (RESTAURADO - DESIGN ORIGINAL) */}
       {modalAberto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', padding: 30, borderRadius: 15, width: 700, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2>{produtoEmEdicao ? '✏️ Editar' : '✨ Novo'} Produto</h2>
+          <div style={{ backgroundColor: '#f9fafb', padding: 30, borderRadius: 15, width: 800, maxHeight: '90vh', overflowY: 'auto', border: '1px solid #e2e8f0' }}>
+            <h2 style={{marginTop: 0, color: '#2d3748', borderBottom: '1px solid #cbd5e0', paddingBottom: 10}}>
+              {produtoEmEdicao ? '✏️ Editar Produto' : '✨ Novo Produto'}
+            </h2>
+            
             <form onSubmit={salvarProduto} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-              <input value={formProduto.nome} onChange={e => setFormProduto({...formProduto, nome: e.target.value})} placeholder="Nome" style={estiloInput} required />
-              <input value={formProduto.codigoBarra} onChange={e => setFormProduto({...formProduto, codigoBarra: e.target.value})} placeholder="Código Barras" style={estiloInput} />
-              <div style={{ display: 'flex', gap: 10 }}>
-                 <input type="number" value={formProduto.precoCusto} onChange={e => setFormProduto({...formProduto, precoCusto: e.target.value})} placeholder="Custo" style={estiloInput} />
-                 <input type="number" value={formProduto.precoVenda} onChange={e => setFormProduto({...formProduto, precoVenda: e.target.value})} placeholder="Venda" style={estiloInput} required />
-                 <input type="number" value={formProduto.estoque} onChange={e => setFormProduto({...formProduto, estoque: e.target.value})} placeholder="Estoque" style={estiloInput} required />
+              
+              {/* LINHA 1: NOME E CÓDIGO */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 15 }}>
+                <div>
+                  <label style={estiloLabel}>Nome do Produto</label>
+                  <input value={formProduto.nome} onChange={e => setFormProduto({...formProduto, nome: e.target.value})} style={estiloInput} required />
+                </div>
+                <div>
+                  <label style={estiloLabel}>Código Barras</label>
+                  <input value={formProduto.codigoBarra} onChange={e => setFormProduto({...formProduto, codigoBarra: e.target.value})} style={estiloInput} />
+                </div>
               </div>
-              <button type="button" onClick={() => setModoFiscal(!modoFiscal)}>Mostrar Fiscal</button>
-              {modoFiscal && (
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <input placeholder="NCM" value={formProduto.ncm} onChange={e => setFormProduto({...formProduto, ncm: e.target.value})} style={estiloInput} />
-                    <input placeholder="CEST" value={formProduto.cest} onChange={e => setFormProduto({...formProduto, cest: e.target.value})} style={estiloInput} />
-                    <input placeholder="CFOP" value={formProduto.cfop} onChange={e => setFormProduto({...formProduto, cfop: e.target.value})} style={estiloInput} />
-                    <select value={formProduto.csosn} onChange={e => setFormProduto({...formProduto, csosn: e.target.value})} style={estiloInput}><option value="102">102</option><option value="500">500</option></select>
+
+              {/* LINHA 2: PREÇOS E ESTOQUE */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 15 }}>
+                 <div>
+                    <label style={estiloLabel}>Preço Custo</label>
+                    <input type="number" step="0.01" value={formProduto.precoCusto} onChange={e => setFormProduto({...formProduto, precoCusto: e.target.value})} style={estiloInput} />
                  </div>
-              )}
-              <div style={{display:'flex', justifyContent:'flex-end', gap:10}}>
-                <button type="button" onClick={() => setModalAberto(false)}>Cancelar</button>
-                <button type="submit">Salvar</button>
+                 <div>
+                    <label style={estiloLabel}>Preço Venda</label>
+                    <input type="number" step="0.01" value={formProduto.precoVenda} onChange={e => setFormProduto({...formProduto, precoVenda: e.target.value})} style={estiloInput} required />
+                 </div>
+                 <div>
+                    <label style={estiloLabel}>Estoque</label>
+                    <input type="number" value={formProduto.estoque} onChange={e => setFormProduto({...formProduto, estoque: e.target.value})} style={estiloInput} required />
+                 </div>
+                 <div>
+                    <label style={estiloLabel}>Unidade</label>
+                    <select value={formProduto.unidade} onChange={e => setFormProduto({...formProduto, unidade: e.target.value})} style={{...estiloInput, height: 45}}>
+                       <option value="UN">UN</option><option value="KG">KG</option><option value="LT">LT</option><option value="CX">CX</option><option value="M">M</option><option value="M2">M²</option>
+                    </select>
+                 </div>
+              </div>
+
+              {/* LINHA 3: CATEGORIA, FORNECEDOR, LOCALIZAÇÃO */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 15 }}>
+                 <div>
+                    <label style={estiloLabel}>Categoria</label>
+                    <input value={formProduto.categoria} onChange={e => setFormProduto({...formProduto, categoria: e.target.value})} style={estiloInput} />
+                 </div>
+                 <div>
+                    <label style={estiloLabel}>Fornecedor</label>
+                    <input value={formProduto.fornecedor} onChange={e => setFormProduto({...formProduto, fornecedor: e.target.value})} style={estiloInput} />
+                 </div>
+                 <div>
+                    <label style={estiloLabel}>Localização</label>
+                    <input value={formProduto.localizacao} onChange={e => setFormProduto({...formProduto, localizacao: e.target.value})} style={estiloInput} />
+                 </div>
+              </div>
+
+              {/* LINHA 4: DADOS FISCAIS */}
+              <div style={{ marginTop: 10, border: '1px solid #cbd5e0', padding: 15, borderRadius: 8, backgroundColor: '#fff' }}>
+                <div style={{display:'flex', justifyContent:'space-between', marginBottom: 10}}>
+                   <strong style={{color:'#4a5568'}}>🏛️ Dados Fiscais (NFC-e)</strong>
+                   <button type="button" onClick={() => setModoFiscal(!modoFiscal)} style={{background:'none', border:'none', cursor:'pointer', color:'#2b6cb0'}}>{modoFiscal ? '🙈 Esconder' : '👁️ Mostrar'}</button>
+                </div>
+                
+                {modoFiscal && (
+                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
+                      <div>
+                         <label style={estiloLabel}>NCM (Obrigatório)</label>
+                         <input value={formProduto.ncm} onChange={e => setFormProduto({...formProduto, ncm: e.target.value})} style={estiloInput} />
+                      </div>
+                      <div>
+                         <label style={estiloLabel}>CEST</label>
+                         <input value={formProduto.cest} onChange={e => setFormProduto({...formProduto, cest: e.target.value})} style={estiloInput} />
+                      </div>
+                      <div>
+                         <label style={estiloLabel}>CFOP</label>
+                         <input value={formProduto.cfop} onChange={e => setFormProduto({...formProduto, cfop: e.target.value})} style={estiloInput} />
+                      </div>
+                      <div>
+                         <label style={estiloLabel}>CSOSN (Imposto)</label>
+                         <select value={formProduto.csosn} onChange={e => setFormProduto({...formProduto, csosn: e.target.value})} style={{...estiloInput, height: 45}}>
+                            <option value="102">102 - Tributado</option>
+                            <option value="500">500 - Subst. Tributária</option>
+                         </select>
+                      </div>
+                      <div style={{gridColumn: '1 / span 2'}}>
+                         <label style={estiloLabel}>Origem</label>
+                         <select value={formProduto.origem} onChange={e => setFormProduto({...formProduto, origem: e.target.value})} style={{...estiloInput, height: 45}}>
+                            <option value="0">0 - Nacional</option><option value="1">1 - Importada</option>
+                         </select>
+                      </div>
+                   </div>
+                )}
+              </div>
+
+              <div style={{display:'flex', justifyContent:'flex-end', gap:10, marginTop: 10}}>
+                <button type="button" onClick={() => setModalAberto(false)} style={{...estiloBotao, background: '#cbd5e0', color: '#4a5568'}}>Cancelar</button>
+                <button type="submit" style={{...estiloBotao, background: '#48bb78', color: 'white'}}>Salvar Produto</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* 2. MODAL CLIENTE */}
+      {/* 2. MODAL CLIENTE (RESTAURADO) */}
       {modalClienteAberto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: 30, borderRadius: 15, width: 450 }}>
-            <h2>Cliente</h2>
+            <h2 style={{marginTop:0, marginBottom:20, color:'#2d3748'}}>{clienteEmEdicao ? '✏️ Editar Cliente' : '👤 Novo Cliente'}</h2>
             <form onSubmit={salvarCliente} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-              <input placeholder="Nome" value={formCliente.nome} onChange={e => setFormCliente({...formCliente, nome: e.target.value})} style={estiloInput} required />
-              <input placeholder="CPF" value={formCliente.cpfCnpj} onChange={e => setFormCliente({...formCliente, cpfCnpj: e.target.value})} style={estiloInput} />
-              <div style={{display:'flex', gap:10}}><button type="button" onClick={() => setModalClienteAberto(false)}>Cancelar</button><button type="submit">Salvar</button></div>
+              <div>
+                <label style={estiloLabel}>Nome Completo</label>
+                <input value={formCliente.nome} onChange={e => setFormCliente({...formCliente, nome: e.target.value})} style={estiloInput} required />
+              </div>
+              <div>
+                <label style={estiloLabel}>CPF / CNPJ</label>
+                <input value={formCliente.cpfCnpj} onChange={e => setFormCliente({...formCliente, cpfCnpj: e.target.value})} style={estiloInput} />
+              </div>
+              <div>
+                <label style={estiloLabel}>Celular / WhatsApp</label>
+                <input value={formCliente.celular} onChange={e => setFormCliente({...formCliente, celular: e.target.value})} style={estiloInput} />
+              </div>
+              <div>
+                <label style={estiloLabel}>Endereço</label>
+                <input value={formCliente.endereco} onChange={e => setFormCliente({...formCliente, endereco: e.target.value})} style={estiloInput} />
+              </div>
+              <div style={{display:'flex', gap:10, justifyContent:'flex-end', marginTop:10}}>
+                <button type="button" onClick={() => setModalClienteAberto(false)} style={{...estiloBotao, background: '#cbd5e0', color: '#4a5568'}}>Cancelar</button>
+                <button type="submit" style={{...estiloBotao, background: '#48bb78', color: 'white'}}>Salvar</button>
+              </div>
             </form>
           </div>
         </div>
