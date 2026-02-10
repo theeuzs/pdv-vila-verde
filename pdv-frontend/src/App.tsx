@@ -154,7 +154,9 @@ export function App() {
   const [sangriaPendente, setSangriaPendente] = useState<{valor: number, motivo: string} | null>(null);
   const [historicoCaixas, setHistoricoCaixas] = useState<any[]>([]);
   const [vendoHistorico, setVendoHistorico] = useState(false);
-
+  // --- CONTROLE DE CAIXA ---
+  const [caixa, setCaixa] = useState<any>(null); // Guarda se o caixa tá aberto ou fechado
+  const [modalCaixaVisivel, setModalCaixaVisivel] = useState(false); // Abre/fecha a janelinha
   // --- FUNÇÃO 1: SALVAR BACKUP (SEGURANÇA TOTAL) ---
   const salvarBackup = () => {
     const dadosBackup = {
@@ -300,22 +302,6 @@ export function App() {
     }
   }
 
-  // --- FUNÇÃO 1: Verificar se o caixa está aberto ---
-  async function verificarStatusCaixa() {
-    try {
-      const res = await fetch(`${API_URL}/caixa/status`);
-      const dados = await res.json();
-      // 👇 TROQUE O IF ANTIGO POR ESTE 👇
-      if (dados && dados.status === 'ABERTO') {
-        setCaixaAberto(dados);
-      } else {
-        setCaixaAberto(null);
-      }
-    } catch (error) {
-      console.error("Erro ao verificar caixa:", error);
-    }
-  }
-
   // --- FUNÇÃO 2: Abrir o Caixa ---
   async function abrirCaixa() {
     if (!valorAbertura) return alert("Digite o valor de troco inicial!");
@@ -338,38 +324,6 @@ export function App() {
       alert("Erro de conexão.");
     }
   }
-
-// Função para Fechar o Caixa
-  const fecharCaixa = async () => {
-    if (!caixaAberto) return;
-
-    // Pergunta de segurança
-    const confirmacao = window.confirm(
-      `Deseja realmente FECHAR o caixa?\n\nSaldo Final: R$ ${Number(caixaAberto.saldoAtual).toFixed(2)}`
-    );
-
-    if (!confirmacao) return;
-
-    try {
-      const res = await fetch(`${API_URL}/caixa/fechar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caixaId: caixaAberto.id })
-      });
-
-      if (res.ok) {
-        alert("🔒 Caixa fechado com sucesso!");
-        setCaixaAberto(null); // Isso faz a tela voltar para "Abrir Caixa"
-        // Se tiver carrinho ou pagamentos pendentes, é bom limpar também:
-        setCarrinho([]);
-        setListaPagamentos([]);
-      } else {
-        alert("Erro ao fechar o caixa.");
-      }
-    } catch (error) {
-      alert("Erro de conexão.");
-    }
-  };
 
   // ==========================================================================
   // 3. ESTADOS (STATES)
@@ -1129,6 +1083,23 @@ function removerItemCarrinho(index: number) {
   // 10. RENDERIZAÇÃO DA TELA (JSX)
   // ==========================================================================
   
+{/* BOTÃO DE STATUS DO CAIXA */}
+<button 
+  onClick={() => setModalCaixaVisivel(true)}
+  style={{
+    padding: "10px 20px",
+    backgroundColor: caixa ? "#10b981" : "#ef4444", // Verde se aberto, Vermelho se fechado
+    color: "white",
+    border: "none",
+    borderRadius: 5,
+    fontWeight: "bold",
+    cursor: "pointer",
+    marginBottom: 20
+  }}
+>
+  {caixa ? `🟢 CAIXA ABERTO (R$ ${caixa.saldoAtual.toFixed(2)})` : "🔴 CAIXA FECHADO - CLIQUE PARA ABRIR"}
+</button>
+
   // SE NÃO TIVER NINGUÉM LOGADO, MOSTRA A TELA DE ESCOLHA
   if (!usuarioLogado) {
     return <TelaLogin onLoginSucesso={(u) => setUsuarioLogado(u)} />;
@@ -1168,6 +1139,66 @@ function removerItemCarrinho(index: number) {
     // 4. Abre o link
     window.open(linkFinal, '_blank');
   };
+
+// 1. Verifica se o caixa está aberto ao carregar o sistema
+  useEffect(() => {
+    verificarStatusCaixa();
+  }, []);
+
+  async function verificarStatusCaixa() {
+    try {
+      const res = await fetch(`${API_URL}/caixa/status`);
+      const dados = await res.json();
+      setCaixa(dados); // Se vier null, tá fechado. Se vier objeto, tá aberto.
+    } catch (erro) {
+      console.error("Erro ao verificar caixa", erro);
+    }
+  }
+
+  // 2. Função para Abrir o Caixa de verdade
+  async function realizarAberturaCaixa() {
+    if (!valorAbertura) return alert("Digite o valor do troco inicial!");
+
+    try {
+      const res = await fetch(`${API_URL}/caixa/abrir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          saldoInicial: Number(valorAbertura), 
+          observacoes: "Abertura pelo Front" 
+        })
+      });
+
+      if (res.ok) {
+        alert("✅ Caixa Aberto com Sucesso!");
+        verificarStatusCaixa(); // Atualiza o status
+        setModalCaixaVisivel(false); // Fecha a janelinha
+      } else {
+        alert("Erro: Já existe um caixa aberto ou deu falha.");
+      }
+    } catch (erro) {
+      alert("Erro de conexão ao abrir caixa.");
+    }
+  }
+
+  // 3. Função para Fechar o Caixa (Opcional, mas útil ter agora)
+  async function fecharCaixa() {
+    if (!caixa) return;
+    if (!confirm("Tem certeza que deseja FECHAR o caixa do dia?")) return;
+
+    try {
+        await fetch(`${API_URL}/caixa/fechar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ caixaId: caixa.id })
+        });
+        alert("🔒 Caixa Fechado!");
+        setCaixa(null); // Zera a variável local
+        setModalCaixaVisivel(false);
+    } catch (e) {
+        alert("Erro ao fechar");
+    }
+  }
 
   return (
     <div style={{ 
@@ -2376,6 +2407,72 @@ function removerItemCarrinho(index: number) {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+{/* === MODAL DE CONTROLE DE CAIXA === */}
+      {modalCaixaVisivel && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999
+        }}>
+          <div style={{
+            backgroundColor: 'white', padding: 30, borderRadius: 10, width: 400, textAlign: 'center'
+          }}>
+            <h2 style={{color: 'black'}}>Gerenciar Caixa</h2>
+            
+            {!caixa ? (
+              // TELA DE ABRIR (Se estiver fechado)
+              <>
+                <p style={{color: '#666', marginBottom: 10}}>O caixa está fechado. Informe o saldo inicial (troco) para começar a vender.</p>
+                <input 
+                  type="number" 
+                  placeholder="Ex: 100.00"
+                  value={valorAbertura}
+                  onChange={e => setValorAbertura(e.target.value)}
+                  style={{
+                    width: '100%', padding: 10, fontSize: 18, marginBottom: 20, 
+                    border: '1px solid #ccc', borderRadius: 5, color: 'black'
+                  }}
+                />
+                <button 
+                  onClick={realizarAberturaCaixa}
+                  style={{
+                    width: '100%', padding: 15, backgroundColor: '#2563eb', 
+                    color: 'white', fontWeight: 'bold', border: 'none', borderRadius: 5
+                  }}
+                >
+                  🔓 ABRIR CAIXA AGORA
+                </button>
+              </>
+            ) : (
+              // TELA DE INFORMAÇÕES (Se já estiver aberto)
+              <>
+                 <div style={{backgroundColor: '#d1fae5', padding: 15, borderRadius: 5, marginBottom: 20}}>
+                    <h3 style={{color: '#065f46', margin: 0}}>Saldo Atual: R$ {caixa.saldoAtual.toFixed(2)}</h3>
+                    <p style={{color: '#047857', margin: 5}}>Aberto em: {new Date(caixa.dataAbertura).toLocaleTimeString()}</p>
+                 </div>
+                 
+                 <button 
+                  onClick={fecharCaixa}
+                  style={{
+                    width: '100%', padding: 15, backgroundColor: '#ef4444', 
+                    color: 'white', fontWeight: 'bold', border: 'none', borderRadius: 5
+                  }}
+                >
+                  🔒 FECHAR CAIXA (FIM DO DIA)
+                </button>
+              </>
+            )}
+
+            <button 
+              onClick={() => setModalCaixaVisivel(false)}
+              style={{marginTop: 15, background: 'transparent', border: 'none', color: '#666', cursor: 'pointer'}}
+            >
+              Cancelar / Voltar
+            </button>
           </div>
         </div>
       )}
