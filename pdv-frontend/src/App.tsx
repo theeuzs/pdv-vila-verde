@@ -730,20 +730,27 @@ imprimirCupom({
   }
 
   // --- FUNÇÃO CENTRAL: Salva no banco e limpa a tela ---
+  // --- FUNÇÃO CENTRAL: Salva no banco e limpa a tela (CORRIGIDA) ---
   async function finalizarVendaNoBanco() {
     try {
+      // 👇 O PULO DO GATO: Formatamos os dados para o Backend entender
+      const itensFormatados = carrinho.map((item: any) => ({
+        id: item.produto.id, // Pega o ID no lugar certo
+        quantidade: item.quantidade
+      }));
+
       const resposta = await fetch(`${API_URL}/finalizar-venda`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itens: carrinho }) // Manda o carrinho pro backend
+        body: JSON.stringify({ itens: itensFormatados }) // Envia a lista formatada
       });
 
       if (resposta.ok) {
-        // Se deu certo baixar o estoque:
-        setCarrinho([]); // 1. Limpa o carrinho visual
+        setCarrinho([]); // Limpa o carrinho visual
         alert("💰 Venda Finalizada! Estoque atualizado.");
       } else {
-        alert("Erro ao baixar estoque!");
+        const erro = await resposta.json(); // Tenta ler o erro do servidor
+        alert("Erro ao baixar estoque: " + JSON.stringify(erro));
       }
     } catch (erro) {
       console.error(erro);
@@ -1750,8 +1757,8 @@ function removerItemCarrinho(index: number) {
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={salvarOrcamento} disabled={carrinho.length === 0} style={{ ...estiloBotao, flex: 1, backgroundColor: carrinho.length > 0 ? '#d69e2e' : '#cbd5e0', color: 'white' }}>📝 ORÇAMENTO</button>
                <button 
-  className="..." 
-  onClick={finalizarVendaNoBanco} // <--- Chama direto!
+  className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded flex items-center gap-2"
+  onClick={finalizarVendaNoBanco}
 >
   ✅ VENDER
 </button>
