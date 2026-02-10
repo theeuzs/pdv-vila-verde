@@ -1201,7 +1201,6 @@ function removerItemCarrinho(index: number) {
   }
 
   return (
-    <>
     <div style={{ 
       fontFamily: 'Segoe UI, sans-serif', 
       minHeight: '100vh', // Mudei de height para minHeight (permite crescer)
@@ -2394,25 +2393,25 @@ function removerItemCarrinho(index: number) {
               </thead>
               <tbody>
                 {historicoCaixas.map((cx: any) => (
-                  <tr key={cx.id} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px' }}>{new Date(cx.dataFechamento || cx.dataAbertura).toLocaleDateString()}</td>
-                    <td style={{ padding: '10px', color: 'green', fontWeight: 'bold' }}>
-                      R$ {Number(cx.saldoFinal || cx.saldoAtual).toFixed(2)}
-                    </td>
-                    <td style={{ padding: '10px' }}>
-                      <span style={{ padding: '4px 8px', borderRadius: '4px', background: '#e5e7eb', fontSize: '12px' }}>
-                        {cx.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                <tr key={cx.id || Math.random()} style={{borderBottom: '1px solid #eee'}}>
+                  <td style={{padding: 10}}>{new Date(cx.dataAbertura).toLocaleDateString()} {new Date(cx.dataAbertura).toLocaleTimeString().slice(0,5)}</td>
+                  <td style={{padding: 10}}>
+                    <span style={{
+                      padding: '4px 8px', borderRadius: 4, 
+                      backgroundColor: cx.status === 'ABERTO' ? '#dcfce7' : '#fee2e2',
+                      color: cx.status === 'ABERTO' ? '#166534' : '#991b1b'
+                    }}>
+                      {cx.status}
+                    </span>
+                  </td>
+                  <td style={{padding: 10}}>R$ {cx.saldoAtual?.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+      </div> 
       )}
-
-{/* === MODAL DE CONTROLE DE CAIXA === */}
       {modalCaixaVisivel && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -2425,9 +2424,9 @@ function removerItemCarrinho(index: number) {
             <h2 style={{color: 'black'}}>Gerenciar Caixa</h2>
             
             {!caixa ? (
-              // TELA DE ABRIR (Se estiver fechado)
+              // TELA DE ABRIR
               <>
-                <p style={{color: '#666', marginBottom: 10}}>O caixa está fechado. Informe o saldo inicial (troco) para começar a vender.</p>
+                <p style={{color: '#666', marginBottom: 10}}>O caixa está fechado. Informe o saldo inicial.</p>
                 <input 
                   type="number" 
                   placeholder="Ex: 100.00"
@@ -2449,10 +2448,10 @@ function removerItemCarrinho(index: number) {
                 </button>
               </>
             ) : (
-              // TELA DE INFORMAÇÕES (Se já estiver aberto)
+              // TELA DE FECHAR
               <>
                  <div style={{backgroundColor: '#d1fae5', padding: 15, borderRadius: 5, marginBottom: 20}}>
-                    <h3 style={{color: '#065f46', margin: 0}}>Saldo Atual: R$ {caixa.saldoAtual.toFixed(2)}</h3>
+                    <h3 style={{color: '#065f46', margin: 0}}>Saldo Atual: R$ {caixa.saldoAtual?.toFixed(2)}</h3>
                     <p style={{color: '#047857', margin: 5}}>Aberto em: {new Date(caixa.dataAbertura).toLocaleTimeString()}</p>
                  </div>
                  
@@ -2463,7 +2462,7 @@ function removerItemCarrinho(index: number) {
                     color: 'white', fontWeight: 'bold', border: 'none', borderRadius: 5
                   }}
                 >
-                  🔒 FECHAR CAIXA (FIM DO DIA)
+                  🔒 FECHAR CAIXA
                 </button>
               </>
             )}
@@ -2472,16 +2471,14 @@ function removerItemCarrinho(index: number) {
               onClick={() => setModalCaixaVisivel(false)}
               style={{marginTop: 15, background: 'transparent', border: 'none', color: '#666', cursor: 'pointer'}}
             >
-              Cancelar / Voltar
+              Cancelar
             </button>
           </div>
         </div>
       )}
 
-    </div>
-    </>
+      </div> 
   );
-  
 }
 
 export default App;
