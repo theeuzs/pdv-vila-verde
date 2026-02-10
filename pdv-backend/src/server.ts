@@ -853,6 +853,34 @@ app.post('/verificar-gerente', async (req, res) => {
   });
 });
 
+app.post('/finalizar-venda', async (request, reply) => {
+  const { itens } = request.body as any; // Recebe a lista de produtos vendidos
+
+  try {
+    // Percorre cada item do carrinho para descontar do banco
+    for (const item of itens) {
+      await prisma.produto.update({
+        where: { id: item.id }, // Procura o produto pelo ID
+        data: {
+          estoque: {
+            decrement: Number(item.quantidade) // 👇 A MÁGICA: Subtrai a quantidade!
+          }
+        }
+      });
+    }
+
+    // (Opcional) Aqui você poderia salvar na tabela "Vendas" para ter histórico
+    // await prisma.venda.create({ ... })
+
+    console.log("📉 Estoque atualizado com sucesso!");
+    return reply.status(200).send({ mensagem: "Venda registrada e estoque baixado!" });
+
+  } catch (error) {
+    console.error("Erro ao baixar estoque:", error);
+    return reply.status(500).send({ erro: "Erro ao atualizar estoque" });
+  }
+});
+
 // --- INICIALIZAÇÃO ---
 const start = async () => {
   try {

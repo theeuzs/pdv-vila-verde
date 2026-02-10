@@ -710,80 +710,44 @@ imprimirCupom({
 
       if (resposta.ok) {
         alert("✅ " + resultado.mensagem);
+        
         if (resultado.url) {
-            window.open(resultado.url, '_blank');
+            window.open(resultado.url, '_blank'); 
         }
-        // Se deu certo, aqui a gente limparia o carrinho ou abriria o PDF
-      } else {
-        alert("❌ Erro ao emitir: " + resultado.erro);
-      }
+
+        // 👇 AQUI ESTÁ O TRUQUE!
+        // Depois que a nota saiu, a gente finaliza a venda automaticamente.
+        await finalizarVendaNoBanco(); 
+
+  } else {
+    // Se a nota falhou, NÃO baixa o estoque. O caixa tenta de novo.
+    alert("❌ Erro ao emitir: " + resultado.erro);
+  }
     } catch (error) {
       console.error(error);
       alert("Erro de conexão com o servidor (Verifique se o backend está rodando).");
     }
   }
 
-async function finalizarVenda() {
-  console.log("🕵️ O QUE TEM NO CARRINHO??", carrinho);
-    if (carrinho.length === 0) return alert("Carrinho vazio!");
-    if (!clienteSelecionado && !confirm("Vender sem cliente identificado?")) return;
-
-    // Monta os dados para enviar ao backend
-    const dadosVenda = {
-      clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
-      entrega: entrega,            // Usa o estado que você já tem
-      enderecoEntrega: endereco,   // Usa o estado que você já tem
-      itens: carrinho.map((item: any) => ({
-        produtoId: item.produto.id,
-        quantidade: Number(item.quantidade),
-        precoUnit: Number(item.produto.precoVenda)
-      })),
-      pagamentos: listaPagamentos.map((p: any) => ({
-        forma: p.forma,
-        valor: Number(p.valor)
-      })),
-      total: totalCarrinho,        // ⬅️ FALTAVA ISSO
-      caixaId: caixaAberto?.id     // ⬅️ FALTAVA ISSO (Vital para o saldo!)
-    };
-console.log("📦 DADOS ENVIADOS:", JSON.stringify(dadosVenda, null, 2));
+  // --- FUNÇÃO CENTRAL: Salva no banco e limpa a tela ---
+  async function finalizarVendaNoBanco() {
     try {
-      // 2. Envia o pacote 'dadosVenda' para o servidor
-      const res = await fetch(`${API_URL}/vendas`, {
+      const resposta = await fetch(`${API_URL}/finalizar-venda`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dadosVenda) // ⬅️ AQUI ESTÁ A MÁGICA (Usando a variável)
+        body: JSON.stringify({ itens: carrinho }) // Manda o carrinho pro backend
       });
 
-      const vendaCriada = await res.json();
-      
-      if (res.ok) {
-        alert("Venda realizada com sucesso! 🎉");
-
-        if (confirm("Deseja imprimir o cupom? 🧾")) {
-          // Agora temos certeza que vendaCriada.id existe
-          imprimirCupom({
-              id: vendaCriada.id,
-              data: new Date(),
-              cliente: { nome: clienteObjSelecionado?.nome || 'Consumidor Final' },
-              itens: carrinho,
-              total: totalCarrinho,
-              pagamentos: listaPagamentos
-            });
-        }
-
-        // Limpa tudo para a próxima venda
-        setCarrinho([]);
-        setTroco(0);
-        setListaPagamentos([]);
-        setClienteSelecionado("");
-        carregarDados();
-        verificarStatusCaixa(); // Atualiza o saldo lá em cima
+      if (resposta.ok) {
+        // Se deu certo baixar o estoque:
+        setCarrinho([]); // 1. Limpa o carrinho visual
+        alert("💰 Venda Finalizada! Estoque atualizado.");
       } else {
-        alert(`Erro: ${vendaCriada.erro || "Verifique o estoque ou pagamentos"}`);
+        alert("Erro ao baixar estoque!");
       }
-    } catch (error) {
-      console.error("Erro ao vender:", error);
-      alert("Erro de conexão com o servidor.");
+    } catch (erro) {
+      console.error(erro);
+      alert("Erro de conexão ao finalizar venda.");
     }
   }
   // ==========================================================================
@@ -1785,7 +1749,12 @@ function removerItemCarrinho(index: number) {
                </button>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={salvarOrcamento} disabled={carrinho.length === 0} style={{ ...estiloBotao, flex: 1, backgroundColor: carrinho.length > 0 ? '#d69e2e' : '#cbd5e0', color: 'white' }}>📝 ORÇAMENTO</button>
-                <button onClick={finalizarVenda} disabled={carrinho.length === 0 || faltaPagar > 0.05} style={{ ...estiloBotao, flex: 1, backgroundColor: (faltaPagar <= 0.05 && carrinho.length > 0) ? '#48bb78' : '#cbd5e0', color: 'white' }}>✅ VENDER</button>
+               <button 
+  className="..." 
+  onClick={finalizarVendaNoBanco} // <--- Chama direto!
+>
+  ✅ VENDER
+</button>
               </div>
             </div>
           </div>
