@@ -12,6 +12,7 @@ model Venda {
   data      DateTime @default(now())
   total     Decimal
   entrega         Boolean  @default(false)       // É pra entregar?
+  pagamento String?  // <--- ADICIONE ESTA LINHA
   statusEntrega   String?  @default("PENDENTE")  // "PENDENTE" ou "ENTREGUE"
   enderecoEntrega String?                        // Onde entregar?
   

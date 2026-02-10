@@ -472,31 +472,21 @@ app.post('/clientes/:id/haver', async (request, reply) => {
 
 // --- ROTAS DE CONTROLE DE CAIXA ---
 
-// 1. VERIFICAR STATUS DO CAIXA (O Frontend vai perguntar isso toda hora)
-// ROTA PARA SABER O SALDO (Versão Corrigida: Lê o valor real do banco)
-  app.get('/caixa/status', async (request, reply) => {
-    
-    // 1. Busca o caixa aberto
-    const caixaAberto = await prisma.caixa.findFirst({
-      where: { status: 'ABERTO' },
-      // Não precisamos mais incluir movimentações para fazer conta, o saldo já está pronto!
-    });
+// ==========================================
+// 💰 ROTAS DE CAIXA (NOVO - COLE ISSO NO SEU ARQUIVO)
+// ==========================================
 
-    if (!caixaAberto) {
-      return null; // Se não tiver caixa aberto, retorna nada
-    }
+// 1. Verificar Status
+app.get('/caixa/status', async (request, reply) => {
+  const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } });
+  return caixaAberto || null; 
+});
 
-    // 2. RETORNA O VALOR REAL QUE ESTÁ NO BANCO
-    // Antes a gente recalculava aqui e estragava o valor. Agora não mais!
-    return caixaAberto; 
-  });
-
-// 2. ABRIR CAIXA
+// 2. Abrir Caixa
 app.post('/caixa/abrir', async (req, reply) => {
   const { saldoInicial, observacoes } = req.body as any
-
-  // Verifica se já tem um aberto pra não dar confusão
   const jaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } })
+  
   if (jaAberto) return reply.status(400).send({ erro: "Já existe um caixa aberto!" })
 
   const novoCaixa = await prisma.caixa.create({
@@ -508,51 +498,58 @@ app.post('/caixa/abrir', async (req, reply) => {
     }
   })
   
-  // Registra o saldo inicial como uma movimentação também
+  // Cria o registro da movimentação inicial
   await prisma.movimentacaoCaixa.create({
     data: {
       caixaId: novoCaixa.id,
       tipo: 'ABERTURA',
       valor: Number(saldoInicial),
-      descricao: 'Saldo Inicial de Abertura'
+      descricao: 'Abertura de Caixa'
     }
   })
 
   return reply.send(novoCaixa)
 })
 
+// 3. Fechar Caixa
 app.post('/caixa/fechar', async (request, reply) => {
     const { caixaId } = request.body as { caixaId: number };
+    const caixa = await prisma.caixa.findUnique({ where: { id: Number(caixaId) } });
+    
+    if (!caixa) return reply.status(404).send({ error: "Caixa não encontrado" });
 
-    // 1. Busca o caixa para pegar o saldo atual
-    const caixa = await prisma.caixa.findUnique({
-      where: { id: Number(caixaId) }
-    });
-
-    if (!caixa) {
-      return reply.status(404).send({ error: "Caixa não encontrado" });
-    }
-
-    // 2. Fecha o caixa gravando o saldo final igual ao saldo atual
     const caixaFechado = await prisma.caixa.update({
       where: { id: Number(caixaId) },
       data: {
         status: "FECHADO",
-        dataFechamento: new Date(), // Grava a data/hora de agora
-        saldoFinal: caixa.saldoAtual // Define o saldo final
+        dataFechamento: new Date(),
+        saldoFinal: caixa.saldoAtual
       }
     });
-
     return caixaFechado;
-  });
+});
 
-// 3. SANGRIA (Retirada) ou SUPRIMENTO (Entrada extra)
+// 4. Movimentar (Sangria/Suprimento)
 app.post('/caixa/movimentar', async (req, reply) => {
-  const { tipo, valor, descricao } = req.body as any // tipo: "SANGRIA" ou "SUPRIMENTO"
-
+  const { tipo, valor, descricao } = req.body as any 
   const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } })
+  
   if (!caixaAberto) return reply.status(400).send({ erro: "Nenhum caixa aberto!" })
 
+  // Atualiza saldo
+  if (tipo === 'SANGRIA') {
+      await prisma.caixa.update({
+          where: { id: caixaAberto.id },
+          data: { saldoAtual: { decrement: Number(valor) } }
+      })
+  } else {
+      await prisma.caixa.update({
+          where: { id: caixaAberto.id },
+          data: { saldoAtual: { increment: Number(valor) } }
+      })
+  }
+
+  // Registra histórico
   const movimento = await prisma.movimentacaoCaixa.create({
     data: {
       caixaId: caixaAberto.id,
@@ -853,31 +850,57 @@ app.post('/verificar-gerente', async (req, res) => {
   });
 });
 
+// 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA AQUI
 app.post('/finalizar-venda', async (request, reply) => {
-  const { itens } = request.body as any; // Recebe a lista de produtos vendidos
+  const { itens, total, pagamento } = request.body as any;
+
+  // 1. SEGURANÇA: Só vende se tiver caixa aberto
+  const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } });
+  if (!caixaAberto) {
+    return reply.status(400).send({ erro: "O Caixa está fechado! Abra o caixa antes de vender." });
+  }
 
   try {
-    // Percorre cada item do carrinho para descontar do banco
+    // 2. Baixa Estoque
     for (const item of itens) {
       await prisma.produto.update({
-        where: { id: item.id }, // Procura o produto pelo ID
-        data: {
-          estoque: {
-            decrement: Number(item.quantidade) // 👇 A MÁGICA: Subtrai a quantidade!
-          }
-        }
+        where: { id: item.id }, // Se der erro aqui, verifique se seu front manda 'id' ou 'produtoId'
+        data: { estoque: { decrement: Number(item.quantidade) } }
       });
     }
 
-    // (Opcional) Aqui você poderia salvar na tabela "Vendas" para ter histórico
-    // await prisma.venda.create({ ... })
+    // 3. Salva Venda
+    const resumoItens = itens.map((i: any) => `${i.nome || 'Item'} (${i.quantidade}x)`).join(', ');
+    await prisma.venda.create({
+      data: {
+        total: Number(total),
+        pagamento: pagamento || "Dinheiro",
+        itens: resumoItens
+      }
+    });
 
-    console.log("📉 Estoque atualizado com sucesso!");
-    return reply.status(200).send({ mensagem: "Venda registrada e estoque baixado!" });
+    // 4. ATUALIZA O CAIXA (Se for Dinheiro)
+    if (pagamento === "Dinheiro") {
+        await prisma.caixa.update({
+            where: { id: caixaAberto.id },
+            data: { saldoAtual: { increment: Number(total) } }
+        });
+
+        await prisma.movimentacaoCaixa.create({
+            data: {
+                caixaId: caixaAberto.id,
+                tipo: "VENDA",
+                valor: Number(total),
+                descricao: "Venda em Dinheiro"
+            }
+        });
+    }
+
+    return reply.status(200).send({ mensagem: "Venda registrada!" });
 
   } catch (error) {
-    console.error("Erro ao baixar estoque:", error);
-    return reply.status(500).send({ erro: "Erro ao atualizar estoque" });
+    console.error(error);
+    return reply.status(500).send({ erro: "Erro ao finalizar venda" });
   }
 });
 

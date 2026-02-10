@@ -411,7 +411,7 @@ export function App() {
   // Sistema de Pagamento Misto
   const [listaPagamentos, setListaPagamentos] = useState<PagamentoVenda[]>([])
   const [valorPagamentoInput, setValorPagamentoInput] = useState('')
-  const [formaPagamentoInput, setFormaPagamentoInput] = useState('DINHEIRO')
+  const [formaPagamento, setFormaPagamento] = useState("Dinheiro");
   // MONITOR DE LIMPEZA: Se o carrinho esvaziar, zera o financeiro
   useEffect(() => {
     if (carrinho.length === 0) {
@@ -660,7 +660,7 @@ imprimirCupom({
     if (valorNum > faltaArredondada) {
       // 2. Correção: Tentei adivinhar que o nome é 'formaPagamentoInput'. 
       // Se der erro aqui, verifique se o nome lá em cima é 'formaSelecionada' ou 'metodoPagamento'.
-      if (formaPagamentoInput === 'DINHEIRO') { 
+      if (formaPagamento === 'DINHEIRO') { 
         const trocoCalculado = valorNum - faltaArredondada;
         setTroco(trocoCalculado); // Guarda o troco
         valorParaRegistrar = faltaArredondada; // Registra só o que faltava
@@ -670,7 +670,7 @@ imprimirCupom({
     }
 
     // 3. Adiciona na lista usando os nomes corretos
-    setListaPagamentos([...listaPagamentos, { forma: formaPagamentoInput, valor: valorParaRegistrar }]);
+    setListaPagamentos([...listaPagamentos, { forma: formaPagamento, valor: valorParaRegistrar }]);
     
     // 4. Limpa o campo usando o nome correto do 'set'
     setValorPagamentoInput(""); 
@@ -732,29 +732,41 @@ imprimirCupom({
   // --- FUNÇÃO CENTRAL: Salva no banco e limpa a tela ---
   // --- FUNÇÃO CENTRAL: Salva no banco e limpa a tela (CORRIGIDA) ---
   async function finalizarVendaNoBanco() {
+    if (carrinho.length === 0) return alert("Carrinho vazio!");
+
     try {
-      // 👇 O PULO DO GATO: Formatamos os dados para o Backend entender
+      // 1. Calcula o total na hora pra não dar erro de variável inexistente
+      const totalVenda = carrinho.reduce((acc: number, item: any) => acc + (Number(item.produto.preco) * Number(item.quantidade)), 0);
+
       const itensFormatados = carrinho.map((item: any) => ({
-        id: item.produto.id, // Pega o ID no lugar certo
-        quantidade: item.quantidade
+        id: item.produto.id,
+        quantidade: Number(item.quantidade),
+        nome: item.produto.nome
       }));
+
+      // 2. Prepara o pacote pra enviar
+      const corpoDaVenda = {
+        itens: itensFormatados,
+        total: totalVenda,
+        pagamento: formaPagamento // Usa o nome novo que criamos
+      };
 
       const resposta = await fetch(`${API_URL}/finalizar-venda`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itens: itensFormatados }) // Envia a lista formatada
+        body: JSON.stringify(corpoDaVenda) // <--- AGORA ESTAMOS USANDO A VARIÁVEL CERTA!
       });
 
       if (resposta.ok) {
-        setCarrinho([]); // Limpa o carrinho visual
-        alert("💰 Venda Finalizada! Estoque atualizado.");
+        setCarrinho([]); 
+        alert("💰 Venda Salva no Caixa!");
       } else {
-        const erro = await resposta.json(); // Tenta ler o erro do servidor
-        alert("Erro ao baixar estoque: " + JSON.stringify(erro));
+        const erro = await resposta.json();
+        alert("Erro: " + (erro.erro || JSON.stringify(erro)));
       }
     } catch (erro) {
       console.error(erro);
-      alert("Erro de conexão ao finalizar venda.");
+      alert("Erro de conexão.");
     }
   }
   // ==========================================================================
@@ -1688,13 +1700,18 @@ function removerItemCarrinho(index: number) {
                 )}
                 <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                   <input type="number" placeholder="Valor" value={valorPagamentoInput} onChange={e => setValorPagamentoInput(e.target.value)} style={{ ...estiloInput, width: '100px', marginBottom: 0 }} />
-                  <select value={formaPagamentoInput} onChange={e => setFormaPagamentoInput(e.target.value)} style={{ ...estiloInput, flex: 1, marginBottom: 0 }}>
-                    <option value="DINHEIRO">Dinheiro</option>
-                    <option value="PIX">Pix</option>
-                    <option value="CARTAO">Cartão</option>
-                    <option value="A PRAZO">A prazo</option>
-                    <option value="HAVER">Haver</option>
-                  </select>
+                  <select 
+  value={formaPagamento} 
+  onChange={(e) => setFormaPagamento(e.target.value)}
+  style={{ padding: 10, fontSize: 16, borderRadius: 5, flex: 1 }}
+>
+  <option value="Dinheiro">💵 Dinheiro</option>
+  <option value="Pix">💠 Pix</option>
+  <option value="Cartão Crédito">💳 Cartão Crédito</option>
+  <option value="Cartão Débito">💳 Cartão Débito</option>
+  <option value="A Prazo">📅 A Prazo (Fiado)</option>
+  <option value="Haver">🤝 Haver (Crédito)</option>
+</select>
                   <button onClick={adicionarPagamento} disabled={faltaPagar <= 0.05} style={{ ...estiloBotao, background: faltaPagar <= 0.05 ? '#cbd5e0' : '#3182ce', color: 'white', padding: '0 15px' }}>+</button>
                 </div>
                 
