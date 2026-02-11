@@ -904,7 +904,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
               "CNPJ": cliente.cpf_cnpj.length > 11 ? cliente.cpf_cnpj : undefined,
               "CPF": cliente.cpf_cnpj.length <= 11 ? cliente.cpf_cnpj : undefined,
               "xNome": cliente.nome || "Consumidor Final",
-              "indIEDest": "9"
+              "indIEDest": 9
           } : undefined,
           
           "det": itens.map((item: any, index: number) => {
