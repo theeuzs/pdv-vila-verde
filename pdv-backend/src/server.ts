@@ -830,6 +830,7 @@ app.post('/verificar-gerente', async (req, res) => {
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
 // Rota FINAL de Emissão de NFC-e (Padrão Completo SEFAZ 🏛️)
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
+  console.log("🚨 VERSÃO NOVA CARREGADA 🚨");
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
