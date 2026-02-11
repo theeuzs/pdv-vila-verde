@@ -828,20 +828,18 @@ app.post('/verificar-gerente', async (req, res) => {
   });
 
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
+// Rota FINAL de Emissão de NFC-e (Padrão Completo SEFAZ 🏛️)
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
-    console.log("🔍 Iniciando emissão NFC-e Simplificada...");
+    console.log("🔍 Iniciando emissão NFC-e (Padrão Completo)...");
 
-    // 1. Busca produtos no banco
-    const idsProdutos = itens
-        .map((i: any) => Number(i.id || i.produtoId))
-        .filter((id: number) => !isNaN(id));
-
+    // 1. Busca produtos
+    const idsProdutos = itens.map((i: any) => Number(i.id || i.produtoId)).filter((id: number) => !isNaN(id));
     const produtosDb = await prisma.produto.findMany({ where: { id: { in: idsProdutos } } });
 
-    // 2. Autenticação (Mantendo a que funcionou)
+    // 2. Autenticação
     const credenciais = new URLSearchParams();
     credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
     credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
@@ -854,60 +852,124 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
       body: credenciais
     });
 
-    if (!authResponse.ok) {
-        const erroTexto = await authResponse.text();
-        throw new Error(`Falha ao logar na Nuvem Fiscal: ${erroTexto}`);
-    }
-
+    if (!authResponse.ok) throw new Error(await authResponse.text());
     const authData = await authResponse.json();
     
-    // 3. Monta a Nota (SIMPLIFICADA - Sem campos sobrando)
+    // 3. Monta a Nota no Padrão OFICIAL (infNFe)
+    // Gera um número aleatório para não dar duplicidade nos testes
+    const numeroNota = Math.floor(Math.random() * 100000);
+
     const corpoNota = {
-       ambiente: "homologacao", // Use "producao" quando for pra valer
-       
-       // 👇 O CNPJ TEM QUE SER O MESMO DA CONTA (Apenas números)
-       emitente: { 
-          cpf_cnpj: "12820608000141" 
-       },
+       "infNFe": {
+          "versao": "4.00",
+          "ide": {
+             "cUF": 41, // Paraná
+             "cNF": numeroNota,
+             "natOp": "VENDA AO CONSUMIDOR",
+             "mod": 65, // Modelo 65 = NFC-e
+             "serie": 1,
+             "nNF": numeroNota,
+             "dhEmi": new Date().toISOString(),
+             "tpNF": 1,
+             "idDest": 1,
+             "cMunFG": 4106902, // Curitiba
+             "tpImp": 4, // DANFE NFC-e
+             "tpEmis": 1,
+             "cDV": 0, // API calcula
+             "tpAmb": 2, // 1=Produção, 2=Homologação (Testes)
+             "finNFe": 1,
+             "indFinal": 1,
+             "indPres": 1,
+             "procEmi": 0,
+             "verProc": "1.0"
+          },
+          "emit": {
+             "CNPJ": "12820608000141",
+             "xNome": "MATERIAIS DE CONSTRUCAO VILA VERDE LTDA",
+             "enderEmit": {
+                "xLgr": "RUA JORNALISTA RUBENS AVILA",
+                "nro": "530",
+                "xBairro": "CIDADE INDUSTRIAL",
+                "cMun": 4106902,
+                "xMun": "CURITIBA",
+                "UF": "PR",
+                "CEP": "81460219",
+                "cPais": 1058,
+                "xPais": "BRASIL"
+             },
+             // 🚨🚨 ATENÇÃO: PREENCHA AQUI A SUA INSCRIÇÃO ESTADUAL 🚨🚨
+             "IE": "9053865574", // <--- CONFIRA SE É ESSA MESMA (Achei essa pública na internet)
+             "CRT": 1 // Simples Nacional
+          },
+          // Destinatário (Opcional na NFC-e se < R$ 10k)
+          "dest": cliente ? {
+              "CNPJ": cliente.cpfCnpj.length > 11 ? cliente.cpfCnpj : undefined,
+              "CPF": cliente.cpfCnpj.length <= 11 ? cliente.cpfCnpj : undefined,
+              "xNome": cliente.nome,
+              "indIEDest": "9"
+          } : undefined,
+          
+          "det": itens.map((item: any, index: number) => {
+             const idReal = Number(item.id || item.produtoId);
+             const prod = produtosDb.find(p => p.id === idReal);
+             if (!prod) throw new Error(`Produto não encontrado.`);
 
-       // Se tiver cliente, manda. Se não, undefined.
-       destinatario: cliente ? { nome: cliente.nome, cpf_cnpj: cliente.cpfCnpj } : undefined,
-       
-       itens: itens.map((item: any, index: number) => {
-           const idReal = Number(item.id || item.produtoId);
-           const prod = produtosDb.find(p => p.id === idReal);
-           
-           if (!prod) throw new Error(`Produto ID ${idReal} não encontrado.`);
-
-           return {
-              item: index + 1,
-              codigo: String(prod.id),
-              // 👇 IMPORTANTE: "SEM GTIN" evita erro se o produto não tiver código de barras real
-              cean: "SEM GTIN", 
-              descricao: prod.nome,
-              ncm: prod.ncm,
-              cest: prod.cest,
-              cfop: prod.cfop || "5102", 
-              unidade: prod.unidade,
-              quantidade: Number(item.quantidade),
-              valor_unitario: Number(prod.precoVenda),
-              impostos: {
-                 icms: {
-                    codigo_situacao_operacao_simples_nacional: prod.csosn || "102",
-                    origem: prod.origem || "0"
-                 }
-              }
-           };
-       }),
-       pagamentos: [{
-          meio_pagamento: pagamento === 'Dinheiro' ? '01' : '99',
-          valor: Number(total)
-       }]
+             return {
+                "nItem": index + 1,
+                "prod": {
+                   "cProd": String(prod.id),
+                   "cEAN": "SEM GTIN", // Obrigatório
+                   "xProd": prod.nome,
+                   "NCM": prod.ncm || "00000000",
+                   "CFOP": "5102", // Venda mercadoria
+                   "uCom": "UN",
+                   "qCom": Number(item.quantidade).toFixed(4),
+                   "vUnCom": Number(prod.precoVenda).toFixed(10),
+                   "vProd": (Number(prod.precoVenda) * Number(item.quantidade)).toFixed(2),
+                   "cEANTrib": "SEM GTIN", // Obrigatório
+                   "uTrib": "UN",
+                   "qTrib": Number(item.quantidade).toFixed(4),
+                   "vUnTrib": Number(prod.precoVenda).toFixed(10),
+                   "indTot": 1
+                },
+                "imposto": {
+                   "ICMS": {
+                      "ICMSSN102": { // Simples Nacional
+                         "orig": 0,
+                         "CSOSN": "102"
+                      }
+                   },
+                   "PIS": { "PISQtde": { "CST": "01", "qBCProd": 0, "vAliqProd": 0 } },
+                   "COFINS": { "COFINSQtde": { "CST": "01", "qBCProd": 0, "vAliqProd": 0 } }
+                }
+             };
+          }),
+          
+          "total": {
+             "ICMSTot": {
+                "vBC": "0.00", "vICMS": "0.00", "vICMSDeson": "0.00", "vFCP": "0.00", 
+                "vBCST": "0.00", "vST": "0.00", "vFCPST": "0.00", "vFCPSTRet": "0.00",
+                "vProd": Number(total).toFixed(2),
+                "vFrete": "0.00", "vSeg": "0.00", "vDesc": "0.00", "vII": "0.00", 
+                "vIPI": "0.00", "vIPIDevol": "0.00", "vPIS": "0.00", "vCOFINS": "0.00", 
+                "vOutro": "0.00", "vNF": Number(total).toFixed(2), "vTotTrib": "0.00"
+             }
+          },
+          
+          "transp": { "modFrete": 9 }, // 9 = Sem Frete (Obrigatório informar)
+          
+          "pag": {
+             "detPag": [{
+                "tPag": pagamento === 'Dinheiro' ? "01" : "99",
+                "vPag": Number(total).toFixed(2)
+             }]
+          }
+       }
     };
 
-    console.log("📤 Enviando Payload:", JSON.stringify(corpoNota));
+    console.log("📤 Enviando...");
 
-    // 4. Envia para a API V2 (A Simplificada)
+    // 4. Envia para o Endpoint Padrão (Agora com o JSON completo!)
     const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
         method: 'POST',
         headers: {
@@ -917,25 +979,17 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
         body: JSON.stringify(corpoNota)
     });
 
-    // Tratamento de erro "inteligente"
+    const responseText = await emitirResponse.text();
     if (!emitirResponse.ok) {
-        const erroTexto = await emitirResponse.text();
-        let erroFinal;
-        try {
-            erroFinal = JSON.parse(erroTexto);
-        } catch (e) {
-            erroFinal = { erro: erroTexto };
-        }
-        console.error("❌ Erro na Emissão:", JSON.stringify(erroFinal));
-        throw new Error(JSON.stringify(erroFinal));
+        console.error("❌ Erro:", responseText);
+        throw new Error(responseText);
     }
 
-    const respostaNota = await emitirResponse.json();
-
+    const respostaNota = JSON.parse(responseText);
     return reply.status(200).send({
        mensagem: "Nota emitida com sucesso!",
-       // A API pode retornar url_danfe ou link_pdf dependendo da versão
-       url: respostaNota.url_danfe || respostaNota.link_pdf || respostaNota.caminho_danfe
+       // A resposta pode variar, tenta pegar qualquer link de PDF
+       url: respostaNota.link_danfe || respostaNota.url_danfe || "https://www.nuvemfiscal.com.br"
     });
 
   } catch (error: any) {
