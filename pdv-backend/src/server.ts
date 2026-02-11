@@ -829,11 +829,12 @@ app.post('/verificar-gerente', async (req, res) => {
 
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - VERSÃO MÍNIMA
+// ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
-    console.log("🔍 Dados recebidos:", { itens, total, pagamento, cliente });
+    console.log("🔍 Dados recebidos:", { itens, total, pagamento });
 
     // 1. Validação dos IDs
     const idsProdutos = itens
@@ -867,19 +868,20 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     const authData = await authResponse.json();
     console.log("✅ Autenticado com sucesso");
     
-    // 3. Monta a Nota - PAYLOAD MÍNIMO ABSOLUTO
+    // 3. Monta a Nota - COM O NOME CORRETO DO CAMPO
     const corpoNota = {
        ambiente: "homologacao",
        referencia: "venda-" + Date.now(),
        
-       itens: itens.map((item: any, index: number) => {
+       // ✅ MUDOU DE "itens" PARA "items"
+       items: itens.map((item: any, index: number) => {
            const idReal = Number(item.id || item.produtoId);
            const prod = produtosDb.find(p => p.id === idReal);
            
            if (!prod) throw new Error(`Produto ID ${idReal} não encontrado.`);
 
            return {
-              numero_item: index + 1,
+              numero_item: String(index + 1),
               codigo_produto: String(prod.id),
               descricao: prod.nome,
               ncm: prod.ncm || "00000000",
@@ -903,7 +905,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
        }
     };
 
-    console.log("📤 Payload NFC-e:", JSON.stringify(corpoNota, null, 2));
+    console.log("📤 Payload final:", JSON.stringify(corpoNota, null, 2));
 
     // 4. Envia para a Nuvem Fiscal
     const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
@@ -916,7 +918,8 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     });
 
     const responseText = await emitirResponse.text();
-    console.log("📥 Resposta bruta da API:", responseText);
+    console.log("📥 Status HTTP:", emitirResponse.status);
+    console.log("📥 Resposta da API:", responseText.substring(0, 500));
 
     if (!emitirResponse.ok) {
         let erroFinal;
@@ -925,12 +928,12 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
         } catch (e) {
             erroFinal = { erro: responseText };
         }
-        console.error("❌ Erro HTTP", emitirResponse.status, ":", erroFinal);
+        console.error("❌ Erro HTTP", emitirResponse.status);
         throw new Error(JSON.stringify(erroFinal));
     }
 
     const respostaNota = JSON.parse(responseText);
-    console.log("✅ SUCESSO! Nota emitida:", respostaNota);
+    console.log("✅ SUCESSO! Nota emitida");
 
     return reply.status(200).send({
        mensagem: "Nota emitida com sucesso!",
@@ -939,8 +942,8 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     });
 
   } catch (error: any) {
-    console.error("❌ ERRO GERAL:", error.message);
-    return reply.status(500).send({ erro: error.message || "Erro interno" });
+    console.error("❌ ERRO:", error.message);
+    return reply.status(500).send({ erro: error.message });
   }
 });
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA AQUI
