@@ -1,191 +1,196 @@
 import { useState } from 'react';
 
-// Define o que a tela de login espera receber (uma função para avisar que logou)
+// Estilos (CSS-in-JS simples)
+const styles = {
+  container: {
+    display: 'flex',
+    height: '100vh',
+    fontFamily: "'Segoe UI', sans-serif",
+    backgroundColor: '#f3f4f6',
+  },
+  ladoEsquerdo: {
+    flex: 1,
+    background: 'linear-gradient(135deg, #1a202c 0%, #2d3748 100%)',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    justifyContent: 'center',
+    alignItems: 'center',
+    color: 'white',
+    padding: '40px',
+  },
+  ladoDireito: {
+    flex: 1,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '40px',
+  },
+  card: {
+    width: '100%',
+    maxWidth: '400px',
+    padding: '40px',
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
+  },
+  titulo: {
+    fontSize: '2rem',
+    fontWeight: '800',
+    color: '#1a202c',
+    marginBottom: '10px',
+    textAlign: 'center' as const,
+  },
+  subtitulo: {
+    color: '#718096',
+    textAlign: 'center' as const,
+    marginBottom: '30px',
+  },
+  inputGroup: {
+    marginBottom: '20px',
+  },
+  label: {
+    display: 'block',
+    fontSize: '0.9rem',
+    fontWeight: '600',
+    color: '#4a5568',
+    marginBottom: '8px',
+  },
+  input: {
+    width: '100%',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    fontSize: '1rem',
+    transition: 'border-color 0.2s',
+    outline: 'none',
+    boxSizing: 'border-box' as const,
+  },
+  botao: {
+    width: '100%',
+    padding: '14px',
+    backgroundColor: '#48bb78',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '1rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'background 0.2s',
+    marginTop: '10px',
+  },
+  erro: {
+    backgroundColor: '#fff5f5',
+    color: '#c53030',
+    padding: '10px',
+    borderRadius: '6px',
+    marginBottom: '20px',
+    textAlign: 'center' as const,
+    fontSize: '0.9rem',
+    border: '1px solid #feb2b2',
+  }
+};
+
 interface Props {
   onLoginSucesso: (usuario: any) => void;
 }
 
 export function TelaLogin({ onLoginSucesso }: Props) {
-  const [cargoSelecionado, setCargoSelecionado] = useState<string | null>(null);
-  const [nome, setNome] = useState('');
+  const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
-  const [carregando, setCarregando] = useState(false);
 
-  const API_URL = 'https://api-vila-verde.onrender.com'; // Ajuste se seu backend estiver em outra porta
+  const API_URL = 'https://api-vila-verde.onrender.com'; // Ou seu localhost
 
-  async function tentarLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    setLoading(true);
     setErro('');
-    setCarregando(true);
 
     try {
-      const response = await fetch(`${API_URL}/login`, {
+      const res = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome,
-          senha,
-          cargo: cargoSelecionado
-        })
+        body: JSON.stringify({ email, senha })
       });
 
-      if (response.ok) {
-        const usuario = await response.json();
-        onLoginSucesso(usuario); // Avisa o App.tsx que deu certo!
+      const data = await res.json();
+
+      if (res.ok) {
+        onLoginSucesso(data);
       } else {
-        setErro('Nome ou senha incorretos!');
+        setErro(data.erro || 'Falha ao entrar');
       }
-    } catch (err) {
+    } catch (error) {
       setErro('Erro de conexão com o servidor.');
     } finally {
-      setCarregando(false);
+      setLoading(false);
     }
   }
 
-  // --- TELA 1: SELEÇÃO DE CARGO ---
-  if (!cargoSelecionado) {
-    return (
-      <div style={styles.container}>
+  return (
+    <div style={styles.container}>
+      {/* LADO ESQUERDO: BRANDING (Só aparece em telas maiores que mobile) */}
+      <div className="hidden md:flex" style={styles.ladoEsquerdo}>
+        <div style={{ fontSize: '80px', marginBottom: '20px' }}>🏗️</div>
+        <h1 style={{ fontSize: '3rem', margin: 0, fontWeight: 900 }}>Vila Verde</h1>
+        <p style={{ opacity: 0.8, fontSize: '1.2rem', marginTop: '10px' }}>Sistema de Gestão & PDV</p>
+      </div>
+
+      {/* LADO DIREITO: FORMULÁRIO */}
+      <div style={styles.ladoDireito}>
         <div style={styles.card}>
-          <h1 style={{ color: '#2c3e50', marginBottom: '30px' }}>Quem está acessando? 🔐</h1>
-          
-          <div style={styles.gridBotoes}>
-            {/* Botão GERENTE */}
-            <button onClick={() => setCargoSelecionado('GERENTE')} style={{ ...styles.botaoCargo, backgroundColor: '#2c3e50' }}>
-              <span style={{ fontSize: '40px' }}>👔</span>
-              <span style={styles.textoBotao}>GERENTE</span>
-            </button>
+          <div style={styles.titulo}>Bem-vindo! 👋</div>
+          <div style={styles.subtitulo}>Digite suas credenciais para acessar.</div>
 
-            {/* Botão VENDEDOR */}
-            <button onClick={() => setCargoSelecionado('VENDEDOR')} style={{ ...styles.botaoCargo, backgroundColor: '#27ae60' }}>
-              <span style={{ fontSize: '40px' }}>🛒</span>
-              <span style={styles.textoBotao}>VENDEDOR</span>
-            </button>
+          {erro && <div style={styles.erro}>{erro}</div>}
 
-            {/* Botão MOTORISTA */}
-            <button onClick={() => setCargoSelecionado('MOTORISTA')} style={{ ...styles.botaoCargo, backgroundColor: '#e67e22' }}>
-              <span style={{ fontSize: '40px' }}>🚚</span>
-              <span style={styles.textoBotao}>MOTORISTA</span>
+          <form onSubmit={handleLogin}>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>E-mail</label>
+              <input 
+                type="email" 
+                placeholder="ex: admin@vilaverde.com" 
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                style={styles.input}
+                required
+              />
+            </div>
+
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Senha</label>
+              <input 
+                type="password" 
+                placeholder="••••••••" 
+                value={senha}
+                onChange={e => setSenha(e.target.value)}
+                style={styles.input}
+                required
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              style={{...styles.botao, opacity: loading ? 0.7 : 1, cursor: loading ? 'wait' : 'pointer'}}
+              disabled={loading}
+            >
+              {loading ? 'Entrando...' : 'ACESSAR SISTEMA 🔐'}
             </button>
+          </form>
+
+          <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '0.8rem', color: '#a0aec0' }}>
+            Esqueceu a senha? Chame o suporte (Matheus).
           </div>
         </div>
       </div>
-    );
-  }
 
-  // --- TELA 2: FORMULÁRIO DE SENHA ---
-  return (
-    <div style={styles.container}>
-      <div style={{ ...styles.card, maxWidth: '400px' }}>
-        <button onClick={() => { setCargoSelecionado(null); setErro(''); }} style={styles.botaoVoltar}>
-          ⬅ Voltar
-        </button>
-
-        <h2 style={{ color: '#333' }}>Login de {cargoSelecionado}</h2>
-        <p style={{ color: '#666', marginBottom: '20px' }}>Insira suas credenciais</p>
-
-        <form onSubmit={tentarLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          
-          <input
-            type="text"
-            placeholder="Seu Nome (ex: Matheus)"
-            value={nome}
-            onChange={e => setNome(e.target.value)}
-            style={styles.input}
-            autoFocus
-          />
-
-          <input
-            type="password"
-            placeholder="Senha"
-            value={senha}
-            onChange={e => setSenha(e.target.value)}
-            style={styles.input}
-          />
-
-          {erro && <div style={{ color: 'red', fontSize: '0.9rem', textAlign: 'center' }}>{erro}</div>}
-
-          <button type="submit" disabled={carregando} style={styles.botaoEntrar}>
-            {carregando ? 'Verificando...' : 'ENTRAR NO SISTEMA'}
-          </button>
-        </form>
-      </div>
+      {/* CSS RESPONSIVO PARA ESCONDER O LADO ESQUERDO NO MOBILE */}
+      <style>{`
+        @media (max-width: 768px) {
+          .hidden.md\\:flex { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
-
-// Estilos CSS simples dentro do JS
-const styles: any = {
-  container: {
-    height: '100vh',
-    width: '100vw',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f0f2f5',
-    fontFamily: 'Arial, sans-serif'
-  },
-  card: {
-    backgroundColor: 'white',
-    padding: '40px',
-    borderRadius: '20px',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-    textAlign: 'center',
-    width: '90%',
-    maxWidth: '800px'
-  },
-  gridBotoes: {
-    display: 'flex',
-    gap: '20px',
-    justifyContent: 'center',
-    flexWrap: 'wrap'
-  },
-  botaoCargo: {
-    border: 'none',
-    borderRadius: '15px',
-    padding: '20px',
-    width: '180px',
-    height: '180px',
-    color: 'white',
-    cursor: 'pointer',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '10px',
-    transition: 'transform 0.2s',
-    boxShadow: '0 5px 15px rgba(0,0,0,0.2)'
-  },
-  textoBotao: {
-    fontSize: '1.2rem',
-    fontWeight: 'bold'
-  },
-  input: {
-    padding: '15px',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-    fontSize: '1rem',
-    outline: 'none'
-  },
-  botaoEntrar: {
-    padding: '15px',
-    backgroundColor: '#2ecc71',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '1.1rem',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    marginTop: '10px'
-  },
-  botaoVoltar: {
-    background: 'transparent',
-    border: 'none',
-    color: '#666',
-    cursor: 'pointer',
-    marginBottom: '20px',
-    alignSelf: 'flex-start',
-    display: 'block'
-  }
-};

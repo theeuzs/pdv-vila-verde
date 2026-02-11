@@ -13,6 +13,35 @@ dotenv.config();
 const app = Fastify()
 const prisma = new PrismaClient()
 
+// Rota de LOGIN 🔐
+app.post('/login', async (request: any, reply: any) => {
+  const { email, senha } = request.body;
+
+  try {
+    // 1. Busca o usuário pelo email
+    const usuario = await prisma.user.findUnique({ where: { email } });
+
+    if (!usuario) {
+      return reply.status(400).send({ erro: "Email não encontrado." });
+    }
+
+    // 2. Compara a senha digitada com a criptografia do banco
+    const senhaBateu = await compare(senha, usuario.senha);
+
+    if (!senhaBateu) {
+      return reply.status(401).send({ erro: "Senha incorreta!" });
+    }
+
+    // 3. Devolve os dados do usuário (sem a senha, claro)
+    const { senha: _, ...usuarioSemSenha } = usuario;
+    
+    return reply.status(200).send(usuarioSemSenha);
+
+  } catch (error) {
+    return reply.status(500).send({ erro: "Erro interno no servidor." });
+  }
+});
+
 // Configuração do CORS (O porteiro)
 app.register(cors, { 
   origin: true, // Aceita requisições de qualquer lugar (ou coloque o link do seu front)
