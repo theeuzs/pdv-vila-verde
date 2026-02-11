@@ -8,76 +8,73 @@ datasource db {
 }
 
 model Venda {
-  id        Int      @id @default(autoincrement())
-  data      DateTime @default(now())
-  total     Decimal
-  entrega         Boolean  @default(false)       // É pra entregar?
-  pagamento String?  // <--- ADICIONE ESTA LINHA
-  urlFiscal   String?
-  statusEntrega   String?  @default("PENDENTE")  // "PENDENTE" ou "ENTREGUE"
-  enderecoEntrega String?                        // Onde entregar?
-  nota_emitida    Boolean  @default(false) // Pra saber se tem nota
-  nota_id_nuvem   String?  // O ID "nfc_..." da Nuvem Fiscal
-  nota_chave      String?  // A chave de 44 números
-  nota_numero     Int?     // O número da nota (ex: 502)
-  nota_url_pdf    String?  // O link do PDF (se tiver)
-  nota_cancelada Boolean @default(false)
+  id              Int            @id @default(autoincrement())
+  data            DateTime       @default(now())
+  total           Decimal        @db.Decimal(10, 2) // Recomendado definir precisão
+  entrega         Boolean        @default(false)
+  pagamento       String?        // Campo redundante se usar a tabela Pagamento, mas pode manter
+  urlFiscal       String?
+  statusEntrega   String?        @default("PENDENTE")
+  enderecoEntrega String?
   
-  // formaPagamento String? (Pode apagar ou deixar como opcional, não vamos mais usar ele como principal)
-  
-  clienteId Int?     
-  cliente   Cliente? @relation(fields: [clienteId], references: [id])
+  // Dados fiscais
+  nota_emitida    Boolean        @default(false)
+  nota_id_nuvem   String?
+  nota_chave      String?
+  nota_numero     Int?
+  nota_url_pdf    String?
+  nota_cancelada  Boolean        @default(false)
 
-  itens      ItemVenda[]
-  pagamentos Pagamento[] // <--- NOVO: Relação com pagamentos
+  // Relacionamentos
+  clienteId       Int?
+  cliente         Cliente?       @relation(fields: [clienteId], references: [id])
   
-  contaReceber ContaReceber?
+  caixaId         Int?
+  caixa           Caixa?         @relation(fields: [caixaId], references: [id])
+
+  itens           ItemVenda[]
+  pagamentos      Pagamento[]
+  contaReceber    ContaReceber?
+
   @@map("vendas")
-   caixa       Caixa?   @relation(fields: [caixaId], references: [id])
-   caixaId     Int?
 }
 
 model ItemVenda {
   id         Int     @id @default(autoincrement())
   quantidade Decimal @db.Decimal(10, 3)
   precoUnit  Decimal @map("preco_unitario") @db.Decimal(10, 2)
+  
   vendaId    Int     @map("venda_id")
+  venda      Venda   @relation(fields: [vendaId], references: [id])
+  
   produtoId  Int     @map("produto_id")
   produto    Produto @relation(fields: [produtoId], references: [id])
-  venda      Venda   @relation(fields: [vendaId], references: [id])
 
   @@map("itens_venda")
 }
 
-// ... seus outros models (Produto, Venda, etc) ...
-
 model Cliente {
-  id           Int      @id @default(autoincrement())
+  id           Int            @id @default(autoincrement())
   nome         String
-  
-  // 👇 Seus dados de contato atuais
-  cpfCnpj      String?  @unique // Importante ser único para não duplicar cadastro
+  cpfCnpj      String?        @unique
   celular      String?
   
-  // 👇 O Pulo do Gato para NF-e: Endereço Separado
-  // (Mantenha o 'endereco' antigo por segurança, mas comece a usar os novos)
-  endereco     String?  // Seu campo antigo (pode deixar aqui)
-  
-  email        String?  // Para enviar a nota por email
+  // Endereço
+  endereco     String?
+  email        String?
   cep          String?
   rua          String?
   numero       String?
   bairro       String?
   cidade       String?
-  estado       String?  // UF (Ex: PR, SP)
+  estado       String?
 
-  // 👇 Seus campos financeiros (MANTIDOS IGUAIS)
-  saldoHaver   Decimal  @default(0) @db.Decimal(10, 2)
-  saldoDevedor Decimal  @default(0) @db.Decimal(10, 2)
-  
-  criadoEm     DateTime @default(now())
+  // Financeiro
+  saldoHaver   Decimal        @default(0) @db.Decimal(10, 2)
+  saldoDevedor Decimal        @default(0) @db.Decimal(10, 2)
+  criadoEm     DateTime       @default(now())
 
-  // 👇 Suas Relações (MANTIDAS IGUAIS)
+  // Relacionamentos
   vendas       Venda[]
   contas       ContaReceber[]
   orcamentos   Orcamento[]
@@ -88,93 +85,92 @@ model Cliente {
 model User {
   id       String   @id @default(uuid())
   nome     String
+  username String   @unique
   email    String   @unique
   senha    String
   cargo    String
   criadoEm DateTime @default(now())
+
+  @@map("users") // Boa prática mapear para minúsculo no banco
 }
 
 model Produto {
-  id          Int      @id @default(autoincrement())
-  nome        String
-  codigoBarra String?  @unique
+  id            Int             @id @default(autoincrement())
+  nome          String
+  codigoBarra   String?         @unique
   
-  // Seus preços atuais (Mantenha Float se já está usando assim)
-  precoCusto  Float
-  precoVenda  Float
-  estoque     Int
+  precoCusto    Float
+  precoVenda    Float
+  estoque       Int
   
-  // Seus campos atuais
-  unidade     String?  // Vamos usar esse campo para enviar como 'uCom' (UN, KG...)
-  categoria   String?
-  fornecedor  String?
-  localizacao String?
+  unidade       String?
+  categoria     String?
+  fornecedor    String?
+  localizacao   String?
   
-  // Seus impostos (Pode manter, mas a API fiscal foca mais no NCM/CSOSN)
-  ipi         Float?   @default(0)
-  icms        Float?   @default(0)
-  frete       Float?   @default(0)
+  ipi           Float?          @default(0)
+  icms          Float?          @default(0)
+  frete         Float?          @default(0)
 
-  // 👇 CAMPOS FISCAIS QUE VOCÊ JÁ TEM (MANTENHA) 👇
-  ncm         String?  // Essencial! Ex: "22021000" (Refrigerante)
-  cest        String?  
-  cfop        String?  // Ex: "5102" (Venda)
+  // Fiscais
+  ncm           String?
+  cest          String?
+  cfop          String?
+  csosn         String          @default("102")
+  origem        String          @default("0")
 
-  // 👇 O QUE FALTA ADICIONAR AGORA 👇
-  csosn       String   @default("102")  // 102 = Tributado pelo Simples Nacional
-  origem      String   @default("0")    // 0 = Nacional
-  
-  itens       ItemVenda[]
+  // Relacionamentos
+  itens          ItemVenda[]
   itensOrcamento ItemOrcamento[]
+
+  @@map("produtos")
 }
 
-// --- NOVO MODELO: CONTAS A RECEBER ---
 model ContaReceber {
-  id        Int      @id @default(autoincrement())
-  valor     Decimal
-  status    String   @default("PENDENTE") // PENDENTE ou PAGO
-  data      DateTime @default(now())
-  descricao       String?
-  dataVencimento  DateTime
+  id             Int      @id @default(autoincrement())
+  valor          Decimal  @db.Decimal(10, 2)
+  status         String   @default("PENDENTE")
+  data           DateTime @default(now())
+  descricao      String?
+  dataVencimento DateTime
   
-  clienteId Int
-  cliente   Cliente  @relation(fields: [clienteId], references: [id])
+  clienteId      Int
+  cliente        Cliente  @relation(fields: [clienteId], references: [id])
   
-  vendaId   Int      @unique
-  venda     Venda    @relation(fields: [vendaId], references: [id])
+  vendaId        Int      @unique
+  venda          Venda    @relation(fields: [vendaId], references: [id])
 
   @@map("contas_receber")
 }
 
-// --- NOVO MODELO: PAGAMENTO ---
 model Pagamento {
-  id        Int      @id @default(autoincrement())
-  valor     Decimal
-  forma     String   // DINHEIRO, PIX, CARTAO, HAVER, A PRAZO
+  id      Int     @id @default(autoincrement())
+  valor   Decimal @db.Decimal(10, 2)
+  forma   String  // DINHEIRO, PIX, CARTAO, HAVER, A PRAZO
   
-  vendaId   Int
-  venda     Venda    @relation(fields: [vendaId], references: [id])
+  vendaId Int
+  venda   Venda   @relation(fields: [vendaId], references: [id])
 
   @@map("pagamentos")
 }
 
-// --- NOVO: ORÇAMENTOS ---
 model Orcamento {
-  id        Int      @id @default(autoincrement())
-  data      DateTime @default(now())
-  total     Decimal
+  id        Int             @id @default(autoincrement())
+  data      DateTime        @default(now())
+  total     Decimal         @db.Decimal(10, 2)
   
   clienteId Int?
-  cliente   Cliente? @relation(fields: [clienteId], references: [id])
+  cliente   Cliente?        @relation(fields: [clienteId], references: [id])
 
   itens     ItemOrcamento[]
+
   @@map("orcamentos")
 }
 
 model ItemOrcamento {
   id          Int       @id @default(autoincrement())
-  quantidade  Decimal
-  precoUnit   Decimal
+  quantidade  Decimal   @db.Decimal(10, 3)
+  precoUnit   Decimal   @db.Decimal(10, 2)
   
   orcamentoId Int
   orcamento   Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
@@ -184,29 +180,32 @@ model ItemOrcamento {
 
   @@map("itens_orcamento")
 }
-// --- CONTROLE DE CAIXA ---
 
 model Caixa {
-  id            Int       @id @default(autoincrement())
-  dataAbertura  DateTime  @default(now())
-  dataFechamento DateTime? // Pode ser nulo se o caixa ainda estiver aberto
-  saldoInicial  Decimal   @db.Decimal(10, 2)
-  saldoAtual     Decimal   @default(0)
-  saldoFinal    Decimal?  @db.Decimal(10, 2)
-  status        String    @default("ABERTO") // "ABERTO" ou "FECHADO"
-  observacoes   String?
+  id             Int                 @id @default(autoincrement())
+  dataAbertura   DateTime            @default(now())
+  dataFechamento DateTime?
+  saldoInicial   Decimal             @db.Decimal(10, 2)
+  saldoAtual     Decimal             @default(0) @db.Decimal(10, 2)
+  saldoFinal     Decimal?            @db.Decimal(10, 2)
+  status         String              @default("ABERTO")
+  observacoes    String?
   
-  movimentacoes MovimentacaoCaixa[]
-  vendas        Venda[]
+  movimentacoes  MovimentacaoCaixa[]
+  vendas         Venda[]
+
+  @@map("caixas")
 }
 
 model MovimentacaoCaixa {
-  id          Int      @id @default(autoincrement())
-  data        DateTime @default(now())
-  tipo        String   // "VENDA", "SANGRIA", "SUPRIMENTO", "ABERTURA"
-  valor       Decimal  @db.Decimal(10, 2)
-  descricao   String?
+  id        Int      @id @default(autoincrement())
+  data      DateTime @default(now())
+  tipo      String   // "VENDA", "SANGRIA", "SUPRIMENTO", "ABERTURA"
+  valor     Decimal  @db.Decimal(10, 2)
+  descricao String?
   
-  caixa       Caixa    @relation(fields: [caixaId], references: [id])
-  caixaId     Int
+  caixaId   Int
+  caixa     Caixa    @relation(fields: [caixaId], references: [id])
+
+  @@map("movimentacoes_caixa")
 }
