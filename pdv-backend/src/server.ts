@@ -833,7 +833,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
-    console.log("🔍 Iniciando emissão NFC-e (Padrão Completo)...");
+    console.log("🔍 Iniciando emissão NFC-e...");
 
     // 1. Busca produtos
     const idsProdutos = itens.map((i: any) => Number(i.id || i.produtoId)).filter((id: number) => !isNaN(id));
@@ -855,28 +855,27 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     if (!authResponse.ok) throw new Error(await authResponse.text());
     const authData = await authResponse.json();
     
-    // 3. Monta a Nota no Padrão OFICIAL (infNFe)
-    // Gera um número aleatório para não dar duplicidade nos testes
+    // 3. Monta a Nota
     const numeroNota = Math.floor(Math.random() * 100000);
 
     const corpoNota = {
        "infNFe": {
           "versao": "4.00",
           "ide": {
-             "cUF": 41, // Paraná
+             "cUF": 41, 
              "cNF": numeroNota,
              "natOp": "VENDA AO CONSUMIDOR",
-             "mod": 65, // Modelo 65 = NFC-e
+             "mod": 65,
              "serie": 1,
              "nNF": numeroNota,
              "dhEmi": new Date().toISOString(),
              "tpNF": 1,
              "idDest": 1,
-             "cMunFG": 4106902, // Curitiba
-             "tpImp": 4, // DANFE NFC-e
+             "cMunFG": 4106902,
+             "tpImp": 4, 
              "tpEmis": 1,
-             "cDV": 0, // API calcula
-             "tpAmb": 2, // 1=Produção, 2=Homologação (Testes)
+             "cDV": 0,
+             "tpAmb": 2, // Homologação
              "finNFe": 1,
              "indFinal": 1,
              "indPres": 1,
@@ -888,7 +887,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
              "xNome": "MATERIAIS DE CONSTRUCAO VILA VERDE LTDA",
              "enderEmit": {
                 "xLgr": "RUA JORNALISTA RUBENS AVILA",
-                "nro": "530",
+                "nro": "431",
                 "xBairro": "CIDADE INDUSTRIAL",
                 "cMun": 4106902,
                 "xMun": "CURITIBA",
@@ -897,15 +896,14 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
                 "cPais": 1058,
                 "xPais": "BRASIL"
              },
-             // 🚨🚨 ATENÇÃO: PREENCHA AQUI A SUA INSCRIÇÃO ESTADUAL 🚨🚨
-             "IE": "9053865574", // <--- CONFIRA SE É ESSA MESMA (Achei essa pública na internet)
-             "CRT": 1 // Simples Nacional
+             "IE": "9053865574",
+             "CRT": 1
           },
-          // Destinatário (Opcional na NFC-e se < R$ 10k)
-          "dest": cliente ? {
-              "CNPJ": cliente.cpfCnpj.length > 11 ? cliente.cpfCnpj : undefined,
-              "CPF": cliente.cpfCnpj.length <= 11 ? cliente.cpfCnpj : undefined,
-              "xNome": cliente.nome,
+          // 👇 A CORREÇÃO ESTÁ AQUI (cpf_cnpj e Trava de Segurança)
+          "dest": (cliente && cliente.cpf_cnpj) ? {
+              "CNPJ": cliente.cpf_cnpj.length > 11 ? cliente.cpf_cnpj : undefined,
+              "CPF": cliente.cpf_cnpj.length <= 11 ? cliente.cpf_cnpj : undefined,
+              "xNome": cliente.nome || "Consumidor Final",
               "indIEDest": "9"
           } : undefined,
           
@@ -918,15 +916,15 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
                 "nItem": index + 1,
                 "prod": {
                    "cProd": String(prod.id),
-                   "cEAN": "SEM GTIN", // Obrigatório
+                   "cEAN": "SEM GTIN",
                    "xProd": prod.nome,
                    "NCM": prod.ncm || "00000000",
-                   "CFOP": "5102", // Venda mercadoria
+                   "CFOP": "5102",
                    "uCom": "UN",
                    "qCom": Number(item.quantidade).toFixed(4),
                    "vUnCom": Number(prod.precoVenda).toFixed(10),
                    "vProd": (Number(prod.precoVenda) * Number(item.quantidade)).toFixed(2),
-                   "cEANTrib": "SEM GTIN", // Obrigatório
+                   "cEANTrib": "SEM GTIN",
                    "uTrib": "UN",
                    "qTrib": Number(item.quantidade).toFixed(4),
                    "vUnTrib": Number(prod.precoVenda).toFixed(10),
@@ -934,10 +932,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
                 },
                 "imposto": {
                    "ICMS": {
-                      "ICMSSN102": { // Simples Nacional
-                         "orig": 0,
-                         "CSOSN": "102"
-                      }
+                      "ICMSSN102": { "orig": 0, "CSOSN": "102" }
                    },
                    "PIS": { "PISQtde": { "CST": "01", "qBCProd": 0, "vAliqProd": 0 } },
                    "COFINS": { "COFINSQtde": { "CST": "01", "qBCProd": 0, "vAliqProd": 0 } }
@@ -956,7 +951,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
              }
           },
           
-          "transp": { "modFrete": 9 }, // 9 = Sem Frete (Obrigatório informar)
+          "transp": { "modFrete": 9 },
           
           "pag": {
              "detPag": [{
@@ -969,7 +964,6 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
 
     console.log("📤 Enviando...");
 
-    // 4. Envia para o Endpoint Padrão (Agora com o JSON completo!)
     const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
         method: 'POST',
         headers: {
@@ -988,8 +982,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     const respostaNota = JSON.parse(responseText);
     return reply.status(200).send({
        mensagem: "Nota emitida com sucesso!",
-       // A resposta pode variar, tenta pegar qualquer link de PDF
-       url: respostaNota.link_danfe || respostaNota.url_danfe || "https://www.nuvemfiscal.com.br"
+       url: respostaNota.link_danfe || respostaNota.url_danfe
     });
 
   } catch (error: any) {
