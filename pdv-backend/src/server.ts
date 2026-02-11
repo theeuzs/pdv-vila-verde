@@ -866,8 +866,8 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     // 3. Monta a Nota
     const corpoNota = {
        ambiente: "homologacao",
-       natureza_operacao: "Venda ao Consumidor",
-       finalidade: "final",
+       natureza_operacao_descricao: "Venda ao Consumidor",
+       finalidade_emissao: "final",
        emitente: { cpf_cnpj: "12820608000141" }, // <--- CONFIRA SEU CNPJ
        destinatario: cliente ? { nome: cliente.nome, cpf_cnpj: cliente.cpfCnpj } : undefined,
        
