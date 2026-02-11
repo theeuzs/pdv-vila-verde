@@ -899,18 +899,22 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
              "IE": "9053865574",
              "CRT": 1
           },
-          // 👇 A CORREÇÃO ESTÁ AQUI (cpf_cnpj e Trava de Segurança)
           "dest": (cliente && cliente.cpf_cnpj) ? {
               "CNPJ": cliente.cpf_cnpj.length > 11 ? cliente.cpf_cnpj : undefined,
               "CPF": cliente.cpf_cnpj.length <= 11 ? cliente.cpf_cnpj : undefined,
               "xNome": cliente.nome || "Consumidor Final",
-              "indIEDest": 9
+              "indIEDest": 9 // Número puro (sem aspas)
           } : undefined,
           
           "det": itens.map((item: any, index: number) => {
              const idReal = Number(item.id || item.produtoId);
              const prod = produtosDb.find(p => p.id === idReal);
              if (!prod) throw new Error(`Produto não encontrado.`);
+
+             // Cálculos auxiliares
+             const qtd = Number(item.quantidade);
+             const valorUnit = Number(prod.precoVenda);
+             const valorTotalItem = qtd * valorUnit;
 
              return {
                 "nItem": index + 1,
@@ -921,13 +925,14 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
                    "NCM": prod.ncm || "00000000",
                    "CFOP": "5102",
                    "uCom": "UN",
-                   "qCom": Number(item.quantidade).toFixed(4),
-                   "vUnCom": Number(prod.precoVenda).toFixed(10),
-                   "vProd": (Number(prod.precoVenda) * Number(item.quantidade)).toFixed(2),
+                   // 👇 AQUI ESTAVA O ERRO! Agora convertemos de volta para Number
+                   "qCom": Number(qtd.toFixed(4)), 
+                   "vUnCom": Number(valorUnit.toFixed(10)),
+                   "vProd": Number(valorTotalItem.toFixed(2)),
                    "cEANTrib": "SEM GTIN",
                    "uTrib": "UN",
-                   "qTrib": Number(item.quantidade).toFixed(4),
-                   "vUnTrib": Number(prod.precoVenda).toFixed(10),
+                   "qTrib": Number(qtd.toFixed(4)),
+                   "vUnTrib": Number(valorUnit.toFixed(10)),
                    "indTot": 1
                 },
                 "imposto": {
@@ -942,12 +947,15 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
           
           "total": {
              "ICMSTot": {
-                "vBC": "0.00", "vICMS": "0.00", "vICMSDeson": "0.00", "vFCP": "0.00", 
-                "vBCST": "0.00", "vST": "0.00", "vFCPST": "0.00", "vFCPSTRet": "0.00",
-                "vProd": Number(total).toFixed(2),
-                "vFrete": "0.00", "vSeg": "0.00", "vDesc": "0.00", "vII": "0.00", 
-                "vIPI": "0.00", "vIPIDevol": "0.00", "vPIS": "0.00", "vCOFINS": "0.00", 
-                "vOutro": "0.00", "vNF": Number(total).toFixed(2), "vTotTrib": "0.00"
+                // 👇 TODOS ESSES CAMPOS AGORA SÃO NÚMEROS (0), NÃO TEXTOS ("0.00")
+                "vBC": 0, "vICMS": 0, "vICMSDeson": 0, "vFCP": 0, 
+                "vBCST": 0, "vST": 0, "vFCPST": 0, "vFCPSTRet": 0,
+                "vProd": Number(Number(total).toFixed(2)),
+                "vFrete": 0, "vSeg": 0, "vDesc": 0, "vII": 0, 
+                "vIPI": 0, "vIPIDevol": 0, "vPIS": 0, "vCOFINS": 0, 
+                "vOutro": 0, 
+                "vNF": Number(Number(total).toFixed(2)), 
+                "vTotTrib": 0
              }
           },
           
@@ -956,7 +964,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
           "pag": {
              "detPag": [{
                 "tPag": pagamento === 'Dinheiro' ? "01" : "99",
-                "vPag": Number(total).toFixed(2)
+                "vPag": Number(Number(total).toFixed(2)) // 👇 Convertido pra Número
              }]
           }
        }
