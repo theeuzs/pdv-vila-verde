@@ -1023,7 +1023,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     console.error("❌ ERRO:", error);
     return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
-});
+}); 
 
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA AQUI
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA VERSÃO INTEGRADA
