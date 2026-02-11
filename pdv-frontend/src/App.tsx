@@ -500,12 +500,10 @@ export function App() {
 
         if (response.ok) {
           alert("✅ " + resultado.mensagem);
+          if (resultado.url) window.open(resultado.url, '_blank');
           
-          if (resultado.url) {
-              window.open(resultado.url, '_blank');
-          }
-          // Salva no banco com o link
-          await finalizarVendaNoBanco(resultado.url);
+          // 👇 MUDANÇA: Passa o objeto 'resultado' inteiro (que tem ID e Chave)
+          await finalizarVendaNoBanco(resultado); 
 
         } else {
           alert("❌ Erro ao emitir: " + (resultado.erro || "Erro desconhecido"));
@@ -517,7 +515,7 @@ export function App() {
       }
     }
 
-  async function finalizarVendaNoBanco(linkDaNota: string = "") {
+  async function finalizarVendaNoBanco(dadosFiscais: any = null) {
     // 🛑 TRAVA DE SEGURANÇA: Verifica se o caixa está aberto
     if (!caixaAberto) {
       alert("⛔ CAIXA FECHADO!\n\nVocê precisa abrir o caixa (Botão 'Abrir Caixa') antes de realizar vendas.");
@@ -541,7 +539,7 @@ export function App() {
         pagamentos: listaPagamentos, // Envia lista detalhada se houver
         clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
         caixaId: caixaAberto.id,
-        urlFiscal: linkDaNota // 👈 ENVIA O LINK QUE RECEBEU (ou vazio)
+        dadosFiscais: dadosFiscais
       };
 
       const resposta = await fetch(`${API_URL}/finalizar-venda`, {
