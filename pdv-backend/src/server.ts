@@ -830,7 +830,7 @@ app.post('/verificar-gerente', async (req, res) => {
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
 // Rota FINAL de Emissão de NFC-e (Padrão Completo SEFAZ 🏛️)
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
-  console.log("🚨 1. ROTA ACIONADA - VERSÃO FINAL COM RETRY");
+  console.log("🚨 1. ROTA ACIONADA - FINAL COM RETRY AUTOMÁTICO");
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
@@ -983,10 +983,10 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     if (!linkPdf && respostaJson.status === 'autorizado') {
         console.log("🔄 6. Link não veio imediato. Buscando detalhes da nota...");
         try {
-            // Pequeno delay de 1 segundo para dar tempo da API gerar
+            // Pequeno delay de 1 segundo para dar tempo da API gerar o PDF
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // Usa o ID da nota que acabou de ser criada
+            // Usa o ID da nota que acabou de ser criada para buscar os dados completos
             const idNota = respostaJson.id; 
             const fetchDetalhes = await fetch(`https://api.sandbox.nuvemfiscal.com.br/nfce/${idNota}`, {
                 method: 'GET',
@@ -1001,10 +1001,10 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
         }
     }
 
-    // Se ainda assim não tiver link, retorna mensagem de sucesso sem URL
+    // Se no final de tudo ainda não tiver link, manda uma mensagem (mas não o link quebrado)
     return reply.status(200).send({
        mensagem: "Nota autorizada com sucesso!",
-       url: linkPdf || "https://sandbox.nuvemfiscal.com.br" // Fallback visual
+       url: linkPdf // Se for undefined, o frontend vai ter que lidar, mas não manda link quebrado
     });
 
   } catch (error: any) {
