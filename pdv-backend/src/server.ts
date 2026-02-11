@@ -830,7 +830,7 @@ app.post('/verificar-gerente', async (req, res) => {
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
 // Rota FINAL de Emissão de NFC-e (Padrão Completo SEFAZ 🏛️)
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
-  console.log("🚨 1. ROTA ACIONADA - VERSÃO NUCLEAR");
+  console.log("🚨 1. ROTA ACIONADA - VERSÃO CORRIGIDA (INT)");
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
@@ -852,9 +852,9 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
       body: credenciais
     });
     const authData = await authResponse.json();
-    console.log("🔑 3. Token gerado com sucesso");
+    console.log("🔑 3. Token gerado");
 
-    // 3. Montagem do Payload (Com dados seguros)
+    // 3. Montagem do Payload
     const numeroAleatorio = Math.floor(10000000 + Math.random() * 90000000);
     const documentoCliente = (cliente && cliente.cpf_cnpj) ? cliente.cpf_cnpj.replace(/\D/g, '') : '';
 
@@ -864,7 +864,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
           "versao": "4.00",
           "ide": {
              "cUF": 41, 
-             "cNF": String(numeroAleatorio),
+             "cNF": numeroAleatorio, // 👇 CORRIGIDO: Agora é Número, não String
              "natOp": "VENDA AO CONSUMIDOR",
              "mod": 65,
              "serie": 1,
@@ -904,7 +904,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
               "CNPJ": documentoCliente.length > 11 ? documentoCliente : undefined,
               "CPF": documentoCliente.length <= 11 ? documentoCliente : undefined,
               "xNome": cliente.nome || "Consumidor Final",
-              "indIEDest": "9"
+              "indIEDest": 9 // 👇 CORRIGIDO: Número 9 sem aspas!
           } : undefined,
           "det": itens.map((item: any, index: number) => {
              const idReal = Number(item.id || item.produtoId);
@@ -952,9 +952,8 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
        }
     };
 
-    console.log("📤 4. Disparando Fetch para Nuvem Fiscal...");
+    console.log("📤 4. Enviando payload corrigido...");
 
-    // 4. O FETCH DA VERDADE (Com tratamento de erro bruto)
     const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
         method: 'POST',
         headers: {
@@ -964,23 +963,24 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
         body: JSON.stringify(corpoNota)
     });
 
-    // 👇 AQUI É A MÁGICA: Lê o texto cru antes de tentar ler JSON
     const textoResposta = await emitirResponse.text();
-    console.log("📩 5. RESPOSTA CHEGOU! Status:", emitirResponse.status);
-    console.log("📜 CONTEÚDO DA RESPOSTA:", textoResposta); // <--- VAI IMPRIMIR O ERRO AQUI
-
+    console.log("📩 5. Status:", emitirResponse.status);
+    
     if (!emitirResponse.ok) {
+        console.log("📜 ERRO COMPLETO:", textoResposta);
         throw new Error(`Nuvem Fiscal Rejeitou: ${textoResposta}`);
     }
 
     const respostaJson = JSON.parse(textoResposta);
+    console.log("✅ 6. SUCESSO! URL:", respostaJson.url_danfe || respostaJson.link_danfe);
+
     return reply.status(200).send({
        mensagem: "Sucesso!",
        url: respostaJson.url_danfe || respostaJson.link_danfe
     });
 
   } catch (error: any) {
-    console.error("❌ ERRO FATAL CAPTURADO:", error);
+    console.error("❌ ERRO FATAL:", error);
     return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
 });
