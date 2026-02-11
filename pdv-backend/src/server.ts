@@ -913,9 +913,21 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
 
     // 👇 PROTEÇÃO CONTRA ERRO NA EMISSÃO
     if (!emitirResponse.ok) {
-        const erroEmissao = await emitirResponse.json().catch(() => emitirResponse.text());
-        console.error("❌ Erro na Emissão:", JSON.stringify(erroEmissao));
-        throw new Error(JSON.stringify(erroEmissao));
+        // 1. Lê a resposta como texto bruto (UMA VEZ SÓ!)
+        const erroTexto = await emitirResponse.text();
+        
+        let erroFinal;
+        try {
+            // 2. Tenta transformar em JSON
+            erroFinal = JSON.parse(erroTexto);
+        } catch (e) {
+            // 3. Se não for JSON, usa o texto mesmo
+            erroFinal = { erro: erroTexto };
+        }
+
+        console.error("❌ Erro na Emissão:", JSON.stringify(erroFinal));
+        // Lança o erro para o Front ver
+        throw new Error(JSON.stringify(erroFinal));
     }
 
     const respostaNota = await emitirResponse.json();
