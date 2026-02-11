@@ -828,6 +828,7 @@ app.post('/verificar-gerente', async (req, res) => {
   });
 
   // ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
+// ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
   const { itens, total, pagamento, cliente } = request.body;
 
@@ -862,19 +863,19 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
 
     const authData = await authResponse.json();
     
-    // 3. Monta a Nota (COM OS NOMES CORRETOS EM CAMELCASE)
+    // 3. Monta a Nota (SNAKE_CASE - FORMATO CORRETO DA API)
     const corpoNota = {
-       ambiente: "homologacao", // Troque para "producao" quando for ao vivo
-       naturezaOperacao: "Venda ao Consumidor", // ✅ CORRIGIDO (era natureza_operacao_descricao)
-       finalidadeEmissao: "normal", // ✅ CORRIGIDO (era finalidade_emissao)
+       ambiente: "homologacao",
+       natureza_operacao: "Venda ao Consumidor", // ✅ snake_case
+       finalidade_emissao: "normal", // ✅ snake_case
        
        emitente: { 
-         cpfCnpj: process.env.CNPJ_EMITENTE || "12820608000141" 
+         cpf_cnpj: process.env.CNPJ_EMITENTE || "12820608000141" 
        },
        
        destinatario: cliente ? { 
          nome: cliente.nome, 
-         cpfCnpj: cliente.cpf_cnpj || cliente.cpfCnpj 
+         cpf_cnpj: cliente.cpf_cnpj || cliente.cpfCnpj 
        } : undefined,
        
        itens: itens.map((item: any, index: number) => {
@@ -884,34 +885,36 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
            if (!prod) throw new Error(`Produto ID ${idReal} não encontrado.`);
 
            return {
-              numeroItem: index + 1, // ✅ CORRIGIDO
-              codigoProduto: String(prod.id), // ✅ CORRIGIDO
+              numero_item: String(index + 1), // ✅ snake_case + String
+              codigo_produto: String(prod.id),
               descricao: prod.nome,
               ncm: prod.ncm || "00000000",
               cest: prod.cest || "",
               cfop: prod.cfop || "5102",
-              unidadeComercial: prod.unidade || "UN", // ✅ CORRIGIDO
-              quantidadeComercial: Number(item.quantidade), // ✅ CORRIGIDO
-              valorUnitarioComercial: Number(prod.precoVenda), // ✅ CORRIGIDO
-              valorBruto: Number(prod.precoVenda) * Number(item.quantidade),
+              unidade_comercial: prod.unidade || "UN",
+              quantidade_comercial: Number(item.quantidade),
+              valor_unitario_comercial: Number(prod.precoVenda),
+              valor_bruto: Number(prod.precoVenda) * Number(item.quantidade),
               
               icms: {
-                situacaoTributaria: prod.csosn || "102", // ✅ CORRIGIDO
-                origem: Number(prod.origem) || 0
+                situacao_tributaria: prod.csosn || "102",
+                origem: String(prod.origem || "0") // ✅ String
               }
            };
        }),
        
        pagamento: {
-         formasPagamento: [{ // ✅ CORRIGIDO (era meio_pagamento)
-           meioPagamento: pagamento === 'Dinheiro' ? '01' : 
-                          pagamento === 'PIX' ? '17' : // PIX é código 17
+         formas_pagamento: [{
+           meio_pagamento: pagamento === 'Dinheiro' ? '01' : 
+                          pagamento === 'PIX' ? '17' : 
                           pagamento === 'Cartão Débito' ? '04' : 
                           pagamento === 'Cartão Crédito' ? '03' : '99',
            valor: Number(total)
          }]
        }
     };
+
+    console.log("📤 Enviando para Nuvem Fiscal:", JSON.stringify(corpoNota, null, 2));
 
     // 4. Envia para a Nuvem Fiscal
     const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
@@ -936,6 +939,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     }
 
     const respostaNota = await emitirResponse.json();
+    console.log("✅ Nota emitida:", respostaNota);
 
     return reply.status(200).send({
        mensagem: "Nota emitida com sucesso!",
@@ -947,7 +951,6 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
 });
-
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA AQUI
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA VERSÃO INTEGRADA
 app.post('/finalizar-venda', async (request: any, reply: any) => {
