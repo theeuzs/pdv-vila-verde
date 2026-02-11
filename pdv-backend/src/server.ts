@@ -829,6 +829,7 @@ app.post('/verificar-gerente', async (req, res) => {
 
   // ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
+// ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
   const { itens, total, pagamento, cliente } = request.body;
 
@@ -863,20 +864,24 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
 
     const authData = await authResponse.json();
     
-    // 3. Monta a Nota (SNAKE_CASE - FORMATO CORRETO DA API)
+    // 3. Monta a Nota (FORMATO SIMPLIFICADO - SEM CAMPOS OPCIONAIS)
     const corpoNota = {
        ambiente: "homologacao",
-       natureza_operacao: "Venda ao Consumidor", // ✅ snake_case
-       finalidade_emissao: "normal", // ✅ snake_case
+       
+       // ⚠️ REMOVIDO: natureza_operacao (campo que estava dando erro)
+       // A Nuvem Fiscal inferirá automaticamente baseado no CFOP
        
        emitente: { 
          cpf_cnpj: process.env.CNPJ_EMITENTE || "12820608000141" 
        },
        
-       destinatario: cliente ? { 
-         nome: cliente.nome, 
-         cpf_cnpj: cliente.cpf_cnpj || cliente.cpfCnpj 
-       } : undefined,
+       // Destinatário só se tiver cliente identificado
+       ...(cliente && { 
+         destinatario: { 
+           nome: cliente.nome, 
+           cpf_cnpj: cliente.cpf_cnpj || cliente.cpfCnpj 
+         }
+       }),
        
        itens: itens.map((item: any, index: number) => {
            const idReal = Number(item.id || item.produtoId);
@@ -885,20 +890,18 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
            if (!prod) throw new Error(`Produto ID ${idReal} não encontrado.`);
 
            return {
-              numero_item: String(index + 1), // ✅ snake_case + String
+              numero_item: String(index + 1),
               codigo_produto: String(prod.id),
               descricao: prod.nome,
               ncm: prod.ncm || "00000000",
-              cest: prod.cest || "",
               cfop: prod.cfop || "5102",
               unidade_comercial: prod.unidade || "UN",
               quantidade_comercial: Number(item.quantidade),
               valor_unitario_comercial: Number(prod.precoVenda),
-              valor_bruto: Number(prod.precoVenda) * Number(item.quantidade),
               
               icms: {
-                situacao_tributaria: prod.csosn || "102",
-                origem: String(prod.origem || "0") // ✅ String
+                origem: String(prod.origem || "0"),
+                situacao_tributaria: prod.csosn || "102"
               }
            };
        }),
@@ -934,20 +937,20 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
         } catch (e) {
             erroFinal = { erro: erroTexto };
         }
-        console.error("❌ Erro na Emissão:", JSON.stringify(erroFinal, null, 2));
+        console.error("❌ Resposta completa da API:", JSON.stringify(erroFinal, null, 2));
         throw new Error(JSON.stringify(erroFinal));
     }
 
     const respostaNota = await emitirResponse.json();
-    console.log("✅ Nota emitida:", respostaNota);
+    console.log("✅ Nota emitida com sucesso:", respostaNota);
 
     return reply.status(200).send({
        mensagem: "Nota emitida com sucesso!",
-       url: respostaNota.url_danfe || respostaNota.link_pdf 
+       url: respostaNota.url_danfe || respostaNota.link_pdf || respostaNota.url
     });
 
   } catch (error: any) {
-    console.error("ERRO GERAL:", error);
+    console.error("❌ ERRO GERAL:", error);
     return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
 });
