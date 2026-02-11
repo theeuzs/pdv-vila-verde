@@ -830,15 +830,14 @@ app.post('/verificar-gerente', async (req, res) => {
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
 // Rota FINAL de Emissão de NFC-e (Padrão Completo SEFAZ 🏛️)
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
-  console.log("🚨 1. ROTA ACIONADA - VERSÃO CORRIGIDA (INT)");
+  console.log("🚨 1. ROTA ACIONADA - FINAL");
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
     // 1. Busca produtos
     const idsProdutos = itens.map((i: any) => Number(i.id || i.produtoId)).filter((id: number) => !isNaN(id));
     const produtosDb = await prisma.produto.findMany({ where: { id: { in: idsProdutos } } });
-    console.log(`📦 2. Produtos encontrados: ${produtosDb.length}`);
-
+    
     // 2. Autenticação
     const credenciais = new URLSearchParams();
     credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
@@ -852,7 +851,6 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
       body: credenciais
     });
     const authData = await authResponse.json();
-    console.log("🔑 3. Token gerado");
 
     // 3. Montagem do Payload
     const numeroAleatorio = Math.floor(10000000 + Math.random() * 90000000);
@@ -864,7 +862,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
           "versao": "4.00",
           "ide": {
              "cUF": 41, 
-             "cNF": numeroAleatorio, // 👇 CORRIGIDO: Agora é Número, não String
+             "cNF": numeroAleatorio,
              "natOp": "VENDA AO CONSUMIDOR",
              "mod": 65,
              "serie": 1,
@@ -904,7 +902,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
               "CNPJ": documentoCliente.length > 11 ? documentoCliente : undefined,
               "CPF": documentoCliente.length <= 11 ? documentoCliente : undefined,
               "xNome": cliente.nome || "Consumidor Final",
-              "indIEDest": 9 // 👇 CORRIGIDO: Número 9 sem aspas!
+              "indIEDest": 9
           } : undefined,
           "det": itens.map((item: any, index: number) => {
              const idReal = Number(item.id || item.produtoId);
@@ -952,7 +950,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
        }
     };
 
-    console.log("📤 4. Enviando payload corrigido...");
+    console.log("📤 4. Enviando...");
 
     const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
         method: 'POST',
@@ -966,21 +964,30 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     const textoResposta = await emitirResponse.text();
     console.log("📩 5. Status:", emitirResponse.status);
     
+    // 👇 LOGA TUDO (Mesmo se der certo) pra gente achar o link!
+    console.log("📜 RESPOSTA DA NUVEM:", textoResposta); 
+
     if (!emitirResponse.ok) {
-        console.log("📜 ERRO COMPLETO:", textoResposta);
-        throw new Error(`Nuvem Fiscal Rejeitou: ${textoResposta}`);
+        throw new Error(`Rejeição: ${textoResposta}`);
     }
 
     const respostaJson = JSON.parse(textoResposta);
-    console.log("✅ 6. SUCESSO! URL:", respostaJson.url_danfe || respostaJson.link_danfe);
+    
+    // Tenta achar o link em vários lugares possíveis
+    const linkPdf = respostaJson.url_danfe || 
+                    respostaJson.link_danfe || 
+                    respostaJson.caminho_danfe ||
+                    (respostaJson.danfe && respostaJson.danfe.url);
+
+    console.log("✅ 6. LINK FINAL:", linkPdf);
 
     return reply.status(200).send({
-       mensagem: "Sucesso!",
-       url: respostaJson.url_danfe || respostaJson.link_danfe
+       mensagem: "Nota emitida!",
+       url: linkPdf
     });
 
   } catch (error: any) {
-    console.error("❌ ERRO FATAL:", error);
+    console.error("❌ ERRO:", error);
     return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
 });
