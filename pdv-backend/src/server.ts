@@ -856,18 +856,25 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     const authData = await authResponse.json();
     
     // 3. Monta a Nota
-    const numeroNota = Math.floor(Math.random() * 100000);
+    // 👇 CORREÇÃO 1: Garante 8 dígitos para o cNF
+    const numeroAleatorio = Math.floor(10000000 + Math.random() * 90000000); 
+
+    // Limpeza do CPF/CNPJ do cliente (remove pontos e traços)
+    const documentoCliente = (cliente && cliente.cpf_cnpj) ? cliente.cpf_cnpj.replace(/\D/g, '') : '';
 
     const corpoNota = {
+       // 👇 CORREÇÃO 2: Ambiente na raiz (Exigência da API)
+       "ambiente": "homologacao", 
+       
        "infNFe": {
           "versao": "4.00",
           "ide": {
              "cUF": 41, 
-             "cNF": numeroNota,
+             "cNF": numeroAleatorio, // Agora tem 8 dígitos
              "natOp": "VENDA AO CONSUMIDOR",
              "mod": 65,
              "serie": 1,
-             "nNF": numeroNota,
+             "nNF": numeroAleatorio, // Usando o mesmo número para facilitar
              "dhEmi": new Date().toISOString(),
              "tpNF": 1,
              "idDest": 1,
@@ -875,7 +882,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
              "tpImp": 4, 
              "tpEmis": 1,
              "cDV": 0,
-             "tpAmb": 2, // Homologação
+             "tpAmb": 2, 
              "finNFe": 1,
              "indFinal": 1,
              "indPres": 1,
@@ -899,11 +906,12 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
              "IE": "9053865574",
              "CRT": 1
           },
-          "dest": (cliente && cliente.cpf_cnpj) ? {
-              "CNPJ": cliente.cpf_cnpj.length > 11 ? cliente.cpf_cnpj : undefined,
-              "CPF": cliente.cpf_cnpj.length <= 11 ? cliente.cpf_cnpj : undefined,
+          // 👇 CORREÇÃO 3: Lógica limpa para Destinatário
+          "dest": (documentoCliente.length >= 11) ? {
+              "CNPJ": documentoCliente.length > 11 ? documentoCliente : undefined,
+              "CPF": documentoCliente.length <= 11 ? documentoCliente : undefined,
               "xNome": cliente.nome || "Consumidor Final",
-              "indIEDest": 9 // Número puro (sem aspas)
+              "indIEDest": 9 
           } : undefined,
           
           "det": itens.map((item: any, index: number) => {
@@ -911,7 +919,6 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
              const prod = produtosDb.find(p => p.id === idReal);
              if (!prod) throw new Error(`Produto não encontrado.`);
 
-             // Cálculos auxiliares
              const qtd = Number(item.quantidade);
              const valorUnit = Number(prod.precoVenda);
              const valorTotalItem = qtd * valorUnit;
@@ -925,7 +932,6 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
                    "NCM": prod.ncm || "00000000",
                    "CFOP": "5102",
                    "uCom": "UN",
-                   // 👇 AQUI ESTAVA O ERRO! Agora convertemos de volta para Number
                    "qCom": Number(qtd.toFixed(4)), 
                    "vUnCom": Number(valorUnit.toFixed(10)),
                    "vProd": Number(valorTotalItem.toFixed(2)),
@@ -939,15 +945,20 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
                    "ICMS": {
                       "ICMSSN102": { "orig": 0, "CSOSN": "102" }
                    },
-                   "PIS": { "PISQtde": { "CST": "01", "qBCProd": 0, "vAliqProd": 0 } },
-                   "COFINS": { "COFINSQtde": { "CST": "01", "qBCProd": 0, "vAliqProd": 0 } }
+                   // 👇 CORREÇÃO 4: PIS/COFINS CST 99 (Outras) - Padrão seguro para Simples Nacional
+                   // Isso evita o erro de "CST 01 exige alíquota"
+                   "PIS": { 
+                       "PISOutr": { "CST": "99", "vBC": 0, "pPIS": 0, "vPIS": 0 } 
+                   },
+                   "COFINS": { 
+                       "COFINSOutr": { "CST": "99", "vBC": 0, "pCOFINS": 0, "vCOFINS": 0 } 
+                   }
                 }
              };
           }),
           
           "total": {
              "ICMSTot": {
-                // 👇 TODOS ESSES CAMPOS AGORA SÃO NÚMEROS (0), NÃO TEXTOS ("0.00")
                 "vBC": 0, "vICMS": 0, "vICMSDeson": 0, "vFCP": 0, 
                 "vBCST": 0, "vST": 0, "vFCPST": 0, "vFCPSTRet": 0,
                 "vProd": Number(Number(total).toFixed(2)),
@@ -964,7 +975,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
           "pag": {
              "detPag": [{
                 "tPag": pagamento === 'Dinheiro' ? "01" : "99",
-                "vPag": Number(Number(total).toFixed(2)) // 👇 Convertido pra Número
+                "vPag": Number(Number(total).toFixed(2)) 
              }]
           }
        }
