@@ -1064,7 +1064,7 @@ app.post('/cancelar-fiscal', async (request: any, reply: any) => {
         motivoFinal += " (Cancelamento solicitado no caixa)";
     }
 
-    // Autenticação
+    // Autenticação Nuvem Fiscal
     const credenciais = new URLSearchParams();
     credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
     credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
@@ -1078,9 +1078,9 @@ app.post('/cancelar-fiscal', async (request: any, reply: any) => {
 
     console.log(`🗑️ Enviando pedido de cancelamento para ID: ${venda.nota_id_nuvem}`);
 
-    // 👇 AQUI MUDOU: MÉTODO 'POST' EM VEZ DE 'PUT'
+    // Chamada API Nuvem Fiscal
     const cancelResponse = await fetch(`https://api.sandbox.nuvemfiscal.com.br/nfce/${venda.nota_id_nuvem}/cancelamento`, {
-        method: 'POST', // <--- MUDANÇA CRUCIAL AQUI
+        method: 'POST',
         headers: {
            'Authorization': `Bearer ${authData.access_token}`,
            'Content-Type': 'application/json'
@@ -1089,26 +1089,27 @@ app.post('/cancelar-fiscal', async (request: any, reply: any) => {
     });
 
     const textoBruto = await cancelResponse.text();
-    console.log("📦 RESPOSTA BRUTA DA API:", textoBruto); 
-    console.log("📡 STATUS HTTP:", cancelResponse.status);
+    console.log("📦 RESPOSTA API:", textoBruto); 
 
     if (!cancelResponse.ok) {
-        // Se já estiver cancelada, aceita como sucesso
         if (textoBruto.toLowerCase().includes("já está cancelada") || textoBruto.toLowerCase().includes("ja esta cancelada") || cancelResponse.status === 422) {
-             console.log("⚠️ A nota já estava cancelada na Nuvem! Atualizando apenas o banco local...");
+             console.log("⚠️ Nota já estava cancelada. Prosseguindo para estorno interno...");
         } else {
              throw new Error(`Recusa da Nuvem: ${textoBruto}`);
         }
     }
 
-    console.log("✅ Cancelamento processado com sucesso!");
-
+    // ====================================================
+    // 🔄 TRANSACTION: ESTORNA TUDO (ESTOQUE E DINHEIRO)
+    // ====================================================
     await prisma.$transaction(async (tx) => {
+        // 1. Marca venda como cancelada
         await tx.venda.update({
             where: { id: Number(vendaId) },
             data: { nota_cancelada: true }
         });
 
+        // 2. Devolve itens para o estoque
         const itensVenda = await tx.itemVenda.findMany({ where: { vendaId: Number(vendaId) }});
         for (const item of itensVenda) {
             await tx.produto.update({
@@ -1116,12 +1117,31 @@ app.post('/cancelar-fiscal', async (request: any, reply: any) => {
                 data: { estoque: { increment: Number(item.quantidade) } }
             });
         }
+        
+        // 3. TIRA O DINHEIRO DO CAIXA (ESTORNO) 💰🔻
+        if (venda.caixaId) {
+            await tx.caixa.update({
+                where: { id: venda.caixaId },
+                data: { saldoAtual: { decrement: Number(venda.total) } }
+            });
+
+            // 4. Cria registro no histórico do caixa para você saber o que houve
+            await tx.movimentacaoCaixa.create({
+                data: {
+                    caixaId: venda.caixaId,
+                    tipo: "ESTORNO", // Ou "DEVOLUCAO"
+                    valor: Number(venda.total),
+                    descricao: `Cancelamento Venda #${venda.id}`
+                }
+            });
+        }
     });
 
-    return reply.status(200).send({ mensagem: "Nota cancelada com sucesso!" });
+    console.log("✅ Estorno financeiro e fiscal realizado!");
+    return reply.status(200).send({ mensagem: "Nota cancelada e valor estornado do caixa!" });
 
   } catch (error: any) {
-    console.error("❌ ERRO NO CANCELAMENTO:", error);
+    console.error("❌ ERRO:", error);
     return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
 });
