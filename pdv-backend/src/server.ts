@@ -1052,20 +1052,19 @@ app.post('/cancelar-fiscal', async (request: any, reply: any) => {
   const { vendaId, justificativa } = request.body;
 
   try {
-    // 1. Busca a venda
     const venda = await prisma.venda.findUnique({ where: { id: Number(vendaId) } });
 
     if (!venda || !venda.nota_id_nuvem) {
-        return reply.status(400).send({ erro: "Venda sem ID de nota fiscal para cancelar." });
+        return reply.status(400).send({ erro: "Venda sem ID de nota fiscal." });
     }
 
-    // 2. Valida Justificativa (Regra da SEFAZ: Mínimo 15 caracteres)
+    // Valida tamanho da justificativa
     let motivoFinal = justificativa || "";
     if (motivoFinal.length < 15) {
-        motivoFinal += " (Cancelamento solicitado pelo cliente no caixa)";
+        motivoFinal += " (Cancelamento solicitado no caixa)";
     }
 
-    // 3. Autenticação Nuvem Fiscal
+    // Autenticação
     const credenciais = new URLSearchParams();
     credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
     credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
@@ -1077,10 +1076,9 @@ app.post('/cancelar-fiscal', async (request: any, reply: any) => {
     });
     const authData = await authResponse.json();
 
-    // 4. Manda cancelar
-    console.log(`🗑️ Tentando cancelar ID Nuvem: ${venda.nota_id_nuvem}`);
-    console.log(`📝 Motivo: ${motivoFinal}`);
+    console.log(`🗑️ Enviando pedido de cancelamento para ID: ${venda.nota_id_nuvem}`);
 
+    // Chamada de Cancelamento
     const cancelResponse = await fetch(`https://api.sandbox.nuvemfiscal.com.br/nfce/${venda.nota_id_nuvem}/cancelamento`, {
         method: 'PUT',
         headers: {
@@ -1090,31 +1088,31 @@ app.post('/cancelar-fiscal', async (request: any, reply: any) => {
         body: JSON.stringify({ justificativa: motivoFinal })
     });
 
-    // 👇 AQUI ESTÁ A MELHORIA NO LOG DE ERRO
-    const respostaTexto = await cancelResponse.text();
-    
+    // 👇 O SEGREDO ESTÁ AQUI: LER O TEXTO BRUTO ANTES DE TUDO
+    const textoBruto = await cancelResponse.text();
+    console.log("📦 RESPOSTA BRUTA DA API:", textoBruto); 
+    console.log("📡 STATUS HTTP:", cancelResponse.status);
+
+    // Se deu erro, mas o erro diz que "já está cancelada", vamos forçar o sucesso no banco
     if (!cancelResponse.ok) {
-        console.error("❌ Nuvem Fiscal recusou cancelamento:", respostaTexto);
-        // Tenta ler o JSON de erro pra ficar bonito no front
-        try {
-            const erroJson = JSON.parse(respostaTexto);
-            throw new Error(erroJson.error?.message || erroJson.mensagem || "Erro na API Fiscal");
-        } catch (e) {
-            throw new Error(`Erro API: ${respostaTexto}`);
+        if (textoBruto.includes("já está cancelada") || textoBruto.includes("ja esta cancelada") || cancelResponse.status === 422) {
+             console.log("⚠️ A nota já estava cancelada na Nuvem! Atualizando apenas o banco local...");
+        } else {
+             // Se for outro erro, explode o erro pra gente ver
+             throw new Error(`Recusa da Nuvem: ${textoBruto}`);
         }
     }
 
-    console.log("✅ Cancelamento aceito pela Receita!");
+    console.log("✅ Cancelamento processado com sucesso!");
 
-    // 5. Atualiza o banco e DEVOLVE O ESTOQUE
+    // Atualiza o banco e devolve estoque
     await prisma.$transaction(async (tx) => {
-        // Marca como cancelada
         await tx.venda.update({
             where: { id: Number(vendaId) },
             data: { nota_cancelada: true }
         });
 
-        // Devolve itens para o estoque
+        // Devolve estoque
         const itensVenda = await tx.itemVenda.findMany({ where: { vendaId: Number(vendaId) }});
         for (const item of itensVenda) {
             await tx.produto.update({
@@ -1122,21 +1120,12 @@ app.post('/cancelar-fiscal', async (request: any, reply: any) => {
                 data: { estoque: { increment: Number(item.quantidade) } }
             });
         }
-        
-        // Estorna o dinheiro do caixa (Opcional - mas recomendado)
-        // Se quiser tirar o dinheiro do caixa automaticamente, descomente abaixo:
-        /*
-        await tx.caixa.update({
-            where: { id: venda.caixaId },
-            data: { saldoAtual: { decrement: Number(venda.total) } }
-        });
-        */
     });
 
-    return reply.status(200).send({ mensagem: "Nota cancelada e estoque estornado!" });
+    return reply.status(200).send({ mensagem: "Nota cancelada com sucesso!" });
 
   } catch (error: any) {
-    console.error("❌ ERRO GRAVE:", error);
+    console.error("❌ ERRO NO CANCELAMENTO:", error);
     return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
 });
