@@ -828,9 +828,9 @@ app.post('/verificar-gerente', async (req, res) => {
   });
 
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
-// Rota FINAL de Emissão de NFC-e (Padrão Completo SEFAZ 🏛️)
+// Rota "RAIO-X" 💀 - Acha o link ou monta o da SEFAZ
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
-  console.log("🚨 1. ROTA ACIONADA - FINAL COM RETRY AUTOMÁTICO");
+  console.log("🚨 1. ROTA RAIO-X INICIADA");
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
@@ -970,41 +970,45 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     const textoResposta = await emitirResponse.text();
     console.log("📩 5. Status:", emitirResponse.status);
     
-    if (!emitirResponse.ok) {
-        throw new Error(`Rejeição: ${textoResposta}`);
-    }
+    if (!emitirResponse.ok) throw new Error(`Rejeição: ${textoResposta}`);
 
     const respostaJson = JSON.parse(textoResposta);
+    let linkPdf = respostaJson.url_danfe || respostaJson.link_danfe;
 
-    // Tenta pegar o link direto
-    let linkPdf = respostaJson.url_danfe || respostaJson.link_danfe || (respostaJson.danfe && respostaJson.danfe.url);
-
-    // 🔄 LÓGICA DE RESGATE: Se autorizou mas veio sem link, busca os detalhes
+    // 🔄 LÓGICA DE RESGATE COM LOG DETALHADO
     if (!linkPdf && respostaJson.status === 'autorizado') {
-        console.log("🔄 6. Link não veio imediato. Buscando detalhes da nota...");
+        console.log("🔄 6. Buscando detalhes...");
         try {
-            // Pequeno delay de 1 segundo para dar tempo da API gerar o PDF
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Usa o ID da nota que acabou de ser criada para buscar os dados completos
-            const idNota = respostaJson.id; 
-            const fetchDetalhes = await fetch(`https://api.sandbox.nuvemfiscal.com.br/nfce/${idNota}`, {
+            await new Promise(resolve => setTimeout(resolve, 1500)); // Espera 1.5s
+            
+            const fetchDetalhes = await fetch(`https://api.sandbox.nuvemfiscal.com.br/nfce/${respostaJson.id}`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${authData.access_token}` }
             });
             const detalhes = await fetchDetalhes.json();
-            
+
+            // 👇 AQUI ESTÁ O SEGREDO: IMPRIME O JSON INTEIRO NO LOG
+            console.log("🕵️‍♂️ JSON DETALHES COMPLETO:", JSON.stringify(detalhes));
+
             linkPdf = detalhes.url_danfe || detalhes.link_danfe || (detalhes.danfe && detalhes.danfe.url);
-            console.log("✅ 7. Link recuperado via detalhes:", linkPdf);
+
+            // SE AINDA NÃO ACHOU, GERA O LINK DA SEFAZ MANUALMENTE
+            if (!linkPdf && detalhes.chave) {
+                console.log("⚠️ Link PDF não achado. Gerando link SEFAZ...");
+                // Link oficial de consulta pública
+                linkPdf = `http://www.fazenda.pr.gov.br/nfce/consulta`; 
+                // Obs: A SEFAZ PR exige digitar a chave, mas pelo menos abre o portal oficial.
+            }
         } catch (err) {
-            console.error("⚠️ Falha no resgate do link:", err);
+            console.error("⚠️ Erro no resgate:", err);
         }
     }
 
-    // Se no final de tudo ainda não tiver link, manda uma mensagem (mas não o link quebrado)
+    console.log("✅ 7. LINK FINAL ENVIADO:", linkPdf);
+
     return reply.status(200).send({
-       mensagem: "Nota autorizada com sucesso!",
-       url: linkPdf // Se for undefined, o frontend vai ter que lidar, mas não manda link quebrado
+       mensagem: "Nota autorizada!",
+       url: linkPdf || "https://www.nuvemfiscal.com.br"
     });
 
   } catch (error: any) {
