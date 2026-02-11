@@ -841,7 +841,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
 
     const produtosDb = await prisma.produto.findMany({ where: { id: { in: idsProdutos } } });
 
-    // 2. Autenticação (BLINDADA CONTRA ERRO DE TEXTO)
+    // 2. Autenticação na Nuvem Fiscal
     const credenciais = new URLSearchParams();
     credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
     credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
@@ -854,7 +854,6 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
       body: credenciais
     });
 
-    // 👇 SE A SENHA ESTIVER ERRADA, ELE VAI MOSTRAR AQUI O MOTIVO
     if (!authResponse.ok) {
         const erroTexto = await authResponse.text();
         console.error("❌ Erro na Autenticação Nuvem Fiscal:", erroTexto);
@@ -863,13 +862,20 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
 
     const authData = await authResponse.json();
     
-    // 3. Monta a Nota
+    // 3. Monta a Nota (COM OS NOMES CORRETOS EM CAMELCASE)
     const corpoNota = {
-       ambiente: "homologacao",
-       natureza_operacao_descricao: "Venda ao Consumidor",
-       finalidade_emissao: "final",
-       emitente: { cpf_cnpj: "12820608000141" }, // <--- CONFIRA SEU CNPJ
-       destinatario: cliente ? { nome: cliente.nome, cpf_cnpj: cliente.cpfCnpj } : undefined,
+       ambiente: "homologacao", // Troque para "producao" quando for ao vivo
+       naturezaOperacao: "Venda ao Consumidor", // ✅ CORRIGIDO (era natureza_operacao_descricao)
+       finalidadeEmissao: "normal", // ✅ CORRIGIDO (era finalidade_emissao)
+       
+       emitente: { 
+         cpfCnpj: process.env.CNPJ_EMITENTE || "12820608000141" 
+       },
+       
+       destinatario: cliente ? { 
+         nome: cliente.nome, 
+         cpfCnpj: cliente.cpf_cnpj || cliente.cpfCnpj 
+       } : undefined,
        
        itens: itens.map((item: any, index: number) => {
            const idReal = Number(item.id || item.produtoId);
@@ -878,30 +884,36 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
            if (!prod) throw new Error(`Produto ID ${idReal} não encontrado.`);
 
            return {
-              item: index + 1,
-              codigo: String(prod.id),
+              numeroItem: index + 1, // ✅ CORRIGIDO
+              codigoProduto: String(prod.id), // ✅ CORRIGIDO
               descricao: prod.nome,
-              ncm: prod.ncm,
-              cest: prod.cest,
-              cfop: prod.cfop, 
-              unidade: prod.unidade,
-              quantidade: Number(item.quantidade),
-              valor_unitario: Number(prod.precoVenda),
-              impostos: {
-                 icms: {
-                    codigo_situacao_operacao_simples_nacional: prod.csosn,
-                    origem: prod.origem || "0"
-                 }
+              ncm: prod.ncm || "00000000",
+              cest: prod.cest || "",
+              cfop: prod.cfop || "5102",
+              unidadeComercial: prod.unidade || "UN", // ✅ CORRIGIDO
+              quantidadeComercial: Number(item.quantidade), // ✅ CORRIGIDO
+              valorUnitarioComercial: Number(prod.precoVenda), // ✅ CORRIGIDO
+              valorBruto: Number(prod.precoVenda) * Number(item.quantidade),
+              
+              icms: {
+                situacaoTributaria: prod.csosn || "102", // ✅ CORRIGIDO
+                origem: Number(prod.origem) || 0
               }
            };
        }),
-       pagamentos: [{
-          meio_pagamento: pagamento === 'Dinheiro' ? '01' : '99',
-          valor: Number(total)
-       }]
+       
+       pagamento: {
+         formasPagamento: [{ // ✅ CORRIGIDO (era meio_pagamento)
+           meioPagamento: pagamento === 'Dinheiro' ? '01' : 
+                          pagamento === 'PIX' ? '17' : // PIX é código 17
+                          pagamento === 'Cartão Débito' ? '04' : 
+                          pagamento === 'Cartão Crédito' ? '03' : '99',
+           valor: Number(total)
+         }]
+       }
     };
 
-    // 4. Envia a nota
+    // 4. Envia para a Nuvem Fiscal
     const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
         method: 'POST',
         headers: {
@@ -911,22 +923,15 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
         body: JSON.stringify(corpoNota)
     });
 
-    // 👇 PROTEÇÃO CONTRA ERRO NA EMISSÃO
     if (!emitirResponse.ok) {
-        // 1. Lê a resposta como texto bruto (UMA VEZ SÓ!)
         const erroTexto = await emitirResponse.text();
-        
         let erroFinal;
         try {
-            // 2. Tenta transformar em JSON
             erroFinal = JSON.parse(erroTexto);
         } catch (e) {
-            // 3. Se não for JSON, usa o texto mesmo
             erroFinal = { erro: erroTexto };
         }
-
-        console.error("❌ Erro na Emissão:", JSON.stringify(erroFinal));
-        // Lança o erro para o Front ver
+        console.error("❌ Erro na Emissão:", JSON.stringify(erroFinal, null, 2));
         throw new Error(JSON.stringify(erroFinal));
     }
 
@@ -944,8 +949,9 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
 });
 
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA AQUI
+// 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA VERSÃO INTEGRADA
 app.post('/finalizar-venda', async (request: any, reply: any) => {
-  const { itens, total, pagamento, clienteId, caixaId, urlFiscal } = request.body;
+  const { itens, total, pagamento, clienteId, caixaId, emitirNota } = request.body;
 
   // 1. SEGURANÇA: Só vende se tiver caixa aberto
   const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } });
@@ -954,61 +960,189 @@ app.post('/finalizar-venda', async (request: any, reply: any) => {
     return reply.status(400).send({ erro: "O Caixa está fechado! Abra antes de vender." });
   }
 
+  let urlFiscal = null;
+
   try {
-    // 2. CRIA A VENDA (Com relação de itens correta)
+    // ========================================
+    // 🧾 EMISSÃO DA NOTA FISCAL (SE SOLICITADO)
+    // ========================================
+    if (emitirNota) {
+      console.log("📄 Iniciando emissão de NFC-e...");
+
+      // Busca os produtos do banco
+      const idsProdutos = itens
+        .map((i: any) => Number(i.id || i.produtoId))
+        .filter((id: number) => !isNaN(id));
+
+      const produtosDb = await prisma.produto.findMany({ 
+        where: { id: { in: idsProdutos } } 
+      });
+
+      // Busca dados do cliente (se houver)
+      const cliente = clienteId 
+        ? await prisma.cliente.findUnique({ where: { id: Number(clienteId) } })
+        : null;
+
+      // Autenticação na Nuvem Fiscal
+      const credenciais = new URLSearchParams();
+      credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
+      credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
+      credenciais.append('grant_type', 'client_credentials');
+      credenciais.append('scope', 'nfce');
+
+      const authResponse = await fetch('https://auth.nuvemfiscal.com.br/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: credenciais
+      });
+
+      if (!authResponse.ok) {
+        const erroTexto = await authResponse.text();
+        console.error("❌ Erro na Autenticação:", erroTexto);
+        throw new Error(`Falha ao autenticar: ${erroTexto}`);
+      }
+
+      const authData = await authResponse.json();
+
+      // Monta o corpo da nota
+      const corpoNota = {
+        ambiente: "homologacao", // Troque para "producao" quando for ao vivo
+        natureza_operacao_descricao: "Venda ao Consumidor",
+        finalidade_emissao: "normal",
+        emitente: { 
+          cpf_cnpj: process.env.CNPJ_EMITENTE || "12820608000141"
+        },
+        destinatario: cliente ? { 
+          nome: cliente.nome, 
+          cpf_cnpj: cliente.cpfCnpj 
+        } : undefined,
+        
+        itens: itens.map((item: any, index: number) => {
+          const idReal = Number(item.id || item.produtoId);
+          const prod = produtosDb.find(p => p.id === idReal);
+          
+          if (!prod) throw new Error(`Produto ID ${idReal} não encontrado.`);
+
+          return {
+            numero_item: index + 1,
+            codigo_produto: String(prod.id),
+            descricao: prod.nome,
+            ncm: prod.ncm || "00000000",
+            cest: prod.cest || "",
+            cfop: prod.cfop || "5102",
+            unidade_comercial: prod.unidade || "UN",
+            quantidade_comercial: Number(item.quantidade),
+            valor_unitario_comercial: Number(prod.precoVenda),
+            valor_bruto: Number(prod.precoVenda) * Number(item.quantidade),
+            icms: {
+              situacao_tributaria: prod.csosn || "102",
+              origem: Number(prod.origem) || 0
+            }
+          };
+        }),
+        
+        pagamento: {
+          formas_pagamento: [{
+            meio_pagamento: pagamento === 'Dinheiro' ? '01' : 
+                           pagamento === 'PIX' ? '99' : 
+                           pagamento === 'Cartão Débito' ? '04' : 
+                           pagamento === 'Cartão Crédito' ? '03' : '99',
+            valor: Number(total)
+          }]
+        }
+      };
+
+      // Envia para a Nuvem Fiscal
+      const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authData.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(corpoNota)
+      });
+
+      if (!emitirResponse.ok) {
+        const erroTexto = await emitirResponse.text();
+        let erroFinal;
+        try {
+          erroFinal = JSON.parse(erroTexto);
+        } catch (e) {
+          erroFinal = { erro: erroTexto };
+        }
+        console.error("❌ Erro na Emissão:", JSON.stringify(erroFinal, null, 2));
+        throw new Error(JSON.stringify(erroFinal));
+      }
+
+      const respostaNota = await emitirResponse.json();
+      urlFiscal = respostaNota.url_danfe || respostaNota.link_pdf;
+      
+      console.log("✅ Nota emitida! URL:", urlFiscal);
+    }
+
+    // ========================================
+    // 💾 SALVA A VENDA NO BANCO
+    // ========================================
     const venda = await prisma.venda.create({
       data: {
         total: Number(total),
         pagamento: pagamento || "Dinheiro",
         data: new Date(),
         clienteId: clienteId ? Number(clienteId) : null,
-        caixaId: caixaAberto.id, // Agora o banco já aceita isso!
-        urlFiscal: urlFiscal || null, // 👈 SALVA O LINK AQUI!
+        caixaId: caixaAberto.id,
+        urlFiscal: urlFiscal,
         
-        // Cria os itens na tabela certa
         itens: {
           create: itens.map((item: any) => ({
-            produtoId: Number(item.id || item.produtoId), // Garante pegar o ID certo
+            produtoId: Number(item.id || item.produtoId),
             quantidade: Number(item.quantidade),
-            precoUnit: 0 
+            precoUnit: Number(item.preco || item.precoVenda || 0)
           }))
+        },
+        
+        pagamentos: {
+          create: [{
+            forma: pagamento,
+            valor: Number(total)
+          }]
         }
       }
     });
 
-    // 3. Baixa Estoque
+    // Baixa Estoque
     for (const item of itens) {
       await prisma.produto.update({
         where: { id: Number(item.id || item.produtoId) },
-        data: { 
-          estoque: { decrement: Number(item.quantidade) } 
-        }
+        data: { estoque: { decrement: Number(item.quantidade) } }
       });
     }
 
-    // 4. Se for Dinheiro, atualiza o Saldo do Caixa
-    if (pagamento === "Dinheiro") {
-        await prisma.caixa.update({
-            where: { id: caixaAberto.id },
-            data: { saldoAtual: { increment: Number(total) } }
-        });
+    // Atualiza Caixa
+    await prisma.caixa.update({
+      where: { id: caixaAberto.id },
+      data: { saldoAtual: { increment: Number(total) } }
+    });
 
-        await prisma.movimentacaoCaixa.create({
-            data: {
-                caixaId: caixaAberto.id,
-                tipo: "VENDA",
-                valor: Number(total),
-                descricao: `Venda #${venda.id}`
-            }
-        });
-    }
+    await prisma.movimentacaoCaixa.create({
+      data: {
+        caixaId: caixaAberto.id,
+        tipo: "VENDA",
+        valor: Number(total),
+        descricao: `Venda #${venda.id}`
+      }
+    });
 
-    // ✅ RESPOSTA CERTA DO FASTIFY
-    return reply.status(200).send({ ok: true, vendaId: venda.id });
+    return reply.status(200).send({ 
+      ok: true, 
+      vendaId: venda.id,
+      urlFiscal: urlFiscal 
+    });
 
-  } catch (error) {
-    console.error("Erro na venda:", error);
-    return reply.status(500).send({ erro: "Erro interno ao processar venda." });
+  } catch (error: any) {
+    console.error("❌ Erro na venda:", error);
+    return reply.status(500).send({ 
+      erro: error.message || "Erro interno ao processar venda." 
+    });
   }
 });
 
