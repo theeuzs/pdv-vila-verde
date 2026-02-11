@@ -1016,7 +1016,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
 
   } catch (error: any) {
     console.error("❌ ERRO:", error);
-    return reply.status(500).send({ erro: error.message || "Erro interno" });
+    return reply.status(500).send({ erro: error.message || "Erro interno" }); 
   }
 });
 
