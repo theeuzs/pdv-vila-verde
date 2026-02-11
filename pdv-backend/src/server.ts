@@ -722,30 +722,6 @@ app.patch('/entregas/:id/concluir', async (request) => {
   return vendaAtualizada;
 });
 
-// --- ROTA DE LOGIN (CORRIGIDA) ---
-app.post('/login', async (req, res) => {
-  // 1. Usamos 'as any' para o TypeScript parar de reclamar que não conhece o body
-  const { nome, senha, cargo } = req.body as any;
-
-  try {
-    const usuario = await prisma.user.findFirst({
-      where: { 
-        nome: nome,
-        cargo: cargo 
-      }
-    });
-
-    if (usuario && usuario.senha === senha) {
-      // 2. Trocamos .json() por .send() (O Fastify prefere assim)
-      return res.send(usuario);
-    } else {
-      return res.status(401).send({ error: "Usuário ou senha incorretos." });
-    }
-  } catch (error) {
-    return res.status(500).send({ error: "Erro ao tentar fazer login." });
-  }
-});
-
 // --- ROTA DE RESET BLINDADA (Apaga pelo EMAIL) ---
 app.get('/resetar-chefe', async (req, res) => {
   try {
