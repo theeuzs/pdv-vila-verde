@@ -830,11 +830,11 @@ app.post('/verificar-gerente', async (req, res) => {
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
 // Rota "RAIO-X" 💀 - Acha o link ou monta o da SEFAZ
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
-  console.log("🚨 1. ROTA DELIVERY PDF (BASE64) INICIADA");
+  console.log("🚨 1. ROTA PERSISTENTE (RETRY LOOP) INICIADA");
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
-    // 1. Busca produtos e Prepara Dados
+    // 1. Busca produtos
     const idsProdutos = itens.map((i: any) => Number(i.id || i.produtoId)).filter((id: number) => !isNaN(id));
     const produtosDb = await prisma.produto.findMany({ where: { id: { in: idsProdutos } } });
     
@@ -852,7 +852,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     });
     const authData = await authResponse.json();
 
-    // 3. Montagem do Payload (Nota Fiscal)
+    // 3. Montagem do Payload
     const numeroAleatorio = Math.floor(10000000 + Math.random() * 90000000);
     const documentoCliente = (cliente && cliente.cpf_cnpj) ? cliente.cpf_cnpj.replace(/\D/g, '') : '';
 
@@ -975,48 +975,53 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     const respostaJson = JSON.parse(textoResposta);
     let linkPdf = respostaJson.url_danfe || respostaJson.link_danfe;
 
-    // 👇 A MÁGICA: Se não tem link, baixa o binário e converte
+    // 👇 LÓGICA DE PERSISTÊNCIA (RETRY LOOP)
     if (!linkPdf && respostaJson.status === 'autorizado') {
-        console.log("🔄 6. Link não veio. Baixando binário do PDF...");
+        console.log("🔄 6. Iniciando Modo Persistente de Download...");
         
-        try {
-            // Pequeno delay pra dar tempo do PDF ser criado lá
-            await new Promise(resolve => setTimeout(resolve, 1500)); 
+        const maxTentativas = 3; // Tenta 3 vezes
+        const delay = 3000; // 3 segundos entre tentativas
 
-            // Endpoint oficial para baixar o PDF da nota
-            const urlDownload = `https://api.sandbox.nuvemfiscal.com.br/nfce/${respostaJson.id}/danfe`;
-            
-            const pdfResponse = await fetch(urlDownload, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${authData.access_token}` }
-            });
+        for (let i = 1; i <= maxTentativas; i++) {
+            console.log(`⏳ Tentativa ${i}/${maxTentativas} - Aguardando PDF...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
 
-            if (pdfResponse.ok) {
-                // Pega os dados brutos (buffer)
-                const pdfBuffer = await pdfResponse.arrayBuffer();
-                // Converte para texto Base64
-                const base64Pdf = Buffer.from(pdfBuffer).toString('base64');
-                
-                // Monta um "Link de Dados" que o navegador entende
-                linkPdf = `data:application/pdf;base64,${base64Pdf}`;
-                console.log("📦 7. PDF convertido para Base64 com sucesso!");
-            } else {
-                console.error(`⚠️ Falha ao baixar PDF: ${pdfResponse.status}`);
+            try {
+                const urlDownload = `https://api.sandbox.nuvemfiscal.com.br/nfce/${respostaJson.id}/danfe`;
+                const pdfResponse = await fetch(urlDownload, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${authData.access_token}` }
+                });
+
+                if (pdfResponse.ok) {
+                    const pdfBuffer = await pdfResponse.arrayBuffer();
+                    const base64Pdf = Buffer.from(pdfBuffer).toString('base64');
+                    linkPdf = `data:application/pdf;base64,${base64Pdf}`;
+                    console.log("📦 SUCESSO! PDF capturado na tentativa " + i);
+                    break; // Sai do loop se conseguiu
+                } else {
+                    console.log(`⚠️ Tentativa ${i} falhou: Status ${pdfResponse.status}`);
+                }
+            } catch (err) {
+                console.error(`❌ Erro na tentativa ${i}:`, err);
             }
-        } catch (err) {
-            console.error("⚠️ Erro na conversão do PDF:", err);
         }
     }
 
-    // Se no final de tudo ainda estiver sem link, manda null (melhor que mandar link errado)
+    // Se depois de 3 tentativas ainda não tiver PDF, manda o link da SEFAZ
+    if (!linkPdf) {
+        console.log("🏳️ Desistindo do PDF binário. Usando Link SEFAZ.");
+        linkPdf = "http://www.fazenda.pr.gov.br/nfce/consulta"; 
+    }
+
     return reply.status(200).send({
        mensagem: "Nota autorizada!",
-       url: linkPdf // Se for o Base64, vai abrir. Se for null, o front avisa.
+       url: linkPdf 
     });
 
   } catch (error: any) {
     console.error("❌ ERRO:", error);
-    return reply.status(500).send({ erro: error.message || "Erro interno" }); 
+    return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
 });
 
