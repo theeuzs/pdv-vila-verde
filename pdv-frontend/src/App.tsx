@@ -463,42 +463,56 @@ export function App() {
   }
 
   async function prepararNotaFiscal() {
-    if (carrinho.length === 0) return alert("Carrinho vazio!");
-    const cliente = clientes.find(c => String(c.id) === String(clienteSelecionado));
+      // 1. Validação básica
+      if (carrinho.length === 0) return alert("Carrinho vazio!");
+      
+      // 2. Calcula o total na hora (Resolve o erro 'totalVenda is not defined')
+      const totalCalculado = carrinho.reduce((acc, item) => acc + (item.produto.precoVenda * item.quantidade), 0);
+      
+      // 3. Busca o cliente
+      const cliente = clientes.find((c: any) => String(c.id) === String(clienteSelecionado));
 
-    const pacoteNFCe = {
-      tipo: "NFC-e",
-      cliente: cliente ? { nome: cliente.nome, cpf: cliente.cpfCnpj } : "Consumidor",
-      itens: carrinho.map((item, i) => ({
-        nItem: i + 1,
-        prod: item.produto.nome,
-        ncm: item.produto.ncm || '00000000',
-        cfop: item.produto.cfop || '5102',
-        csosn: item.produto.csosn || '102',
-        valor: item.produto.precoVenda,
-        qtd: item.quantidade
-      }))
-    };
+      // 4. Monta o pacote (Resolve os erros de 'id' e 'preco')
+      const dadosParaEnvio = {
+        total: totalCalculado,
+        pagamento: formaPagamento,
+        cliente: cliente ? { nome: cliente.nome, cpf_cnpj: cliente.cpfCnpj } : undefined,
+        
+        itens: carrinho.map((item) => ({
+          // 👇 AQUI MUDOU: Acessamos direto 'item.produto' que é onde os dados estão
+          id: Number(item.produto.id), 
+          quantidade: Number(item.quantidade),
+          preco: Number(item.produto.precoVenda)
+        }))
+      };
 
-    try {
-      const resposta = await fetch(`${API_URL}/emitir-fiscal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pacoteNFCe)
-      });
-      const resultado = await resposta.json();
+      try {
+        const response = await fetch(`${API_URL}/emitir-fiscal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dadosParaEnvio)
+        });
 
-      if (resposta.ok) {
-        alert("✅ " + resultado.mensagem);
-        if (resultado.url) window.open(resultado.url, '_blank'); 
-        await finalizarVendaNoBanco(resultado.url);
-      } else {
-        alert("❌ Erro ao emitir: " + resultado.erro);
+        const resultado = await response.json();
+
+        if (response.ok) {
+          alert("✅ " + resultado.mensagem);
+          
+          if (resultado.url) {
+              window.open(resultado.url, '_blank');
+          }
+          // Salva no banco com o link
+          await finalizarVendaNoBanco(resultado.url);
+
+        } else {
+          alert("❌ Erro ao emitir: " + (resultado.erro || "Erro desconhecido"));
+        }
+
+      } catch (error) {
+        console.error(error);
+        alert("❌ Erro de conexão com o servidor.");
       }
-    } catch (error) {
-      alert("Erro de conexão com o servidor.");
     }
-  }
 
   async function finalizarVendaNoBanco(linkDaNota: string = "") {
     // 🛑 TRAVA DE SEGURANÇA: Verifica se o caixa está aberto
