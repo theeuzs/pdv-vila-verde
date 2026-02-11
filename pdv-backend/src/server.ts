@@ -828,10 +828,13 @@ app.post('/verificar-gerente', async (req, res) => {
   });
 
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
+// ROTA PARA EMITIR NOTA FISCAL (NFC-e) - VERSÃO MÍNIMA
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
+    console.log("🔍 Dados recebidos:", { itens, total, pagamento, cliente });
+
     // 1. Validação dos IDs
     const idsProdutos = itens
         .map((i: any) => Number(i.id || i.produtoId))
@@ -840,6 +843,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     if (idsProdutos.length === 0) throw new Error("Nenhum ID válido encontrado.");
 
     const produtosDb = await prisma.produto.findMany({ where: { id: { in: idsProdutos } } });
+    console.log("📦 Produtos encontrados:", produtosDb.length);
 
     // 2. Autenticação na Nuvem Fiscal
     const credenciais = new URLSearchParams();
@@ -856,29 +860,23 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
 
     if (!authResponse.ok) {
         const erroTexto = await authResponse.text();
-        console.error("❌ Erro na Autenticação Nuvem Fiscal:", erroTexto);
-        throw new Error(`Falha ao logar na Nuvem Fiscal: ${erroTexto}`);
+        console.error("❌ Erro na Autenticação:", erroTexto);
+        throw new Error(`Falha ao autenticar: ${erroTexto}`);
     }
 
     const authData = await authResponse.json();
+    console.log("✅ Autenticado com sucesso");
     
-    // 3. Monta a Nota - FORMATO MÍNIMO OFICIAL NUVEM FISCAL
+    // 3. Monta a Nota - PAYLOAD MÍNIMO ABSOLUTO
     const corpoNota = {
        ambiente: "homologacao",
-       
-       // ✅ REFERÊNCIA (obrigatório para identificar quem está emitindo)
        referencia: "venda-" + Date.now(),
-       
-       // ✅ INFORMAÇÕES DA NFCe
-       informacoes_adicionais_contribuinte: "Venda ao Consumidor Final",
        
        itens: itens.map((item: any, index: number) => {
            const idReal = Number(item.id || item.produtoId);
            const prod = produtosDb.find(p => p.id === idReal);
            
            if (!prod) throw new Error(`Produto ID ${idReal} não encontrado.`);
-
-           const valorTotal = Number(prod.precoVenda) * Number(item.quantidade);
 
            return {
               numero_item: index + 1,
@@ -889,41 +887,23 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
               unidade_comercial: prod.unidade || "UN",
               quantidade_comercial: Number(item.quantidade),
               valor_unitario_comercial: Number(prod.precoVenda),
-              valor_bruto: valorTotal,
               
               icms: {
-                origem: Number(prod.origem || 0),
-                situacao_tributaria: Number(prod.csosn || 102)
-              },
-              
-              // ✅ VALOR TOTAL DO ITEM (obrigatório)
-              valor_total_tributos: 0
+                origem: 0,
+                situacao_tributaria: 102
+              }
            };
        }),
        
-       // ✅ TOTAIS (obrigatório)
-       total: {
-         icms: {
-           base_calculo: 0,
-           valor_total: 0
-         },
-         valor_produtos: Number(total),
-         valor_total: Number(total)
-       },
-       
-       // ✅ FORMAS DE PAGAMENTO
        pagamento: {
          formas_pagamento: [{
-           meio_pagamento: pagamento === 'Dinheiro' ? '01' : 
-                          pagamento === 'PIX' ? '17' : 
-                          pagamento === 'Cartão Débito' ? '04' : 
-                          pagamento === 'Cartão Crédito' ? '03' : '99',
+           meio_pagamento: "01",
            valor: Number(total)
          }]
        }
     };
 
-    console.log("📤 Enviando para Nuvem Fiscal:", JSON.stringify(corpoNota, null, 2));
+    console.log("📤 Payload NFC-e:", JSON.stringify(corpoNota, null, 2));
 
     // 4. Envia para a Nuvem Fiscal
     const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
@@ -935,28 +915,31 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
         body: JSON.stringify(corpoNota)
     });
 
+    const responseText = await emitirResponse.text();
+    console.log("📥 Resposta bruta da API:", responseText);
+
     if (!emitirResponse.ok) {
-        const erroTexto = await emitirResponse.text();
         let erroFinal;
         try {
-            erroFinal = JSON.parse(erroTexto);
+            erroFinal = JSON.parse(responseText);
         } catch (e) {
-            erroFinal = { erro: erroTexto };
+            erroFinal = { erro: responseText };
         }
-        console.error("❌ Resposta da API:", JSON.stringify(erroFinal, null, 2));
+        console.error("❌ Erro HTTP", emitirResponse.status, ":", erroFinal);
         throw new Error(JSON.stringify(erroFinal));
     }
 
-    const respostaNota = await emitirResponse.json();
-    console.log("✅ Nota emitida:", respostaNota);
+    const respostaNota = JSON.parse(responseText);
+    console.log("✅ SUCESSO! Nota emitida:", respostaNota);
 
     return reply.status(200).send({
        mensagem: "Nota emitida com sucesso!",
-       url: respostaNota.url_danfe || respostaNota.link_pdf || respostaNota.url
+       url: respostaNota.url_danfe || respostaNota.link_pdf || respostaNota.url,
+       dados: respostaNota
     });
 
   } catch (error: any) {
-    console.error("❌ ERRO GERAL:", error);
+    console.error("❌ ERRO GERAL:", error.message);
     return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
 });
