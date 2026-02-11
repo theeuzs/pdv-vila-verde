@@ -908,7 +908,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     console.log("📤 Enviando Payload:", JSON.stringify(corpoNota));
 
     // 4. Envia para a API V2 (A Simplificada)
-    const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/v2/nfce', {
+    const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
         method: 'POST',
         headers: {
            'Authorization': `Bearer ${authData.access_token}`,
@@ -1048,7 +1048,7 @@ app.post('/finalizar-venda', async (request: any, reply: any) => {
       };
 
       // Envia para a Nuvem Fiscal
-      const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/v2/nfce', {
+      const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authData.access_token}`,
