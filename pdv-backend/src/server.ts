@@ -830,7 +830,7 @@ app.post('/verificar-gerente', async (req, res) => {
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
 // Rota FINAL de Emissão de NFC-e (Padrão Completo SEFAZ 🏛️)
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
-  console.log("🚨 1. ROTA ACIONADA - FINAL");
+  console.log("🚨 1. ROTA ACIONADA - FIX 972 (RESP TECNICO)");
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
@@ -898,6 +898,13 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
              "IE": "9053865574",
              "CRT": 1
           },
+          // 👇 AQUI ESTÁ A CORREÇÃO: Grupo do Responsável Técnico (Obrigatório no PR)
+          "infRespTec": {
+             "CNPJ": "12820608000141", // Seu CNPJ
+             "xContato": "Matheus Henrique",
+             "email": "mat.vilaverde@hotmail.com",
+             "fone": "41984387167"
+          },
           "dest": (documentoCliente.length >= 11) ? {
               "CNPJ": documentoCliente.length > 11 ? documentoCliente : undefined,
               "CPF": documentoCliente.length <= 11 ? documentoCliente : undefined,
@@ -950,7 +957,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
        }
     };
 
-    console.log("📤 4. Enviando...");
+    console.log("📤 4. Enviando nota com Resp. Técnico...");
 
     const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
         method: 'POST',
@@ -962,24 +969,26 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     });
 
     const textoResposta = await emitirResponse.text();
-    console.log("📩 5. Status:", emitirResponse.status);
-    
-    // 👇 LOGA TUDO (Mesmo se der certo) pra gente achar o link!
-    console.log("📜 RESPOSTA DA NUVEM:", textoResposta); 
+    console.log("📩 5. Status HTTP:", emitirResponse.status);
+    console.log("📜 RESPOSTA:", textoResposta); // Vai aparecer "autorizado" aqui!
 
     if (!emitirResponse.ok) {
-        throw new Error(`Rejeição: ${textoResposta}`);
+        throw new Error(`Erro HTTP: ${textoResposta}`);
     }
 
     const respostaJson = JSON.parse(textoResposta);
     
-    // Tenta achar o link em vários lugares possíveis
+    // Se foi rejeitada, lança erro para não dar falso positivo
+    if (respostaJson.status === 'rejeitado') {
+        throw new Error(`REJEIÇÃO SEFAZ: ${respostaJson.motivo_status}`);
+    }
+
+    // Tenta pegar o link
     const linkPdf = respostaJson.url_danfe || 
                     respostaJson.link_danfe || 
-                    respostaJson.caminho_danfe ||
                     (respostaJson.danfe && respostaJson.danfe.url);
 
-    console.log("✅ 6. LINK FINAL:", linkPdf);
+    console.log("✅ 6. LINK:", linkPdf);
 
     return reply.status(200).send({
        mensagem: "Nota emitida!",
