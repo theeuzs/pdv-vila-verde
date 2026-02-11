@@ -902,7 +902,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     };
 
     // 4. Envia a nota
-    const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/v2/nfce', {
+    const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/v2/nfce/documentos', {
         method: 'POST',
         headers: {
            'Authorization': `Bearer ${authData.access_token}`,
