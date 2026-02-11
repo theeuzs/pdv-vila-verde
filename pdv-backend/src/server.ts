@@ -827,19 +827,27 @@ app.post('/verificar-gerente', async (req, res) => {
     });
   });
 
-  // 👇 ROTA DE EMISSÃO FISCAL (SIMULAÇÃO) - COLE NO SERVER.TS 👇
   // ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
-    // 1. Busca os dados fiscais ATUALIZADOS no banco (Pega o CFOP 5405 novo!)
-    const idsProdutos = itens.map((i: any) => Number(i.id));
+    // 1. EXTRAÇÃO INTELIGENTE DE IDS (Correção do NaN)
+    // Tenta pegar 'id' ou 'produtoId', e remove qualquer coisa que não seja número
+    const idsProdutos = itens
+        .map((i: any) => Number(i.id || i.produtoId))
+        .filter((id: number) => !isNaN(id));
+
+    if (idsProdutos.length === 0) {
+        throw new Error("Nenhum ID de produto válido foi encontrado no pedido.");
+    }
+
+    // Busca os dados fiscais ATUALIZADOS no banco
     const produtosDb = await prisma.produto.findMany({
       where: { id: { in: idsProdutos } }
     });
 
-    // 2. Autentica na Nuvem Fiscal (Gera o Token)
+    // 2. Autentica na Nuvem Fiscal
     const credenciais = new URLSearchParams();
     credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
     credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
@@ -857,47 +865,51 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
        throw new Error("Falha na autenticação: Verifique ID e Secret no .env");
     }
 
-    // 3. Monta a Nota Fiscal (O trabalho pesado!)
+    // 3. Monta a Nota Fiscal
     const corpoNota = {
        ambiente: "homologacao", // Mude para "producao" quando for valer
        natureza_operacao: "Venda ao Consumidor",
        finalidade: "final",
        emitente: { 
-           cpf_cnpj: "12820608000141" // <--- ⚠️ COLOQUE SEU CNPJ AQUI!!!
+           cpf_cnpj: "12820608000141" // <--- ⚠️ CONFIRA SEU CNPJ AQUI
        },
-       // Se tiver cliente, manda. Se não, é consumidor final.
        destinatario: cliente ? { nome: cliente.nome, cpf_cnpj: cliente.cpfCnpj } : undefined,
        
        itens: itens.map((item: any, index: number) => {
-           // Pega os dados corretos do banco
-           const prod = produtosDb.find(p => p.id === Number(item.id));
+           const idReal = Number(item.id || item.produtoId);
+           const prod = produtosDb.find(p => p.id === idReal);
            
+           if (!prod) {
+               // Pula o erro ou usa dados genéricos (mas ideal é parar)
+               throw new Error(`Produto ID ${idReal} não encontrado no banco de dados.`);
+           }
+
            return {
               item: index + 1,
-              codigo: String(prod?.id),
-              descricao: prod?.nome,
-              ncm: prod?.ncm,
-              cest: prod?.cest,
-              cfop: prod?.cfop, // Aqui vai vir o 5405 que você arrumou!
-              unidade: prod?.unidade,
+              codigo: String(prod.id),
+              descricao: prod.nome,
+              ncm: prod.ncm,
+              cest: prod.cest,
+              cfop: prod.cfop, 
+              unidade: prod.unidade,
               quantidade: Number(item.quantidade),
-              valor_unitario: Number(prod?.precoVenda), // Preço original do cadastro
+              valor_unitario: Number(prod.precoVenda),
               
               impostos: {
                  icms: {
-                    codigo_situacao_operacao_simples_nacional: prod?.csosn, // ex: "500"
-                    origem: prod?.origem || "0"
+                    codigo_situacao_operacao_simples_nacional: prod.csosn,
+                    origem: prod.origem || "0"
                  }
               }
            };
        }),
        pagamentos: [{
-          meio_pagamento: pagamento === 'Dinheiro' ? '01' : '99', // 01=Dinheiro
+          meio_pagamento: pagamento === 'Dinheiro' ? '01' : '99',
           valor: Number(total)
        }]
     };
 
-    // 4. Envia a nota para a Nuvem Fiscal
+    // 4. Envia a nota
     const emitirResponse = await fetch('https://api.nuvemfiscal.com.br/v2/nfce', {
         method: 'POST',
         headers: {
@@ -909,20 +921,15 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
 
     const respostaNota = await emitirResponse.json();
 
-    // Se a Nuvem Fiscal recusar, avisa o motivo
     if (respostaNota.error) {
        console.error("Erro Nuvem Fiscal:", respostaNota.error);
        throw new Error(respostaNota.error.message || "Recusa da Sefaz");
     }
 
-    // 5. Sucesso! Retorna o link do PDF
-    // (A Nuvem Fiscal devolve a URL em campos diferentes dependendo do status, 
-    // mas geralmente é url_danfe ou similar. Ajuste conforme o retorno deles).
-    
-    // Vamos supor que deu certo e retornar o objeto inteiro para o front achar a URL
+    // 5. Sucesso!
     return reply.status(200).send({
        mensagem: "Nota emitida com sucesso!",
-       url: respostaNota.url_danfe || respostaNota.link_pdf // Tenta pegar o link
+       url: respostaNota.url_danfe || respostaNota.link_pdf 
     });
 
   } catch (error: any) {
