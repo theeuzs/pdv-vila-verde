@@ -832,6 +832,8 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
+    console.log("📦 RECEBI O PEDIDO:", JSON.stringify(request.body, null, 2));
+    console.log("🔍 DENTRO DE ITENS:", JSON.stringify(itens, null, 2));
     // 1. EXTRAÇÃO INTELIGENTE DE IDS (Correção do NaN)
     // Tenta pegar 'id' ou 'produtoId', e remove qualquer coisa que não seja número
     const idsProdutos = itens
