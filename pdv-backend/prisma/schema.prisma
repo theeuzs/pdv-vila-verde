@@ -21,6 +21,7 @@ model Venda {
   nota_chave      String?  // A chave de 44 números
   nota_numero     Int?     // O número da nota (ex: 502)
   nota_url_pdf    String?  // O link do PDF (se tiver)
+  nota_cancelada Boolean @default(false)
   
   // formaPagamento String? (Pode apagar ou deixar como opcional, não vamos mais usar ele como principal)
   

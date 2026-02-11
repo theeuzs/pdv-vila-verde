@@ -52,6 +52,9 @@ interface Venda {
   data: string
   total: string
   cliente?: Cliente
+  nota_emitida?: boolean
+  nota_cancelada?: boolean
+  urlFiscal?: string
   pagamentos: { forma: string; valor: string }[]
   itens: { 
     id: number
@@ -570,6 +573,37 @@ export function App() {
        setIdVendaParaCancelar(id);
        setSenhaGerente('');
        setModalAutorizacao(true);
+    }
+  }
+
+  // --- FUNÇÃO NOVA: CANCELAR NFC-e ---
+  async function cancelarNotaFiscal(vendaId: number) {
+    const confirmacao = window.confirm("ATENÇÃO: Deseja cancelar esta Nota Fiscal na Receita?\n\nO prazo máximo é de 30 minutos após a emissão.");
+    if (!confirmacao) return;
+
+    const justificativa = prompt("Motivo do cancelamento (Mínimo 15 letras):", "Erro no lançamento dos itens");
+
+    if (!justificativa || justificativa.length < 15) {
+      return alert("❌ A justificativa precisa ter pelo menos 15 caracteres.");
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/cancelar-fiscal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vendaId, justificativa })
+      });
+
+      const dados = await res.json();
+
+      if (res.ok) {
+        alert("✅ " + dados.mensagem);
+        carregarDados(); // Recarrega a lista para mostrar que foi cancelada
+      } else {
+        alert("❌ Erro: " + (dados.erro || "Falha ao cancelar"));
+      }
+    } catch (error) {
+      alert("Erro de conexão com o servidor.");
     }
   }
 
@@ -1372,28 +1406,49 @@ export function App() {
                     <td style={{padding:15, fontWeight:'bold', color: modoEscuro ? '#68d391' : '#2f855a'}}>
                       R$ {Number(v.total).toFixed(2)}
                     </td>
+                    {/* === CÓDIGO ATUALIZADO DOS BOTÕES DE AÇÃO === */}
                     <td style={{padding:15, textAlign:'right'}}>
                       <div style={{display:'flex', justifyContent:'flex-end', gap: 8}}>
                         
-                        {/* 👇 BOTÃO NOVO: SÓ APARECE SE TIVER LINK DA NOTA */}
+                        {/* 1. Botão VER NOTA (Só se tiver link) */}
                         {v.urlFiscal && (
                           <button 
                             onClick={() => window.open(v.urlFiscal, '_blank')} 
-                            title="Ver Nota Fiscal Oficial (NFC-e)" 
+                            title="Ver Nota Fiscal (PDF)" 
                             style={{padding:'6px 12px', background:'#e67e22', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem'}}
                           >
                             📄
                           </button>
                         )}
 
-                        {/* Botão Imprimir Recibo */}
-                        <button onClick={() => reimprimirVenda(v)} title="Imprimir Recibo Simples" style={{padding:'6px 12px', background:'#718096', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem'}}>🖨️</button> 
+                        {/* 2. Botão CANCELAR NOTA (Novo! Só aparece se tem nota e não foi cancelada) */}
+                        {v.nota_emitida && !v.nota_cancelada && (
+                          <button 
+                            onClick={() => cancelarNotaFiscal(v.id)} 
+                            title="CANCELAR NFC-e NA RECEITA" 
+                            style={{padding:'6px 12px', background:'#c53030', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem', fontWeight:'bold'}}
+                          >
+                            🚫 NFC-e
+                          </button>
+                        )}
+
+                        {/* 3. Aviso Visual se já foi cancelada */}
+                        {v.nota_cancelada && (
+                          <span style={{padding:'6px', color:'#c53030', fontWeight:'bold', border:'1px solid #c53030', borderRadius:6, fontSize:'0.8rem'}}>
+                            CANCELADA
+                          </span>
+                        )}
+
+                        {/* 4. Botão Imprimir Recibo Simples (Não Fiscal) */}
+                        <button onClick={() => reimprimirVenda(v)} title="Imprimir Recibo Interno" style={{padding:'6px 12px', background:'#718096', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem'}}>🖨️</button> 
                         
-                        {/* Botão WhatsApp */}
-                        <button onClick={() => enviarZap(v)} title="WhatsApp" style={{padding:'6px 12px', background:'#25D366', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem'}}>📱</button> 
+                        {/* 5. Botão WhatsApp */}
+                        <button onClick={() => enviarZap(v)} title="Enviar no Zap" style={{padding:'6px 12px', background:'#25D366', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem'}}>📱</button> 
                         
-                        {/* Botão Cancelar */}
-                        <button onClick={() => tentarCancelarVenda(v.id)} title="Cancelar Venda" style={{padding:'6px 12px', background:'#e53e3e', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem'}}>🚫</button>
+                        {/* 6. Botão Excluir do Sistema (Só gerente, apaga do banco) */}
+                        {!v.nota_emitida && (
+                           <button onClick={() => tentarCancelarVenda(v.id)} title="Excluir Venda (Interno)" style={{padding:'6px 12px', background:'#e53e3e', color:'white', border:'none', borderRadius:6, cursor:'pointer', fontSize:'1.1rem'}}>🗑️</button>
+                        )}
                       </div>
                     </td>
                   </tr>

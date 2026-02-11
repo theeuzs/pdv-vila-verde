@@ -1043,6 +1043,74 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
   }
 });
 
+app.post('/cancelar-fiscal', async (request: any, reply: any) => {
+  console.log("🚨 ROTA DE CANCELAMENTO ACIONADA");
+  const { vendaId, justificativa } = request.body;
+
+  try {
+    // 1. Busca a venda no banco para pegar o ID da nota (nfc_...)
+    const venda = await prisma.venda.findUnique({ where: { id: Number(vendaId) } });
+
+    if (!venda || !venda.nota_id_nuvem) {
+        return reply.status(400).send({ erro: "Venda não encontrada ou sem nota fiscal emitida." });
+    }
+
+    if (venda.nota_cancelada) {
+        return reply.status(400).send({ erro: "Esta nota já foi cancelada anteriormente." });
+    }
+
+    // 2. Autenticação na Nuvem Fiscal
+    const credenciais = new URLSearchParams();
+    credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
+    credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
+    credenciais.append('grant_type', 'client_credentials');
+    credenciais.append('scope', 'nfce'); 
+
+    const authResponse = await fetch('https://auth.nuvemfiscal.com.br/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: credenciais
+    });
+    const authData = await authResponse.json();
+
+    // 3. Manda cancelar na Nuvem Fiscal
+    console.log(`🗑️ Cancelando nota ID: ${venda.nota_id_nuvem}...`);
+    
+    const cancelResponse = await fetch(`https://api.sandbox.nuvemfiscal.com.br/nfce/${venda.nota_id_nuvem}/cancelamento`, {
+        method: 'PUT', // A Nuvem usa PUT para ações de cancelamento
+        headers: {
+           'Authorization': `Bearer ${authData.access_token}`,
+           'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            justificativa: justificativa || "Erro de lancamento no caixa" // Mínimo 15 caracteres
+        })
+    });
+
+    const textoResposta = await cancelResponse.text();
+
+    if (!cancelResponse.ok) {
+        throw new Error(`Erro ao cancelar: ${textoResposta}`);
+    }
+
+    console.log("✅ Nota cancelada na Receita!");
+
+    // 4. Marca como cancelada no seu Banco de Dados
+    await prisma.venda.update({
+        where: { id: Number(vendaId) },
+        data: { nota_cancelada: true }
+    });
+
+    // 5. (Opcional) Aqui você poderia devolver os itens pro estoque se quisesse
+
+    return reply.status(200).send({ mensagem: "Nota cancelada com sucesso!" });
+
+  } catch (error: any) {
+    console.error("❌ ERRO NO CANCELAMENTO:", error);
+    return reply.status(500).send({ erro: error.message || "Erro interno" });
+  }
+});
+
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA AQUI
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA VERSÃO INTEGRADA
 app.post('/finalizar-venda', async (request: any, reply: any) => {
