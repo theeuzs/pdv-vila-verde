@@ -1078,9 +1078,9 @@ app.post('/cancelar-fiscal', async (request: any, reply: any) => {
 
     console.log(`🗑️ Enviando pedido de cancelamento para ID: ${venda.nota_id_nuvem}`);
 
-    // Chamada de Cancelamento
+    // 👇 AQUI MUDOU: MÉTODO 'POST' EM VEZ DE 'PUT'
     const cancelResponse = await fetch(`https://api.sandbox.nuvemfiscal.com.br/nfce/${venda.nota_id_nuvem}/cancelamento`, {
-        method: 'PUT',
+        method: 'POST', // <--- MUDANÇA CRUCIAL AQUI
         headers: {
            'Authorization': `Bearer ${authData.access_token}`,
            'Content-Type': 'application/json'
@@ -1088,31 +1088,27 @@ app.post('/cancelar-fiscal', async (request: any, reply: any) => {
         body: JSON.stringify({ justificativa: motivoFinal })
     });
 
-    // 👇 O SEGREDO ESTÁ AQUI: LER O TEXTO BRUTO ANTES DE TUDO
     const textoBruto = await cancelResponse.text();
     console.log("📦 RESPOSTA BRUTA DA API:", textoBruto); 
     console.log("📡 STATUS HTTP:", cancelResponse.status);
 
-    // Se deu erro, mas o erro diz que "já está cancelada", vamos forçar o sucesso no banco
     if (!cancelResponse.ok) {
-        if (textoBruto.includes("já está cancelada") || textoBruto.includes("ja esta cancelada") || cancelResponse.status === 422) {
+        // Se já estiver cancelada, aceita como sucesso
+        if (textoBruto.toLowerCase().includes("já está cancelada") || textoBruto.toLowerCase().includes("ja esta cancelada") || cancelResponse.status === 422) {
              console.log("⚠️ A nota já estava cancelada na Nuvem! Atualizando apenas o banco local...");
         } else {
-             // Se for outro erro, explode o erro pra gente ver
              throw new Error(`Recusa da Nuvem: ${textoBruto}`);
         }
     }
 
     console.log("✅ Cancelamento processado com sucesso!");
 
-    // Atualiza o banco e devolve estoque
     await prisma.$transaction(async (tx) => {
         await tx.venda.update({
             where: { id: Number(vendaId) },
             data: { nota_cancelada: true }
         });
 
-        // Devolve estoque
         const itensVenda = await tx.itemVenda.findMany({ where: { vendaId: Number(vendaId) }});
         for (const item of itensVenda) {
             await tx.produto.update({
