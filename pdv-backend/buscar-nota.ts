@@ -20,7 +20,7 @@ async function buscarNotas() {
   const token = authData.access_token;
 
   // 2. Lista as últimas 10 notas NFC-e
-  const url = `https://api.sandbox.nuvemfiscal.com.br/nfce?cpf_cnpj=12820608000141&top=10&orderby=created_at desc`;
+const url = `https://api.sandbox.nuvemfiscal.com.br/nfce?top=50&orderby=created_at desc`;
   
   const response = await fetch(url, {
     method: 'GET',
