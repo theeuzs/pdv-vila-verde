@@ -1048,7 +1048,7 @@ app.post('/finalizar-venda', async (request: any, reply: any) => {
       };
 
       // Envia para a Nuvem Fiscal
-      const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
+      const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/v2/nfce', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authData.access_token}`,
