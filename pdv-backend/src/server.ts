@@ -827,8 +827,6 @@ app.post('/verificar-gerente', async (req, res) => {
     });
   });
 
-  // ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
-// ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) REAL
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
   const { itens, total, pagamento, cliente } = request.body;
@@ -864,24 +862,15 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
 
     const authData = await authResponse.json();
     
-    // 3. Monta a Nota (FORMATO SIMPLIFICADO - SEM CAMPOS OPCIONAIS)
+    // 3. Monta a Nota - FORMATO MÍNIMO OFICIAL NUVEM FISCAL
     const corpoNota = {
        ambiente: "homologacao",
        
-       // ⚠️ REMOVIDO: natureza_operacao (campo que estava dando erro)
-       // A Nuvem Fiscal inferirá automaticamente baseado no CFOP
+       // ✅ REFERÊNCIA (obrigatório para identificar quem está emitindo)
+       referencia: "venda-" + Date.now(),
        
-       emitente: { 
-         cpf_cnpj: process.env.CNPJ_EMITENTE || "12820608000141" 
-       },
-       
-       // Destinatário só se tiver cliente identificado
-       ...(cliente && { 
-         destinatario: { 
-           nome: cliente.nome, 
-           cpf_cnpj: cliente.cpf_cnpj || cliente.cpfCnpj 
-         }
-       }),
+       // ✅ INFORMAÇÕES DA NFCe
+       informacoes_adicionais_contribuinte: "Venda ao Consumidor Final",
        
        itens: itens.map((item: any, index: number) => {
            const idReal = Number(item.id || item.produtoId);
@@ -889,8 +878,10 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
            
            if (!prod) throw new Error(`Produto ID ${idReal} não encontrado.`);
 
+           const valorTotal = Number(prod.precoVenda) * Number(item.quantidade);
+
            return {
-              numero_item: String(index + 1),
+              numero_item: index + 1,
               codigo_produto: String(prod.id),
               descricao: prod.nome,
               ncm: prod.ncm || "00000000",
@@ -898,14 +889,29 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
               unidade_comercial: prod.unidade || "UN",
               quantidade_comercial: Number(item.quantidade),
               valor_unitario_comercial: Number(prod.precoVenda),
+              valor_bruto: valorTotal,
               
               icms: {
-                origem: String(prod.origem || "0"),
-                situacao_tributaria: prod.csosn || "102"
-              }
+                origem: Number(prod.origem || 0),
+                situacao_tributaria: Number(prod.csosn || 102)
+              },
+              
+              // ✅ VALOR TOTAL DO ITEM (obrigatório)
+              valor_total_tributos: 0
            };
        }),
        
+       // ✅ TOTAIS (obrigatório)
+       total: {
+         icms: {
+           base_calculo: 0,
+           valor_total: 0
+         },
+         valor_produtos: Number(total),
+         valor_total: Number(total)
+       },
+       
+       // ✅ FORMAS DE PAGAMENTO
        pagamento: {
          formas_pagamento: [{
            meio_pagamento: pagamento === 'Dinheiro' ? '01' : 
@@ -937,12 +943,12 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
         } catch (e) {
             erroFinal = { erro: erroTexto };
         }
-        console.error("❌ Resposta completa da API:", JSON.stringify(erroFinal, null, 2));
+        console.error("❌ Resposta da API:", JSON.stringify(erroFinal, null, 2));
         throw new Error(JSON.stringify(erroFinal));
     }
 
     const respostaNota = await emitirResponse.json();
-    console.log("✅ Nota emitida com sucesso:", respostaNota);
+    console.log("✅ Nota emitida:", respostaNota);
 
     return reply.status(200).send({
        mensagem: "Nota emitida com sucesso!",
