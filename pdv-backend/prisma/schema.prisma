@@ -16,6 +16,11 @@ model Venda {
   urlFiscal   String?
   statusEntrega   String?  @default("PENDENTE")  // "PENDENTE" ou "ENTREGUE"
   enderecoEntrega String?                        // Onde entregar?
+  nota_emitida    Boolean  @default(false) // Pra saber se tem nota
+  nota_id_nuvem   String?  // O ID "nfc_..." da Nuvem Fiscal
+  nota_chave      String?  // A chave de 44 números
+  nota_numero     Int?     // O número da nota (ex: 502)
+  nota_url_pdf    String?  // O link do PDF (se tiver)
   
   // formaPagamento String? (Pode apagar ou deixar como opcional, não vamos mais usar ele como principal)
   

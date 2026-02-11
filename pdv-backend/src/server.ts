@@ -830,15 +830,22 @@ app.post('/verificar-gerente', async (req, res) => {
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
 // Rota "RAIO-X" 💀 - Acha o link ou monta o da SEFAZ
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
-  console.log("🚨 1. ROTA PERSISTENTE (RETRY LOOP) INICIADA");
-  const { itens, total, pagamento, cliente } = request.body;
+  console.log("🚨 1. ROTA EMISSÃO + SALVAMENTO INICIADA");
+  
+  // 👇 AGORA PRECISAMOS DO 'vendaId' PARA SABER ONDE SALVAR
+  const { itens, total, pagamento, cliente, vendaId } = request.body; 
 
   try {
-    // 1. Busca produtos
+    // 1. Validação básica
+    if (!vendaId) {
+       console.warn("⚠️ ALERTA: Venda ID não informado. A nota será emitida mas não será salva no histórico.");
+    }
+
+    // 2. Busca produtos
     const idsProdutos = itens.map((i: any) => Number(i.id || i.produtoId)).filter((id: number) => !isNaN(id));
     const produtosDb = await prisma.produto.findMany({ where: { id: { in: idsProdutos } } });
     
-    // 2. Autenticação
+    // 3. Autenticação Nuvem Fiscal
     const credenciais = new URLSearchParams();
     credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
     credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
@@ -852,12 +859,12 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     });
     const authData = await authResponse.json();
 
-    // 3. Montagem do Payload
+    // 4. Montagem do Payload
     const numeroAleatorio = Math.floor(10000000 + Math.random() * 90000000);
     const documentoCliente = (cliente && cliente.cpf_cnpj) ? cliente.cpf_cnpj.replace(/\D/g, '') : '';
 
     const corpoNota = {
-       "ambiente": "homologacao", 
+       "ambiente": "homologacao", // ⚠️ Mude para "producao" quando for valer
        "infNFe": {
           "versao": "4.00",
           "ide": {
@@ -956,8 +963,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
        }
     };
 
-    console.log("📤 4. Enviando nota para API...");
-
+    console.log("📤 5. Enviando nota para API...");
     const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
         method: 'POST',
         headers: {
@@ -968,28 +974,47 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     });
 
     const textoResposta = await emitirResponse.text();
-    console.log("📩 5. Status da API:", emitirResponse.status);
-    
+    console.log("📩 6. Status da API:", emitirResponse.status);
+
     if (!emitirResponse.ok) throw new Error(`Rejeição Nuvem: ${textoResposta}`);
 
     const respostaJson = JSON.parse(textoResposta);
+    
+    // 👇 LOG IMPORTANTE: Aqui você vê o ID no terminal
+    console.log("🔑 ID DA NOTA GERADO:", respostaJson.id);
+    console.log("🔑 CHAVE DE ACESSO:", respostaJson.chave);
+
+    // 7. SALVAR NO BANCO DE DADOS (CRUCIAL!)
+    if (vendaId && respostaJson.status === 'autorizado') {
+        try {
+            console.log("💾 7. Salvando dados fiscais na venda " + vendaId + "...");
+            await prisma.venda.update({
+                where: { id: Number(vendaId) }, // Atualiza a venda existente
+                data: {
+                    nota_emitida: true,
+                    nota_id_nuvem: respostaJson.id,     // Salva ID pra cancelar depois
+                    nota_chave: respostaJson.chave,     // Salva chave pra consulta
+                    nota_numero: respostaJson.numero,   // Salva número visual
+                }
+            });
+            console.log("✅ DADOS SALVOS NO BANCO!");
+        } catch (dbError) {
+            console.error("❌ Erro ao salvar no banco (mas nota foi emitida):", dbError);
+        }
+    }
+
+    // 8. TENTA BAIXAR O PDF (Lógica de Persistência)
     let linkPdf = respostaJson.url_danfe || respostaJson.link_danfe;
-
-    // 👇 LÓGICA DE PERSISTÊNCIA (RETRY LOOP)
+    
     if (!linkPdf && respostaJson.status === 'autorizado') {
-        console.log("🔄 6. Iniciando Modo Persistente de Download...");
+        console.log("🔄 8. Buscando PDF (Persistente)...");
+        const maxTentativas = 3;
         
-        const maxTentativas = 3; // Tenta 3 vezes
-        const delay = 3000; // 3 segundos entre tentativas
-
         for (let i = 1; i <= maxTentativas; i++) {
-            console.log(`⏳ Tentativa ${i}/${maxTentativas} - Aguardando PDF...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Espera 2s
 
             try {
-                const urlDownload = `https://api.sandbox.nuvemfiscal.com.br/nfce/${respostaJson.id}/danfe`;
-                const pdfResponse = await fetch(urlDownload, {
-                    method: 'GET',
+                const pdfResponse = await fetch(`https://api.sandbox.nuvemfiscal.com.br/nfce/${respostaJson.id}/danfe`, {
                     headers: { 'Authorization': `Bearer ${authData.access_token}` }
                 });
 
@@ -997,33 +1022,26 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
                     const pdfBuffer = await pdfResponse.arrayBuffer();
                     const base64Pdf = Buffer.from(pdfBuffer).toString('base64');
                     linkPdf = `data:application/pdf;base64,${base64Pdf}`;
-                    console.log("📦 SUCESSO! PDF capturado na tentativa " + i);
-                    break; // Sai do loop se conseguiu
-                } else {
-                    console.log(`⚠️ Tentativa ${i} falhou: Status ${pdfResponse.status}`);
+                    console.log("📦 PDF CAPTURADO NA TENTATIVA " + i);
+                    break; 
                 }
-            } catch (err) {
-                console.error(`❌ Erro na tentativa ${i}:`, err);
-            }
+            } catch (e) { console.error("Tentativa falhou:", e); }
         }
     }
 
-    // Se depois de 3 tentativas ainda não tiver PDF, manda o link da SEFAZ
-    if (!linkPdf) {
-        console.log("🏳️ Desistindo do PDF binário. Usando Link SEFAZ.");
-        linkPdf = "http://www.fazenda.pr.gov.br/nfce/consulta"; 
-    }
+    // Se falhar tudo, manda o link da SEFAZ
+    if (!linkPdf) linkPdf = "http://www.fazenda.pr.gov.br/nfce/consulta";
 
     return reply.status(200).send({
-       mensagem: "Nota autorizada!",
+       mensagem: "Nota autorizada e salva!",
        url: linkPdf 
     });
 
   } catch (error: any) {
-    console.error("❌ ERRO:", error);
+    console.error("❌ ERRO GERAL:", error);
     return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
-}); 
+});
 
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA AQUI
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA VERSÃO INTEGRADA
