@@ -830,15 +830,14 @@ app.post('/verificar-gerente', async (req, res) => {
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
 // Rota FINAL de Emissão de NFC-e (Padrão Completo SEFAZ 🏛️)
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
-  console.log("🚨 VERSÃO NOVA CARREGADA 🚨");
+  console.log("🚨 1. ROTA ACIONADA - VERSÃO NUCLEAR");
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
-    console.log("🔍 Iniciando emissão NFC-e...");
-
     // 1. Busca produtos
     const idsProdutos = itens.map((i: any) => Number(i.id || i.produtoId)).filter((id: number) => !isNaN(id));
     const produtosDb = await prisma.produto.findMany({ where: { id: { in: idsProdutos } } });
+    console.log(`📦 2. Produtos encontrados: ${produtosDb.length}`);
 
     // 2. Autenticação
     const credenciais = new URLSearchParams();
@@ -852,30 +851,24 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: credenciais
     });
-
-    if (!authResponse.ok) throw new Error(await authResponse.text());
     const authData = await authResponse.json();
-    
-    // 3. Monta a Nota
-    // 👇 CORREÇÃO 1: Garante 8 dígitos para o cNF
-    const numeroAleatorio = Math.floor(10000000 + Math.random() * 90000000); 
+    console.log("🔑 3. Token gerado com sucesso");
 
-    // Limpeza do CPF/CNPJ do cliente (remove pontos e traços)
+    // 3. Montagem do Payload (Com dados seguros)
+    const numeroAleatorio = Math.floor(10000000 + Math.random() * 90000000);
     const documentoCliente = (cliente && cliente.cpf_cnpj) ? cliente.cpf_cnpj.replace(/\D/g, '') : '';
 
     const corpoNota = {
-       // 👇 CORREÇÃO 2: Ambiente na raiz (Exigência da API)
        "ambiente": "homologacao", 
-       
        "infNFe": {
           "versao": "4.00",
           "ide": {
              "cUF": 41, 
-             "cNF": numeroAleatorio, // Agora tem 8 dígitos
+             "cNF": String(numeroAleatorio),
              "natOp": "VENDA AO CONSUMIDOR",
              "mod": 65,
              "serie": 1,
-             "nNF": numeroAleatorio, // Usando o mesmo número para facilitar
+             "nNF": numeroAleatorio,
              "dhEmi": new Date().toISOString(),
              "tpNF": 1,
              "idDest": 1,
@@ -907,23 +900,18 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
              "IE": "9053865574",
              "CRT": 1
           },
-          // 👇 CORREÇÃO 3: Lógica limpa para Destinatário
           "dest": (documentoCliente.length >= 11) ? {
               "CNPJ": documentoCliente.length > 11 ? documentoCliente : undefined,
               "CPF": documentoCliente.length <= 11 ? documentoCliente : undefined,
               "xNome": cliente.nome || "Consumidor Final",
-              "indIEDest": 9 
+              "indIEDest": "9"
           } : undefined,
-          
           "det": itens.map((item: any, index: number) => {
              const idReal = Number(item.id || item.produtoId);
              const prod = produtosDb.find(p => p.id === idReal);
              if (!prod) throw new Error(`Produto não encontrado.`);
-
              const qtd = Number(item.quantidade);
              const valorUnit = Number(prod.precoVenda);
-             const valorTotalItem = qtd * valorUnit;
-
              return {
                 "nItem": index + 1,
                 "prod": {
@@ -935,7 +923,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
                    "uCom": "UN",
                    "qCom": Number(qtd.toFixed(4)), 
                    "vUnCom": Number(valorUnit.toFixed(10)),
-                   "vProd": Number(valorTotalItem.toFixed(2)),
+                   "vProd": Number((qtd * valorUnit).toFixed(2)),
                    "cEANTrib": "SEM GTIN",
                    "uTrib": "UN",
                    "qTrib": Number(qtd.toFixed(4)),
@@ -943,47 +931,30 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
                    "indTot": 1
                 },
                 "imposto": {
-                   "ICMS": {
-                      "ICMSSN102": { "orig": 0, "CSOSN": "102" }
-                   },
-                   // 👇 CORREÇÃO 4: PIS/COFINS CST 99 (Outras) - Padrão seguro para Simples Nacional
-                   // Isso evita o erro de "CST 01 exige alíquota"
-                   "PIS": { 
-                       "PISOutr": { "CST": "99", "vBC": 0, "pPIS": 0, "vPIS": 0 } 
-                   },
-                   "COFINS": { 
-                       "COFINSOutr": { "CST": "99", "vBC": 0, "pCOFINS": 0, "vCOFINS": 0 } 
-                   }
+                   "ICMS": { "ICMSSN102": { "orig": 0, "CSOSN": "102" } },
+                   "PIS": { "PISOutr": { "CST": "99", "vBC": 0, "pPIS": 0, "vPIS": 0 } },
+                   "COFINS": { "COFINSOutr": { "CST": "99", "vBC": 0, "pCOFINS": 0, "vCOFINS": 0 } }
                 }
              };
           }),
-          
           "total": {
              "ICMSTot": {
-                "vBC": 0, "vICMS": 0, "vICMSDeson": 0, "vFCP": 0, 
-                "vBCST": 0, "vST": 0, "vFCPST": 0, "vFCPSTRet": 0,
+                "vBC": 0, "vICMS": 0, "vICMSDeson": 0, "vFCP": 0, "vBCST": 0, "vST": 0, "vFCPST": 0, "vFCPSTRet": 0,
                 "vProd": Number(Number(total).toFixed(2)),
-                "vFrete": 0, "vSeg": 0, "vDesc": 0, "vII": 0, 
-                "vIPI": 0, "vIPIDevol": 0, "vPIS": 0, "vCOFINS": 0, 
-                "vOutro": 0, 
-                "vNF": Number(Number(total).toFixed(2)), 
-                "vTotTrib": 0
+                "vFrete": 0, "vSeg": 0, "vDesc": 0, "vII": 0, "vIPI": 0, "vIPIDevol": 0, "vPIS": 0, "vCOFINS": 0, "vOutro": 0, 
+                "vNF": Number(Number(total).toFixed(2)), "vTotTrib": 0
              }
           },
-          
           "transp": { "modFrete": 9 },
-          
           "pag": {
-             "detPag": [{
-                "tPag": pagamento === 'Dinheiro' ? "01" : "99",
-                "vPag": Number(Number(total).toFixed(2)) 
-             }]
+             "detPag": [{ "tPag": pagamento === 'Dinheiro' ? "01" : "99", "vPag": Number(Number(total).toFixed(2)) }]
           }
        }
     };
 
-    console.log("📤 Enviando...");
+    console.log("📤 4. Disparando Fetch para Nuvem Fiscal...");
 
+    // 4. O FETCH DA VERDADE (Com tratamento de erro bruto)
     const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
         method: 'POST',
         headers: {
@@ -993,23 +964,27 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
         body: JSON.stringify(corpoNota)
     });
 
-    const responseText = await emitirResponse.text();
+    // 👇 AQUI É A MÁGICA: Lê o texto cru antes de tentar ler JSON
+    const textoResposta = await emitirResponse.text();
+    console.log("📩 5. RESPOSTA CHEGOU! Status:", emitirResponse.status);
+    console.log("📜 CONTEÚDO DA RESPOSTA:", textoResposta); // <--- VAI IMPRIMIR O ERRO AQUI
+
     if (!emitirResponse.ok) {
-        console.error("❌ Erro:", responseText);
-        throw new Error(responseText);
+        throw new Error(`Nuvem Fiscal Rejeitou: ${textoResposta}`);
     }
 
-    const respostaNota = JSON.parse(responseText);
+    const respostaJson = JSON.parse(textoResposta);
     return reply.status(200).send({
-       mensagem: "Nota emitida com sucesso!",
-       url: respostaNota.link_danfe || respostaNota.url_danfe
+       mensagem: "Sucesso!",
+       url: respostaJson.url_danfe || respostaJson.link_danfe
     });
 
   } catch (error: any) {
-    console.error("ERRO GERAL:", error);
+    console.error("❌ ERRO FATAL CAPTURADO:", error);
     return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
 });
+
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA AQUI
 // 👇 SUBSTITUA SUA ROTA '/finalizar-venda' POR ESTA VERSÃO INTEGRADA
 app.post('/finalizar-venda', async (request: any, reply: any) => {
