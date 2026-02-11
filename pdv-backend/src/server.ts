@@ -829,142 +829,59 @@ app.post('/verificar-gerente', async (req, res) => {
 
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
-  const { itens, total, pagamento, cliente } = request.body;
-
   try {
-    console.log("🔍 Iniciando emissão NFC-e");
+    console.log("🔑 CLIENT_ID:", process.env.NUVEM_CLIENT_ID);
+    console.log("🔑 CLIENT_SECRET:", process.env.NUVEM_CLIENT_SECRET?.substring(0, 10) + "...");
 
-    // 1. Busca produtos
-    const idsProdutos = itens.map((i: any) => Number(i.id || i.produtoId)).filter((id: number) => !isNaN(id));
-    const produtosDb = await prisma.produto.findMany({ where: { id: { in: idsProdutos } } });
+    // Teste 1: SEM scope
+    console.log("🧪 Testando autenticação SEM scope...");
+    const credenciais1 = new URLSearchParams();
+    credenciais1.append('client_id', process.env.NUVEM_CLIENT_ID!);
+    credenciais1.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
+    credenciais1.append('grant_type', 'client_credentials');
 
-    // 2. Autenticação
-    const credenciais = new URLSearchParams();
-    credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
-    credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
-    credenciais.append('grant_type', 'client_credentials');
-
-    const authResponse = await fetch('https://auth.nuvemfiscal.com.br/oauth/token', {
+    const auth1 = await fetch('https://auth.nuvemfiscal.com.br/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: credenciais
+      body: credenciais1
     });
 
-    if (!authResponse.ok) throw new Error("Falha na autenticação");
+    const resposta1 = await auth1.text();
+    console.log("📥 Resposta SEM scope:", auth1.status, resposta1);
 
-    const authData = await authResponse.json();
-    console.log("✅ Autenticado");
-    
-    // 3. PAYLOAD OFICIAL - ESTRUTURA MÍNIMA PARA NFC-E
-    const corpoNota = {
-       ambiente: "homologacao",
-       referencia: "venda-" + Date.now(),
-       
-       infNFe: {
-         versao: "4.00",
-         
-         // Detalhamento dos produtos
-         det: itens.map((item: any, index: number) => {
-           const prod = produtosDb.find(p => p.id === Number(item.id || item.produtoId));
-           if (!prod) throw new Error("Produto não encontrado");
-           
-           const valorUnit = Number(prod.precoVenda);
-           const qtd = Number(item.quantidade);
-           const valorProd = valorUnit * qtd;
-           
-           return {
-             nItem: index + 1,
-             prod: {
-               cProd: String(prod.id),
-               xProd: prod.nome,
-               NCM: prod.ncm || "00000000",
-               CFOP: prod.cfop || "5102",
-               uCom: prod.unidade || "UN",
-               qCom: qtd,
-               vUnCom: valorUnit,
-               vProd: valorProd,
-               uTrib: prod.unidade || "UN",
-               qTrib: qtd,
-               vUnTrib: valorUnit,
-               indTot: 1
-             },
-             imposto: {
-               ICMS: {
-                 ICMSSN102: {
-                   orig: 0,
-                   CSOSN: "102"
-                 }
-               }
-             }
-           };
-         }),
-         
-         // Totalizadores
-         total: {
-           ICMSTot: {
-             vBC: 0,
-             vICMS: 0,
-             vICMSDeson: 0,
-             vFCP: 0,
-             vBCST: 0,
-             vST: 0,
-             vFCPST: 0,
-             vFCPSTRet: 0,
-             vProd: Number(total),
-             vFrete: 0,
-             vSeg: 0,
-             vDesc: 0,
-             vII: 0,
-             vIPI: 0,
-             vIPIDevol: 0,
-             vPIS: 0,
-             vCOFINS: 0,
-             vOutro: 0,
-             vNF: Number(total),
-             vTotTrib: 0
-           }
-         },
-         
-         // Forma de pagamento
-         pag: {
-           detPag: [{
-             tPag: "01", // 01=Dinheiro
-             vPag: Number(total)
-           }]
-         }
-       }
-    };
-
-    console.log("📤 Enviando para API...");
-
-    // 4. Envia para Nuvem Fiscal
-    const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
-        method: 'POST',
-        headers: {
-           'Authorization': `Bearer ${authData.access_token}`,
-           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(corpoNota)
-    });
-
-    const responseText = await emitirResponse.text();
-    console.log("📥 Status:", emitirResponse.status);
-
-    if (!emitirResponse.ok) {
-        console.error("❌ Erro:", responseText);
-        throw new Error(responseText);
+    if (auth1.ok) {
+      return reply.send({ sucesso: true, mensagem: "Autenticação funcionou SEM scope!" });
     }
 
-    const respostaNota = JSON.parse(responseText);
-    console.log("✅ SUCESSO!");
+    // Teste 2: COM scope
+    console.log("🧪 Testando autenticação COM scope...");
+    const credenciais2 = new URLSearchParams();
+    credenciais2.append('client_id', process.env.NUVEM_CLIENT_ID!);
+    credenciais2.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
+    credenciais2.append('grant_type', 'client_credentials');
+    credenciais2.append('scope', 'nfce');
 
-    return reply.status(200).send({
-       mensagem: "Nota emitida com sucesso!",
-       url: respostaNota.url_danfe || respostaNota.caminho_danfe
+    const auth2 = await fetch('https://auth.nuvemfiscal.com.br/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: credenciais2
+    });
+
+    const resposta2 = await auth2.text();
+    console.log("📥 Resposta COM scope:", auth2.status, resposta2);
+
+    if (auth2.ok) {
+      return reply.send({ sucesso: true, mensagem: "Autenticação funcionou COM scope!" });
+    }
+
+    return reply.status(500).send({ 
+      erro: "Ambos os testes falharam", 
+      sem_scope: resposta1,
+      com_scope: resposta2
     });
 
   } catch (error: any) {
-    console.error("❌ ERRO:", error.message);
+    console.error("❌ Erro:", error);
     return reply.status(500).send({ erro: error.message });
   }
 });
