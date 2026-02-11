@@ -848,7 +848,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     credenciais.append('grant_type', 'client_credentials');
     credenciais.append('scope', 'nfce'); 
 
-    const authResponse = await fetch('https://auth.nuvemfiscal.com.br/oauth/token', {
+    const authResponse = await fetch('https://auth.sandbox.nuvemfiscal.com.br/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: credenciais
@@ -902,7 +902,7 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     };
 
     // 4. Envia a nota
-    const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/v2/nfce/documentos', {
+    const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/v1/nfce', {
         method: 'POST',
         headers: {
            'Authorization': `Bearer ${authData.access_token}`,
