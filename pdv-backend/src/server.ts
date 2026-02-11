@@ -832,24 +832,16 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
-    console.log("📦 RECEBI O PEDIDO:", JSON.stringify(request.body, null, 2));
-    console.log("🔍 DENTRO DE ITENS:", JSON.stringify(itens, null, 2));
-    // 1. EXTRAÇÃO INTELIGENTE DE IDS (Correção do NaN)
-    // Tenta pegar 'id' ou 'produtoId', e remove qualquer coisa que não seja número
+    // 1. Validação dos IDs
     const idsProdutos = itens
         .map((i: any) => Number(i.id || i.produtoId))
         .filter((id: number) => !isNaN(id));
 
-    if (idsProdutos.length === 0) {
-        throw new Error("Nenhum ID de produto válido foi encontrado no pedido.");
-    }
+    if (idsProdutos.length === 0) throw new Error("Nenhum ID válido encontrado.");
 
-    // Busca os dados fiscais ATUALIZADOS no banco
-    const produtosDb = await prisma.produto.findMany({
-      where: { id: { in: idsProdutos } }
-    });
+    const produtosDb = await prisma.produto.findMany({ where: { id: { in: idsProdutos } } });
 
-    // 2. Autentica na Nuvem Fiscal
+    // 2. Autenticação (BLINDADA CONTRA ERRO DE TEXTO)
     const credenciais = new URLSearchParams();
     credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
     credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
@@ -861,30 +853,29 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: credenciais
     });
-    const authData = await authResponse.json();
-    
-    if (!authData.access_token) {
-       throw new Error("Falha na autenticação: Verifique ID e Secret no .env");
+
+    // 👇 SE A SENHA ESTIVER ERRADA, ELE VAI MOSTRAR AQUI O MOTIVO
+    if (!authResponse.ok) {
+        const erroTexto = await authResponse.text();
+        console.error("❌ Erro na Autenticação Nuvem Fiscal:", erroTexto);
+        throw new Error(`Falha ao logar na Nuvem Fiscal: ${erroTexto}`);
     }
 
-    // 3. Monta a Nota Fiscal
+    const authData = await authResponse.json();
+    
+    // 3. Monta a Nota
     const corpoNota = {
-       ambiente: "homologacao", // Mude para "producao" quando for valer
+       ambiente: "homologacao",
        natureza_operacao: "Venda ao Consumidor",
        finalidade: "final",
-       emitente: { 
-           cpf_cnpj: "12820608000141" // <--- ⚠️ CONFIRA SEU CNPJ AQUI
-       },
+       emitente: { cpf_cnpj: "12820608000141" }, // <--- CONFIRA SEU CNPJ
        destinatario: cliente ? { nome: cliente.nome, cpf_cnpj: cliente.cpfCnpj } : undefined,
        
        itens: itens.map((item: any, index: number) => {
            const idReal = Number(item.id || item.produtoId);
            const prod = produtosDb.find(p => p.id === idReal);
            
-           if (!prod) {
-               // Pula o erro ou usa dados genéricos (mas ideal é parar)
-               throw new Error(`Produto ID ${idReal} não encontrado no banco de dados.`);
-           }
+           if (!prod) throw new Error(`Produto ID ${idReal} não encontrado.`);
 
            return {
               item: index + 1,
@@ -896,7 +887,6 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
               unidade: prod.unidade,
               quantidade: Number(item.quantidade),
               valor_unitario: Number(prod.precoVenda),
-              
               impostos: {
                  icms: {
                     codigo_situacao_operacao_simples_nacional: prod.csosn,
@@ -921,22 +911,23 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
         body: JSON.stringify(corpoNota)
     });
 
-    const respostaNota = await emitirResponse.json();
-
-    if (respostaNota.error) {
-       console.error("Erro Nuvem Fiscal:", respostaNota.error);
-       throw new Error(respostaNota.error.message || "Recusa da Sefaz");
+    // 👇 PROTEÇÃO CONTRA ERRO NA EMISSÃO
+    if (!emitirResponse.ok) {
+        const erroEmissao = await emitirResponse.json().catch(() => emitirResponse.text());
+        console.error("❌ Erro na Emissão:", JSON.stringify(erroEmissao));
+        throw new Error(JSON.stringify(erroEmissao));
     }
 
-    // 5. Sucesso!
+    const respostaNota = await emitirResponse.json();
+
     return reply.status(200).send({
        mensagem: "Nota emitida com sucesso!",
        url: respostaNota.url_danfe || respostaNota.link_pdf 
     });
 
   } catch (error: any) {
-    console.error(error);
-    return reply.status(500).send({ erro: error.message || "Erro interno na emissão" });
+    console.error("ERRO GERAL:", error);
+    return reply.status(500).send({ erro: error.message || "Erro interno" });
   }
 });
 
