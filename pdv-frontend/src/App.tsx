@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { TelaLogin } from './TelaLogin';
 import { TelaEquipe } from './TelaEquipe';
+import * as XLSX from 'xlsx';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // ============================================================================
 // 1. TIPAGEM DE DADOS (INTERFACES)
@@ -1476,10 +1478,111 @@ export function App() {
         {/* === ABA: DASHBOARD === */}
         {aba === 'dashboard' && dashboard && (
           <div style={{ padding: 20 }}>
-             <h2>📊 Visão Geral</h2>
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-               <div style={{ background: '#48bb78', padding: 20, color: 'white' }}>HOJE: R$ {dashboard.totalHoje.toFixed(2)}</div>
-               <div style={{ background: '#3182ce', padding: 20, color: 'white' }}>MÊS: R$ {dashboard.totalMes.toFixed(2)}</div>
+             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
+                <h2 style={{margin:0}}>📊 Visão Geral do Negócio</h2>
+                <button 
+                  onClick={() => {
+                    // Lógica para baixar Excel
+                    const wb = XLSX.utils.book_new();
+                    const ws = XLSX.utils.json_to_sheet(vendasRealizadas.map(v => ({
+                        ID: v.id,
+                        Data: new Date(v.data).toLocaleDateString(),
+                        Cliente: v.cliente?.nome || 'Consumidor',
+                        Total: Number(v.total),
+                        Pagamento: v.pagamentos.map(p => p.forma).join(', '),
+                        Nota_Emitida: v.nota_emitida ? 'SIM' : 'NÃO'
+                    })));
+                    XLSX.utils.book_append_sheet(wb, ws, "Vendas");
+                    XLSX.writeFile(wb, "Relatorio_Vendas_VilaVerde.xlsx");
+                  }}
+                  style={{...estiloBotao, background:'#2f855a', color:'white'}}
+                >
+                  📥 Baixar Relatório Excel
+                </button>
+             </div>
+
+             {/* CARDS DE RESUMO */}
+             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr 1fr', gap: 20, marginBottom: 30 }}>
+               <div style={{ background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)', padding: 20, borderRadius: 12, color: 'white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                 <div style={{fontSize:14, opacity:0.9}}>VENDAS HOJE</div>
+                 <div style={{fontSize:28, fontWeight:'bold'}}>R$ {dashboard.totalHoje.toFixed(2)}</div>
+               </div>
+               <div style={{ background: 'linear-gradient(135deg, #4299e1 0%, #3182ce 100%)', padding: 20, borderRadius: 12, color: 'white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                 <div style={{fontSize:14, opacity:0.9}}>VENDAS MÊS</div>
+                 <div style={{fontSize:28, fontWeight:'bold'}}>R$ {dashboard.totalMes.toFixed(2)}</div>
+               </div>
+               <div style={{ background: 'linear-gradient(135deg, #ed8936 0%, #dd6b20 100%)', padding: 20, borderRadius: 12, color: 'white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                 <div style={{fontSize:14, opacity:0.9}}>TICKET MÉDIO</div>
+                 <div style={{fontSize:28, fontWeight:'bold'}}>
+                    R$ {(vendasRealizadas.length > 0 ? (vendasRealizadas.reduce((a,b)=>a+Number(b.total),0) / vendasRealizadas.length) : 0).toFixed(2)}
+                 </div>
+               </div>
+               <div style={{ background: 'linear-gradient(135deg, #9f7aea 0%, #805ad5 100%)', padding: 20, borderRadius: 12, color: 'white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                 <div style={{fontSize:14, opacity:0.9}}>TOTAL DE PEDIDOS</div>
+                 <div style={{fontSize:28, fontWeight:'bold'}}>{vendasRealizadas.length}</div>
+               </div>
+             </div>
+
+             {/* GRÁFICOS (Recharts) */}
+             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 20 }}>
+                
+                {/* GRÁFICO 1: VENDAS POR FORMA DE PAGAMENTO */}
+                <div style={{ background: modoEscuro ? '#2d3748' : 'white', padding: 20, borderRadius: 12, boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+                   <h3 style={{marginTop:0, color:'#718096'}}>💰 Formas de Pagamento</h3>
+                   <div style={{ height: 300, width: '100%' }}>
+                     <ResponsiveContainer width="100%" height="100%">
+                       <PieChart>
+                         <Pie
+                           data={[
+                             { name: 'Dinheiro', value: vendasRealizadas.filter(v => v.pagamentos.some(p => p.forma === 'Dinheiro')).length },
+                             { name: 'Pix', value: vendasRealizadas.filter(v => v.pagamentos.some(p => p.forma === 'Pix')).length },
+                             { name: 'Cartão', value: vendasRealizadas.filter(v => v.pagamentos.some(p => p.forma.includes('Cartão'))).length },
+                             { name: 'Haver', value: vendasRealizadas.filter(v => v.pagamentos.some(p => p.forma === 'Haver')).length },
+                           ]}
+                           cx="50%"
+                           cy="50%"
+                           innerRadius={60}
+                           outerRadius={80}
+                           fill="#8884d8"
+                           paddingAngle={5}
+                           dataKey="value"
+                           label
+                         >
+                           <Cell key="cell-0" fill="#48bb78" /> {/* Dinheiro - Verde */}
+                           <Cell key="cell-1" fill="#3182ce" /> {/* Pix - Azul */}
+                           <Cell key="cell-2" fill="#ed8936" /> {/* Cartão - Laranja */}
+                           <Cell key="cell-3" fill="#805ad5" /> {/* Haver - Roxo */}
+                         </Pie>
+                         <Tooltip />
+                         <Legend />
+                       </PieChart>
+                     </ResponsiveContainer>
+                   </div>
+                </div>
+
+                {/* LISTA: PRODUTOS MAIS VENDIDOS (Simples, sem gráfico pesado) */}
+                <div style={{ background: modoEscuro ? '#2d3748' : 'white', padding: 20, borderRadius: 12, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', overflowY:'auto', maxHeight: 360 }}>
+                   <h3 style={{marginTop:0, color:'#718096'}}>🏆 Top Produtos</h3>
+                   <table style={{width:'100%', borderCollapse:'collapse'}}>
+                      <tbody>
+                        {produtos
+                          .map(p => ({
+                             ...p, 
+                             totalVendido: vendasRealizadas.reduce((acc, v) => acc + v.itens.filter(i => i.produto.id === p.id).reduce((a,i)=>a+Number(i.quantidade),0), 0)
+                          }))
+                          .sort((a,b) => b.totalVendido - a.totalVendido)
+                          .slice(0, 5) // Pega só os top 5
+                          .map((p, i) => (
+                            <tr key={p.id} style={{borderBottom:'1px solid #eee'}}>
+                               <td style={{padding:10, fontWeight:'bold', color:'#718096'}}>#{i+1}</td>
+                               <td style={{padding:10}}>{p.nome}</td>
+                               <td style={{padding:10, fontWeight:'bold', color: modoEscuro ? '#68d391' : '#2f855a'}}>{p.totalVendido} un</td>
+                            </tr>
+                        ))}
+                      </tbody>
+                   </table>
+                </div>
+
              </div>
           </div>
         )}
