@@ -1197,34 +1197,152 @@ app.post('/finalizar-venda', async (request: any, reply: any) => {
 
     if (emitirNota) {
       try {
-        // --- LÓGICA DA NUVEM FISCAL (IGUAL A SUA) ---
-        // (Resumida aqui para não ficar gigante, mas use o seu código de fetch/autenticação aqui)
-        
-        // ... Busca produtosDb ...
-        const idsProdutos = itens.map((i:any) => Number(i.id || i.produtoId));
+        console.log("📄 Tentando emitir nota para Venda #" + vendaRegistrada.id);
+
+        // A. Busca dados completos dos produtos (NCM, CEST, etc)
+        const idsProdutos = itens.map((i: any) => Number(i.id || i.produtoId));
         const produtosDb = await prisma.produto.findMany({ where: { id: { in: idsProdutos } } });
         
-        // ... Autenticação Nuvem Fiscal ...
-        // ... Montagem do corpoNota ...
+        // B. Autenticação na Nuvem Fiscal
+        const credenciais = new URLSearchParams();
+        credenciais.append('client_id', process.env.NUVEM_CLIENT_ID!);
+        credenciais.append('client_secret', process.env.NUVEM_CLIENT_SECRET!);
+        credenciais.append('grant_type', 'client_credentials');
+        credenciais.append('scope', 'nfce');
 
-        // Simulando a chamada (coloque seu fetch aqui)
-        // const emitirResponse = await fetch(...)
-        // const respostaNota = await emitirResponse.json();
-        // urlFiscal = respostaNota.url_danfe;
+        const authResponse = await fetch('https://auth.nuvemfiscal.com.br/oauth/token', {
+             method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: credenciais
+        });
+        const authData = await authResponse.json();
 
-        // SE DEU CERTO A NOTA, ATUALIZA A VENDA
-        /* if (urlFiscal) {
-            await prisma.venda.update({
-                where: { id: vendaRegistrada.id },
-                data: { urlFiscal: urlFiscal }
-            });
+        // C. Monta o JSON da Nota
+        const cliente = clienteId ? await prisma.cliente.findUnique({ where: { id: Number(clienteId) } }) : null;
+        
+        const corpoNota = {
+            "ambiente": "homologacao", // ⚠️ Mude para "producao" quando for valer
+            "infNFe": {
+                "versao": "4.00",
+                "ide": {
+                    "cUF": 41,
+                    "cNF": Math.floor(10000000 + Math.random() * 90000000),
+                    "natOp": "VENDA AO CONSUMIDOR",
+                    "mod": 65,
+                    "serie": 1,
+                    "nNF": Math.floor(10000000 + Math.random() * 90000000), // Em produção a Nuvem controla isso
+                    "dhEmi": new Date().toISOString(),
+                    "tpNF": 1,
+                    "idDest": 1,
+                    "cMunFG": 4106902, // Curitiba
+                    "tpImp": 4,
+                    "tpEmis": 1,
+                    "cDV": 0,
+                    "tpAmb": 2, // 1=Produção, 2=Homologação
+                    "finNFe": 1,
+                    "indFinal": 1,
+                    "indPres": 1,
+                    "procEmi": 0,
+                    "verProc": "1.0"
+                },
+                "emit": {
+                    "CNPJ": "12820608000141", // CNPJ VILA VERDE
+                    "xNome": "MATERIAIS DE CONSTRUCAO VILA VERDE LTDA",
+                    "enderEmit": {
+                        "xLgr": "RUA JORNALISTA RUBENS AVILA",
+                        "nro": "431",
+                        "xBairro": "CIDADE INDUSTRIAL",
+                        "cMun": 4106902,
+                        "xMun": "CURITIBA",
+                        "UF": "PR",
+                        "CEP": "81460219",
+                        "cPais": 1058,
+                        "xPais": "BRASIL"
+                    },
+                    "IE": "9053865574",
+                    "CRT": 1
+                },
+                "dest": (cliente && cliente.cpfCnpj) ? {
+                    "CNPJ": cliente.cpfCnpj.length > 11 ? cliente.cpfCnpj.replace(/\D/g, '') : undefined,
+                    "CPF": cliente.cpfCnpj.length <= 11 ? cliente.cpfCnpj.replace(/\D/g, '') : undefined,
+                    "xNome": cliente.nome,
+                    "indIEDest": 9
+                } : undefined,
+                "det": itens.map((item: any, index: number) => {
+                    const idReal = Number(item.id || item.produtoId);
+                    const prod = produtosDb.find(p => p.id === idReal);
+                    if (!prod) throw new Error(`Produto ${idReal} não encontrado.`);
+                    return {
+                        "nItem": index + 1,
+                        "prod": {
+                            "cProd": String(prod.id),
+                            "cEAN": "SEM GTIN",
+                            "xProd": prod.nome,
+                            "NCM": prod.ncm || "00000000",
+                            "CFOP": "5102",
+                            "uCom": "UN",
+                            "qCom": Number(item.quantidade).toFixed(4),
+                            "vUnCom": Number(prod.precoVenda).toFixed(10),
+                            "vProd": (Number(item.quantidade) * Number(prod.precoVenda)).toFixed(2),
+                            "cEANTrib": "SEM GTIN",
+                            "uTrib": "UN",
+                            "qTrib": Number(item.quantidade).toFixed(4),
+                            "vUnTrib": Number(prod.precoVenda).toFixed(10),
+                            "indTot": 1
+                        },
+                        "imposto": {
+                            "ICMS": { "ICMSSN102": { "orig": 0, "CSOSN": "102" } },
+                            "PIS": { "PISOutr": { "CST": "99", "vBC": 0, "pPIS": 0, "vPIS": 0 } },
+                            "COFINS": { "COFINSOutr": { "CST": "99", "vBC": 0, "pCOFINS": 0, "vCOFINS": 0 } }
+                        }
+                    };
+                }),
+                "total": {
+                    "ICMSTot": {
+                        "vBC": 0, "vICMS": 0, "vICMSDeson": 0, "vFCP": 0, "vBCST": 0, "vST": 0, "vFCPST": 0, "vFCPSTRet": 0,
+                        "vProd": Number(total).toFixed(2),
+                        "vFrete": 0, "vSeg": 0, "vDesc": 0, "vII": 0, "vIPI": 0, "vIPIDevol": 0, "vPIS": 0, "vCOFINS": 0, "vOutro": 0,
+                        "vNF": Number(total).toFixed(2), "vTotTrib": 0
+                    }
+                },
+                "transp": { "modFrete": 9 },
+                "pag": {
+                    "detPag": [{ "tPag": pagamento === 'Dinheiro' ? "01" : "99", "vPag": Number(total).toFixed(2) }]
+                }
+            }
+        };
+
+        // D. Envia para Nuvem Fiscal
+        const emitirResponse = await fetch('https://api.sandbox.nuvemfiscal.com.br/nfce', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authData.access_token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(corpoNota)
+        });
+
+        const textoResposta = await emitirResponse.text();
+        if (!emitirResponse.ok) throw new Error(`Rejeição Nuvem: ${textoResposta}`);
+        
+        const respostaNota = JSON.parse(textoResposta);
+        urlFiscal = respostaNota.url_danfe || respostaNota.link_danfe;
+
+        // 👇👇 O ELO PERDIDO: SALVA OS DADOS NA VENDA JÁ EXISTENTE 👇👇
+        if (respostaNota.status === 'autorizado') {
+             console.log("💾 Gravando dados fiscais na venda #" + vendaRegistrada.id);
+             
+             await prisma.venda.update({
+                 where: { id: vendaRegistrada.id }, // Atualiza a venda que criamos lá em cima
+                 data: {
+                     nota_emitida: true,        // <--- ISSO LIGA O BOTÃO DE CANCELAR
+                     nota_id_nuvem: respostaNota.id,
+                     nota_chave: respostaNota.chave,
+                     nota_numero: respostaNota.numero,
+                     urlFiscal: urlFiscal
+                 }
+             });
+             console.log("✅ Venda atualizada com sucesso!");
         }
-        */
 
       } catch (errFiscal: any) {
         console.error("⚠️ Venda salva, mas ERRO NA NOTA:", errFiscal.message);
         notaErro = "Venda realizada, mas falha ao emitir NFC-e. Tente novamente pelo histórico.";
-        // NÃO damos throw aqui. A venda já está garantida!
       }
     }
 
