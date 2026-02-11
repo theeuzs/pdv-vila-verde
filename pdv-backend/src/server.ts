@@ -830,7 +830,7 @@ app.post('/verificar-gerente', async (req, res) => {
 // ROTA PARA EMITIR NOTA FISCAL (NFC-e) - CORRIGIDO
 // Rota "RAIO-X" 💀 - Acha o link ou monta o da SEFAZ
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
-  console.log("🚨 1. ROTA RAIO-X INICIADA");
+  console.log("🚨 1. ROTA DELIVERY PDF INICIADA");
   const { itens, total, pagamento, cliente } = request.body;
 
   try {
@@ -975,40 +975,36 @@ app.post('/emitir-fiscal', async (request: any, reply: any) => {
     const respostaJson = JSON.parse(textoResposta);
     let linkPdf = respostaJson.url_danfe || respostaJson.link_danfe;
 
-    // 🔄 LÓGICA DE RESGATE COM LOG DETALHADO
+    // 👇 O PULO DO GATO: Se não tem link, baixa o arquivo e converte pra Base64
     if (!linkPdf && respostaJson.status === 'autorizado') {
-        console.log("🔄 6. Buscando detalhes...");
+        console.log("🔄 6. Baixando PDF direto da API...");
         try {
-            await new Promise(resolve => setTimeout(resolve, 1500)); // Espera 1.5s
-            
-            const fetchDetalhes = await fetch(`https://api.sandbox.nuvemfiscal.com.br/nfce/${respostaJson.id}`, {
-                method: 'GET',
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Espera 1s
+
+            // Chama endpoint que devolve o ARQUIVO
+            const pdfResponse = await fetch(`https://api.sandbox.nuvemfiscal.com.br/nfce/${respostaJson.id}/danfe`, {
                 headers: { 'Authorization': `Bearer ${authData.access_token}` }
             });
-            const detalhes = await fetchDetalhes.json();
 
-            // 👇 AQUI ESTÁ O SEGREDO: IMPRIME O JSON INTEIRO NO LOG
-            console.log("🕵️‍♂️ JSON DETALHES COMPLETO:", JSON.stringify(detalhes));
-
-            linkPdf = detalhes.url_danfe || detalhes.link_danfe || (detalhes.danfe && detalhes.danfe.url);
-
-            // SE AINDA NÃO ACHOU, GERA O LINK DA SEFAZ MANUALMENTE
-            if (!linkPdf && detalhes.chave) {
-                console.log("⚠️ Link PDF não achado. Gerando link SEFAZ...");
-                // Link oficial de consulta pública
-                linkPdf = `http://www.fazenda.pr.gov.br/nfce/consulta`; 
-                // Obs: A SEFAZ PR exige digitar a chave, mas pelo menos abre o portal oficial.
+            if (pdfResponse.ok) {
+                // Pega os dados binários e converte pra Base64
+                const pdfBuffer = await pdfResponse.arrayBuffer();
+                const base64Pdf = Buffer.from(pdfBuffer).toString('base64');
+                
+                // Cria um link especial que o navegador entende
+                linkPdf = `data:application/pdf;base64,${base64Pdf}`;
+                console.log("📦 7. PDF convertido para Base64 com sucesso!");
+            } else {
+                console.error("⚠️ Falha ao baixar PDF binário:", pdfResponse.status);
             }
         } catch (err) {
-            console.error("⚠️ Erro no resgate:", err);
+            console.error("⚠️ Erro no download do PDF:", err);
         }
     }
 
-    console.log("✅ 7. LINK FINAL ENVIADO:", linkPdf);
-
     return reply.status(200).send({
        mensagem: "Nota autorizada!",
-       url: linkPdf || "https://www.nuvemfiscal.com.br"
+       url: linkPdf || "https://www.nuvemfiscal.com.br" // Só usa fallback se tudo falhar
     });
 
   } catch (error: any) {
