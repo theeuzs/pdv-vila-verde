@@ -69,10 +69,8 @@ export function App() {
   const [aba, setAba] = useState<string>('caixa');
   
   const [produtos, setProdutos] = useState<Produto[]>([])
-  const [vendasRealizadas, setVendasRealizadas] = useState<any[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [contasReceber, setContasReceber] = useState<any[]>([])
-  const [historicoCaixas, setHistoricoCaixas] = useState<any[]>([])
 
   const [caixaAberto, setCaixaAberto] = useState<any>(null);
   const [caixa, setCaixa] = useState<any>(null);
@@ -92,7 +90,6 @@ export function App() {
   const [modalAberto, setModalAberto] = useState(false)
   const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null)
   const [modalClienteAberto, setModalClienteAberto] = useState(false)
-  const [clienteEmEdicao, setClienteEmEdicao] = useState<Cliente | null>(null)
 
   const [formProduto, setFormProduto] = useState<Partial<Produto>>({
     nome: '', codigoBarra: '', precoCusto: 0, precoVenda: 0, estoque: 0,
@@ -111,10 +108,8 @@ export function App() {
     if (usuarioLogado) {
       carregarProdutos();
       carregarClientes();
-      carregarVendas();
       carregarContasReceber();
       verificarCaixaAberto();
-      carregarHistoricoCaixas();
     }
   }, [usuarioLogado]);
 
@@ -135,13 +130,6 @@ export function App() {
     } catch (err) { console.error(err); }
   }
 
-  async function carregarVendas() {
-    try {
-      const res = await fetch(`${API_URL}/vendas`);
-      if (res.ok) setVendasRealizadas(await res.json());
-    } catch (err) { console.error(err); }
-  }
-
   async function carregarContasReceber() {
     try {
       const res = await fetch(`${API_URL}/contas-receber`);
@@ -156,13 +144,6 @@ export function App() {
         const data = await res.json();
         setCaixaAberto(data.aberto ? data.caixa : null);
       }
-    } catch (err) { console.error(err); }
-  }
-
-  async function carregarHistoricoCaixas() {
-    try {
-      const res = await fetch(`${API_URL}/caixa/historico`);
-      if (res.ok) setHistoricoCaixas(await res.json());
     } catch (err) { console.error(err); }
   }
 
@@ -258,14 +239,10 @@ export function App() {
   // ============================================================================
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault();
-    const url = clienteEmEdicao 
-      ? `${API_URL}/clientes/${clienteEmEdicao.id}`
-      : `${API_URL}/clientes`;
-    const method = clienteEmEdicao ? 'PUT' : 'POST';
-
+    
     try {
-      const res = await fetch(url, {
-        method,
+      const res = await fetch(`${API_URL}/clientes`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formCliente)
       });
@@ -362,7 +339,6 @@ export function App() {
         const troco = totalPago - subtotalCarrinho;
         alert(troco > 0 ? `✅ Venda finalizada!\n\nTroco: R$ ${troco.toFixed(2)}` : '✅ Venda finalizada!');
         limparCarrinho();
-        carregarVendas();
         carregarProdutos();
         verificarCaixaAberto();
       }
@@ -736,7 +712,7 @@ export function App() {
         {modalClienteAberto && (
           <div style={styles.modalOverlay}>
             <div style={styles.modalContent}>
-              <h2 style={styles.modalTitle}>👤 {clienteEmEdicao ? 'Editar' : 'Novo'} Cliente</h2>
+              <h2 style={styles.modalTitle}>👤 Novo Cliente</h2>
               <form onSubmit={salvarCliente}>
                 <div>
                   <label style={styles.modalLabel}>Nome Completo</label>
