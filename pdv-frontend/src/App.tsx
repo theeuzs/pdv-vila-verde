@@ -43,20 +43,6 @@ interface PagamentoVenda {
   valor: number
 }
 
-interface Venda {
-  id: number
-  data: string
-  total: string
-  cliente?: Cliente
-  nota_emitida?: boolean
-  pagamentos: { forma: string; valor: string }[]
-  itens: { 
-    id: number
-    quantidade: string
-    precoUnit: string
-    produto: Produto 
-  }[]
-}
 
 const API_URL = 'https://api-vila-verde.onrender.com'
 
@@ -76,15 +62,17 @@ const getCategoryIcon = (categoria?: string) => {
 
 export function App() {
   
+  // ============================================================================
   // ESTADOS
+  // ============================================================================
   const [usuarioLogado, setUsuarioLogado] = useState<any>(null);
   const [aba, setAba] = useState<string>('caixa');
   
   const [produtos, setProdutos] = useState<Produto[]>([])
-  const [vendasRealizadas, setVendasRealizadas] = useState<Venda[]>([])
+  const [vendasRealizadas, setVendasRealizadas] = useState<any[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [contasReceber, setContasReceber] = useState<any[]>([])
-  const [historicoCaixas, setHistoricoCaixas] = useState<any[]>([]);
+  const [historicoCaixas, setHistoricoCaixas] = useState<any[]>([])
 
   const [caixaAberto, setCaixaAberto] = useState<any>(null);
   const [caixa, setCaixa] = useState<any>(null);
@@ -106,11 +94,6 @@ export function App() {
   const [modalClienteAberto, setModalClienteAberto] = useState(false)
   const [clienteEmEdicao, setClienteEmEdicao] = useState<Cliente | null>(null)
 
-  const [modalMovimentacao, setModalMovimentacao] = useState(false);
-  const [tipoMovimentacao, setTipoMovimentacao] = useState('');
-  const [valorMovimentacao, setValorMovimentacao] = useState('');
-  const [descMovimentacao, setDescMovimentacao] = useState('');
-
   const [formProduto, setFormProduto] = useState<Partial<Produto>>({
     nome: '', codigoBarra: '', precoCusto: 0, precoVenda: 0, estoque: 0,
     unidade: 'UN', categoria: '', fornecedor: '', localizacao: '',
@@ -121,7 +104,9 @@ export function App() {
     nome: '', cpfCnpj: '', celular: '', endereco: ''
   });
 
+  // ============================================================================
   // EFFECTS
+  // ============================================================================
   useEffect(() => {
     if (usuarioLogado) {
       carregarProdutos();
@@ -133,7 +118,9 @@ export function App() {
     }
   }, [usuarioLogado]);
 
+  // ============================================================================
   // FUNÇÕES DE CARREGAMENTO
+  // ============================================================================
   async function carregarProdutos() {
     try {
       const res = await fetch(`${API_URL}/produtos`);
@@ -179,7 +166,9 @@ export function App() {
     } catch (err) { console.error(err); }
   }
 
+  // ============================================================================
   // FUNÇÕES DE CAIXA
+  // ============================================================================
   async function abrirCaixa() {
     if (!valorAbertura || Number(valorAbertura) <= 0) {
       alert('Informe um valor válido!');
@@ -230,7 +219,9 @@ export function App() {
     } catch (err) { console.error(err); }
   }
 
+  // ============================================================================
   // FUNÇÕES DE PRODUTO
+  // ============================================================================
   function abrirModalNovoProduto() {
     setProdutoEmEdicao(null);
     setFormProduto({
@@ -262,13 +253,9 @@ export function App() {
     } catch (err) { console.error(err); }
   }
 
+  // ============================================================================
   // FUNÇÕES DE CLIENTE
-  function abrirModalNovoCliente() {
-    setClienteEmEdicao(null);
-    setFormCliente({ nome: '', cpfCnpj: '', celular: '', endereco: '' });
-    setModalClienteAberto(true);
-  }
-
+  // ============================================================================
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault();
     const url = clienteEmEdicao 
@@ -290,7 +277,9 @@ export function App() {
     } catch (err) { console.error(err); }
   }
 
+  // ============================================================================
   // FUNÇÕES DO CARRINHO
+  // ============================================================================
   function adicionarAoCarrinho(produto: Produto) {
     const itemExistente = carrinho.find(item => item.produto.id === produto.id);
     if (itemExistente) {
@@ -388,7 +377,9 @@ export function App() {
     );
   }, [produtos, busca]);
 
+  // ============================================================================
   // RENDERIZAÇÃO
+  // ============================================================================
   if (!usuarioLogado) {
     return <TelaLogin onLogin={setUsuarioLogado} />;
   }
@@ -807,7 +798,9 @@ export function App() {
   );
 }
 
+// ============================================================================
 // ESTILOS
+// ============================================================================
 const styles = {
   appContainer: {
     minHeight: '100vh',
