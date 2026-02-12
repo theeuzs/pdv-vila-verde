@@ -9,7 +9,7 @@ const styles = {
     backgroundColor: '#f1f5f9',
   },
   ladoEsquerdo: {
-    flex: 1,
+    flex: 1.2, // Aumentei um pouco o lado verde pra logo caber bem
     background: 'linear-gradient(135deg, #15803d 0%, #166534 100%)', // Verde Vila Verde
     display: 'flex',
     justifyContent: 'center',
@@ -31,18 +31,22 @@ const styles = {
     maxWidth: '380px',
     padding: '40px',
   },
-  logoContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginBottom: '30px'
-  },
-  logoImage: {
-    width: '180px',     // Tamanho da logo
+  // 👇 Estilo novo para a logo no lado verde
+  logoGrande: {
+    width: '350px',     // Bem grande
+    maxWidth: '80%',
     height: 'auto',
-    objectFit: 'contain' as const
+    objectFit: 'contain' as const,
+    filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.2))' // Sombra pra destacar no verde
+  },
+  // 👇 Logo mobile (só aparece no celular)
+  logoMobile: {
+    width: '150px',
+    marginBottom: '20px',
+    display: 'none' // Por padrão escondida, media query ativa ela
   },
   titulo: {
-    fontSize: '1.8rem',
+    fontSize: '2rem',
     fontWeight: '800',
     color: '#0f172a',
     marginBottom: '10px',
@@ -75,7 +79,7 @@ const styles = {
   botao: {
     width: '100%',
     padding: '14px',
-    backgroundColor: '#166534', // Verde escuro da marca
+    backgroundColor: '#166534',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -102,13 +106,11 @@ interface Props {
 }
 
 export function TelaLogin({ onLoginSucesso }: Props) {
-  // 👇 AGORA USAMOS USERNAME
   const [username, setUsername] = useState('');
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
 
-  // 👇 CONFIRME SE A URL DO SEU BACKEND ESTÁ CERTA AQUI
   const API_URL = 'https://api-vila-verde.onrender.com'; 
 
   async function handleLogin(e: React.FormEvent) {
@@ -117,7 +119,6 @@ export function TelaLogin({ onLoginSucesso }: Props) {
     setErro('');
 
     try {
-      // 👇 Manda username e senha para a rota /login
       const res = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -140,20 +141,25 @@ export function TelaLogin({ onLoginSucesso }: Props) {
 
   return (
     <div style={styles.container}>
-      {/* LADO ESQUERDO: DECORATIVO (Some no celular) */}
+      {/* 🟩 LADO ESQUERDO (VERDE) 
+          Agora a logo está aqui!
+      */}
       <div className="hidden md:flex" style={styles.ladoEsquerdo}>
-         <h1 style={{fontSize: '3rem', margin: 0}}>🏗️</h1>
-         <h1 style={{fontSize: '2.5rem', fontWeight: 800, marginTop: 10}}>Vila Verde</h1>
-         <p style={{opacity: 0.9, fontSize: '1.2rem'}}>Gestão Profissional</p>
+         {/* 👇 SUA LOGO AQUI */}
+         <img src="/logo.jpg" alt="Logo Vila Verde" style={styles.logoGrande} />
+         
+         <p style={{opacity: 0.9, fontSize: '1.4rem', marginTop: '20px', fontWeight: 600}}>
+            Gestão Profissional
+         </p>
       </div>
 
-      {/* LADO DIREITO: FORMULÁRIO */}
+      {/* ⬜ LADO DIREITO (BRANCO) */}
       <div style={styles.ladoDireito}>
         <div style={styles.card}>
           
-          {/* 👇 AQUI VAI APARECER A SUA LOGO */}
-          <div style={styles.logoContainer}>
-             <img src="/logo.png" alt="Logo Vila Verde" style={styles.logoImage} />
+          {/* Logo só aparece aqui se for Celular (Mobile) */}
+          <div className="show-mobile-only" style={{textAlign: 'center'}}>
+            <img src="/logo.jpg" alt="Logo" style={{width: '120px', marginBottom: 20}} />
           </div>
 
           <div style={styles.titulo}>Bem-vindo!</div>
@@ -168,7 +174,7 @@ export function TelaLogin({ onLoginSucesso }: Props) {
                 type="text" 
                 placeholder="Ex: admin" 
                 value={username}
-                onChange={e => setUsername(e.target.value)} // Remove espaços
+                onChange={e => setUsername(e.target.value)}
                 style={styles.input}
                 required
                 autoFocus
@@ -198,10 +204,16 @@ export function TelaLogin({ onLoginSucesso }: Props) {
         </div>
       </div>
 
-      {/* CSS para responsividade */}
+      {/* CSS para responsividade e ajustes finos */}
       <style>{`
+        /* No computador, esconde a logo mobile */
+        .show-mobile-only { display: none; }
+
         @media (max-width: 768px) {
+          /* No celular, esconde o lado verde */
           .hidden.md\\:flex { display: none !important; }
+          /* No celular, mostra a logo pequena em cima do form */
+          .show-mobile-only { display: block; }
         }
         input:focus { border-color: #166534 !important; border-width: 2px; }
       `}</style>

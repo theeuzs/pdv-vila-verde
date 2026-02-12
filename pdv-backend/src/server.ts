@@ -1,7 +1,7 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { PrismaClient } from '@prisma/client'
-import { compare } from 'bcryptjs'
+import { hash, compare } from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import axios from 'axios';
@@ -750,13 +750,14 @@ app.get('/resetar-chefe', async (req, res) => {
 
     // 3. Agora cria o chefe novinho
     await prisma.user.create({
-      data: {
-        nome: "Matheus",
-        senha: "admin",
-        cargo: "GERENTE",
-        email: "admin@vilaverde.com"
-      }
-    });
+  data: {
+    nome: "Matheus",
+    username: "matheus",  // <--- O ERRO ERA A FALTA DISSO
+    senha: "admin",       // (Obs: ideal seria usar 'await hash("admin", 8)')
+    cargo: "GERENTE",
+    email: "admin@vilaverde.com"
+  }
+});
     
     return res.send("♻️ SUCESSO! O usuário antigo foi removido e o novo foi criado. Pode logar!");
   } catch (error: any) {
@@ -775,18 +776,40 @@ app.get('/usuarios', async (req, res) => {
 });
 
 // 2. Criar novo funcionário
-app.post('/usuarios', async (req, res) => {
-  const { nome, senha, cargo } = req.body as any;
-  // Cria um email falso automático pro banco não reclamar
-  const emailAuto = `${nome.toLowerCase().replace(/\s/g, '')}${Math.floor(Math.random()*999)}@vila.com`;
+app.post('/usuarios', async (request: any, reply: any) => {
+  // 👇 Pegamos o 'cargo' aqui
+  const { nome, username, email, senha, cargo } = request.body;
 
   try {
-    const novo = await prisma.user.create({
-      data: { nome, senha, cargo, email: emailAuto }
+    const usuarioExiste = await prisma.user.findFirst({
+        where: {
+            OR: [ { username: username }, { email: email } ]
+        }
     });
-    return res.send(novo);
-  } catch (err) {
-    return res.status(500).send({ error: "Erro ao criar. Tente outro nome." });
+
+    if (usuarioExiste) {
+        return reply.status(400).send({ erro: "Usuário ou Email já existe!" });
+    }
+
+    const senhaForte = await hash(senha, 8);
+
+    const novoUsuario = await prisma.user.create({
+      data: {
+        nome,
+        username,
+        email,
+        senha: senhaForte,
+        // 👇 Se não mandar nada, vira Vendedor. Se mandar, salva o que veio (ex: MOTORISTA)
+        cargo: cargo || 'VENDEDOR' 
+      }
+    });
+
+    const { senha: _, ...usuarioLimpo } = novoUsuario;
+    return reply.status(201).send(usuarioLimpo);
+
+  } catch (error) {
+    console.error(error);
+    return reply.status(500).send({ erro: "Erro ao cadastrar." });
   }
 });
 
