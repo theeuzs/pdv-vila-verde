@@ -15,29 +15,38 @@ const prisma = new PrismaClient()
 
 // Rota de LOGIN 🔐
 app.post('/login', async (request: any, reply: any) => {
-  const { email, senha } = request.body;
+  const { username, senha } = request.body;
 
   try {
-    // 1. Busca o usuário pelo email
-    const usuario = await prisma.user.findUnique({ where: { email } });
+    console.log(`🔐 Tentativa de login para: ${username}`);
+
+    // 1. Busca na tabela 'user' (minúsculo porque o prisma gera assim)
+    const usuario = await prisma.user.findUnique({ 
+        where: { username: username } 
+    });
 
     if (!usuario) {
-      return reply.status(400).send({ erro: "Email não encontrado." });
+      console.log("❌ Usuário não encontrado no banco.");
+      return reply.status(400).send({ erro: "Usuário não encontrado." });
     }
 
-    // 2. Compara a senha digitada com a criptografia do banco
+    // 2. Confere a senha
     const senhaBateu = await compare(senha, usuario.senha);
 
     if (!senhaBateu) {
+      console.log("❌ Senha incorreta.");
       return reply.status(401).send({ erro: "Senha incorreta!" });
     }
 
-    // 3. Devolve os dados do usuário (sem a senha, claro)
-    const { senha: _, ...usuarioSemSenha } = usuario;
+    console.log("✅ Login realizado com sucesso!");
     
+    // 3. Remove a senha antes de enviar
+    const { senha: _, ...usuarioSemSenha } = usuario;
     return reply.status(200).send(usuarioSemSenha);
 
-  } catch (error) {
+  } catch (error: any) {
+    console.error("🔥 ERRO CRÍTICO NO LOGIN:", error);
+    // Isso vai mostrar o erro real no log do Render pra gente saber o que foi
     return reply.status(500).send({ erro: "Erro interno no servidor." });
   }
 });

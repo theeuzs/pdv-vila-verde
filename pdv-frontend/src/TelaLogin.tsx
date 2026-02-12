@@ -153,7 +153,7 @@ export function TelaLogin({ onLoginSucesso }: Props) {
           
           {/* 👇 AQUI VAI APARECER A SUA LOGO */}
           <div style={styles.logoContainer}>
-             <img src="/logo.jpg" alt="Logo Vila Verde" style={styles.logoImage} />
+             <img src="/logo.png" alt="Logo Vila Verde" style={styles.logoImage} />
           </div>
 
           <div style={styles.titulo}>Bem-vindo!</div>
