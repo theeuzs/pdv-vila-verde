@@ -1140,58 +1140,113 @@ export function App() {
         {aba === 'caixa' && (
           <div style={{ display: 'flex', gap: 30, flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start' }}>
             {/* COLUNA ESQUERDA: PRODUTOS */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', height: '75vh' }}> 
-              
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                <input type="number" min="1" value={qtdParaAdicionar} onChange={e => setQtdParaAdicionar(Number(e.target.value))} placeholder="Qtd" style={{ width: 80, padding: '15px', borderRadius: '10px', border: '1px solid #ddd', textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }} />
-                <input autoFocus type="text" placeholder="🔍 Digite o nome ou código..." value={busca} onChange={(e) => setBusca(e.target.value)} style={{ flex: 1, padding: '15px', fontSize: '1.2rem', borderRadius: '10px', border: '1px solid #ddd', outline: 'none' }} />
-                <button
-                  onClick={() => {
-                    setProdutoEmEdicao(null);
-                    setFormProduto({ nome: '', codigoBarra: '', precoCusto: '', precoVenda: '', estoque: '', unidade: 'UN', categoria: 'Geral', ncm: '', cest: '', cfop: '5102', csosn: '102', origem: '0', fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '' });
-                    setModalAberto(true);
-                  }}
-                  style={{ backgroundColor: '#2ecc71', color: 'white', border: 'none', borderRadius: '10px', width: '60px', fontSize: '24px', cursor: 'pointer' }}
-                  title="Cadastrar Novo Produto"
-                > + </button>
-              </div>
+<div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', height: '75vh' }}> 
+  
+  {/* 1. CABEÇALHO: BUSCA E ADICIONAR (Mantive o seu que funciona bem) */}
+  <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+    <input 
+        type="number" 
+        min="1" 
+        value={qtdParaAdicionar} 
+        onChange={e => setQtdParaAdicionar(Number(e.target.value))} 
+        placeholder="Qtd" 
+        style={{ width: 80, padding: '15px', borderRadius: '10px', border: '1px solid #ddd', textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }} 
+    />
+    <input 
+        autoFocus 
+        type="text" 
+        placeholder="🔍 Digite o nome ou código..." 
+        value={busca} 
+        onChange={(e) => setBusca(e.target.value)} 
+        style={{ flex: 1, padding: '15px', fontSize: '1.2rem', borderRadius: '10px', border: '1px solid #ddd', outline: 'none' }} 
+    />
+    <button
+      onClick={() => {
+        setProdutoEmEdicao(null);
+        // Reset do formulário (mantive sua lógica original)
+        setFormProduto({ nome: '', codigoBarra: '', precoCusto: '', precoVenda: '', estoque: '', unidade: 'UN', categoria: 'Geral', ncm: '', cest: '', cfop: '5102', csosn: '102', origem: '0', fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '' });
+        setModalAberto(true);
+      }}
+      style={{ backgroundColor: '#2ecc71', color: 'white', border: 'none', borderRadius: '10px', width: '60px', fontSize: '24px', cursor: 'pointer' }}
+      title="Cadastrar Novo Produto"
+    > + </button>
+  </div>
 
-              <div style={{ flex: 1, overflowY: 'auto', paddingRight: 5 }}>
-                {busca === '' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.6, color: '#888' }}>
-                    <div style={{ fontSize: '80px', marginBottom: '20px' }}>🏪</div>
-                    <h2>Vila Verde PDV</h2>
-                    <p>Pesquise para vender.</p>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {produtosFiltrados.map(produto => (
-                      <div 
-                        key={produto.id} 
-                        onClick={() => adicionarAoCarrinho(produto)}
-                        style={{
-                          display: 'flex', alignItems: 'center', backgroundColor: 'white', padding: '15px', borderRadius: '12px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', cursor: 'pointer',
-                          borderLeft: Number(produto.estoque) <= 0 ? '5px solid #e74c3c' : '5px solid #2ecc71', transition: 'transform 0.1s'
-                        }}
-                      >
-                        <div style={{ width: '60px', height: '60px', backgroundColor: '#f4f6f8', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '25px', marginRight: '15px' }}>📦</div>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: '#2c3e50' }}>{produto.nome}</h3>
-                          <div style={{ fontSize: '0.9rem', color: '#7f8c8d' }}>Estoque: <strong>{produto.estoque}</strong> {produto.unidade}</div>
-                        </div>
-                        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#27ae60' }}>R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}</div>
-                          <div style={{ display: 'flex', gap: '5px' }}>
-                            <button onClick={(e) => { e.stopPropagation(); setProdutoEmEdicao(produto); setFormProduto({ ...produto, precoCusto: String(produto.precoCusto), precoVenda: String(produto.precoVenda), estoque: String(produto.estoque), ncm: produto.ncm || '', cest: produto.cest || '', cfop: produto.cfop || '5102', csosn: produto.csosn || '102', origem: produto.origem || '0', unidade: produto.unidade || 'UN', fornecedor: produto.fornecedor || '', categoria: produto.categoria || '', localizacao: produto.localizacao || '', ipi: String(produto.ipi||''), icms: String(produto.icms||''), frete: String(produto.frete||'') } as any); setModalAberto(true); }} style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer' }}>✏️</button>
-                            <button onClick={(e) => { e.stopPropagation(); excluirProduto(produto.id); }} style={{ backgroundColor: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer' }}>🗑️</button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+  {/* 2. GRADE DE CARDS (Aqui está a mágica ✨) */}
+  <div style={{ flex: 1, overflowY: 'auto', paddingRight: 5 }}>
+    {busca === '' && produtosFiltrados.length === 0 ? (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.6, color: '#888' }}>
+        <div style={{ fontSize: '80px', marginBottom: '20px' }}>🏪</div>
+        <h2>Vila Verde PDV</h2>
+        <p>Pesquise ou adicione produtos.</p>
+      </div>
+    ) : (
+      // USANDO O ESTILO GRID QUE CRIAMOS
+      <div style={styles.gridProdutos}>
+        {produtosFiltrados.map(produto => (
+          <div 
+            key={produto.id}
+            style={styles.cardProduto}
+            // Efeito Hover
+            onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#166534';
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 10px 15px rgba(22, 101, 52, 0.1)';
+            }}
+            onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
+            }}
+            onClick={() => adicionarAoCarrinho(produto)}
+          >
+            {/* Ícone */}
+            <div style={styles.iconeProduto}>
+                {produto.categoria?.toLowerCase().includes('bebida') ? '🥤' : 
+                 produto.categoria?.toLowerCase().includes('limpeza') ? '🧹' : 
+                 produto.categoria?.toLowerCase().includes('carne') ? '🥩' : '📦'}
             </div>
+
+            {/* Informações */}
+            <div style={styles.nomeProduto}>{produto.nome}</div>
+            <div style={styles.precoProduto}>R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}</div>
+            
+            <div style={styles.estoqueBadge}>
+              Estoque: {produto.estoque} {produto.unidade || 'UN'}
+            </div>
+
+            {/* Botões de Ação (Editar/Excluir) - Pequenos no rodapé do card */}
+            <div style={{marginTop: 10, display: 'flex', gap: 5, width: '100%', justifyContent: 'center'}}>
+                <button 
+                    onClick={(e) => { 
+                        e.stopPropagation(); // Impede de adicionar ao carrinho quando clica em editar
+                        setProdutoEmEdicao(produto); 
+                        // Copiei sua lógica de preencher o form aqui
+                        setFormProduto({ ...produto, precoCusto: String(produto.precoCusto), precoVenda: String(produto.precoVenda), estoque: String(produto.estoque), ncm: produto.ncm || '', cest: produto.cest || '', cfop: produto.cfop || '5102', csosn: produto.csosn || '102', origem: produto.origem || '0', unidade: produto.unidade || 'UN', fornecedor: produto.fornecedor || '', categoria: produto.categoria || '', localizacao: produto.localizacao || '', ipi: String(produto.ipi||''), icms: String(produto.icms||''), frete: String(produto.frete||'') } as any); 
+                        setModalAberto(true); 
+                    }} 
+                    style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                    title="Editar"
+                >
+                    ✏️
+                </button>
+                <button 
+                    onClick={(e) => { 
+                        e.stopPropagation(); 
+                        excluirProduto(produto.id); 
+                    }} 
+                    style={{ backgroundColor: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                    title="Excluir"
+                >
+                    🗑️
+                </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</div>
 
             {/* COLUNA DIREITA: CARRINHO E PAGAMENTO */}
             <div style={{ width: 400, backgroundColor: modoEscuro ? '#2d3748' : 'white', borderRadius: 12, padding: 25, display: 'flex', flexDirection: 'column', boxShadow: '0 10px 15px rgba(0,0,0,0.05)', color: modoEscuro ? 'white' : '#2d3748' }}>
@@ -1804,5 +1859,67 @@ export function App() {
     </div>
   );
 }
+
+const styles = {
+  gridProdutos: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', // Cria colunas automáticas
+    gap: '15px',
+    padding: '10px 0'
+  } as React.CSSProperties,
+
+  cardProduto: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '15px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.05)', // Sombra suave
+    border: '2px solid #e2e8f0', // Borda cinza clarinho inicial
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    position: 'relative',
+    height: '100%',
+    justifyContent: 'space-between'
+  } as React.CSSProperties,
+
+  iconeProduto: {
+    fontSize: '2.5rem',
+    marginBottom: '10px',
+    backgroundColor: '#f0fdf4', // Fundo verdinho
+    width: '60px',
+    height: '60px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '50%'
+  } as React.CSSProperties,
+
+  nomeProduto: {
+    fontWeight: 'bold',
+    color: '#1e293b',
+    fontSize: '0.95rem',
+    marginBottom: '5px',
+    lineHeight: '1.2'
+  } as React.CSSProperties,
+
+  precoProduto: {
+    color: '#166534', // Verde escuro Vila Verde
+    fontWeight: '800',
+    fontSize: '1.1rem',
+    marginTop: '5px'
+  } as React.CSSProperties,
+
+  estoqueBadge: {
+    fontSize: '0.75rem',
+    color: '#64748b',
+    marginTop: '8px',
+    backgroundColor: '#f1f5f9',
+    padding: '4px 8px',
+    borderRadius: '10px'
+  } as React.CSSProperties
+};
 
 export default App;
