@@ -1209,9 +1209,14 @@ export function App() {
     )}
 
     {/* 2. GRADE DE TODOS OS PRODUTOS */}
-    <h3 style={{ color: '#334155', borderBottom: '2px solid #e2e8f0', paddingBottom: 10, marginTop: 0 }}>
-      📦 Todos os Produtos
-    </h3>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: 10, marginTop: 0 }}>
+        <h3 style={{ color: '#334155', margin: 0 }}>📦 Todos os Produtos</h3>
+        {busca.length > 0 && (
+             <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                Mostrando os primeiros resultados para "{busca}"
+             </span>
+        )}
+    </div>
 
     {busca === '' && produtosFiltrados.length === 0 ? (
       <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
@@ -1220,50 +1225,73 @@ export function App() {
       </div>
     ) : (
       <div style={styles.gridProdutos}>
-        {produtosFiltrados.map(produto => (
-          <div 
-            key={produto.id}
-            style={styles.cardProduto}
-            onMouseEnter={e => {
-                e.currentTarget.style.borderColor = '#166534';
-                e.currentTarget.style.transform = 'translateY(-3px)';
-            }}
-            onMouseLeave={e => {
-                e.currentTarget.style.borderColor = '#e2e8f0';
-                e.currentTarget.style.transform = 'translateY(0)';
-            }}
-            onClick={() => adicionarAoCarrinho(produto)}
-          >
-            <div style={styles.iconeProduto}>
-                {produto.categoria?.toLowerCase().includes('bebida') ? '🥤' : 
-                 produto.categoria?.toLowerCase().includes('limpeza') ? '🧹' : 
-                 produto.categoria?.toLowerCase().includes('areia') ? '🏖️' : 
-                 produto.categoria?.toLowerCase().includes('cimento') ? '🧱' : '📦'}
-            </div>
+        {produtos
+          .filter(p => {
+             // 🔍 LÓGICA DE BUSCA OTIMIZADA
+             if (!busca) return true; // Se não tem busca, mostra tudo (limitado abaixo)
+             
+             const termo = busca.toLowerCase();
+             const nome = p.nome.toLowerCase();
+             const codigo = p.codigoBarra || '';
 
-            <div style={styles.nomeProduto}>{produto.nome}</div>
-            <div style={styles.precoProduto}>R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}</div>
-            <div style={styles.estoqueBadge}>
-              Estoque: {produto.estoque} {produto.unidade || 'UN'}
-            </div>
+             // 1. Procura pelo Código de Barras (Prioridade Total)
+             if (codigo.includes(termo)) return true;
 
-            {/* Botões Editar/Excluir */}
-            <div style={{marginTop: 10, display: 'flex', gap: 5, width: '100%', justifyContent: 'center'}}>
-                <button 
-                    onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setProdutoEmEdicao(produto); 
-                        setFormProduto({ ...produto, precoCusto: String(produto.precoCusto), precoVenda: String(produto.precoVenda), estoque: String(produto.estoque), ncm: produto.ncm || '', cest: produto.cest || '', cfop: produto.cfop || '5102', csosn: produto.csosn || '102', origem: produto.origem || '0', unidade: produto.unidade || 'UN', fornecedor: produto.fornecedor || '', categoria: produto.categoria || '', localizacao: produto.localizacao || '', ipi: String(produto.ipi||''), icms: String(produto.icms||''), frete: String(produto.frete||'') } as any); 
-                        setModalAberto(true); 
-                    }} 
-                    style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                >✏️</button>
-                <button 
-                    onClick={(e) => { e.stopPropagation(); excluirProduto(produto.id); }} 
-                    style={{ backgroundColor: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                >🗑️</button>
+             // 2. Procura se a palavra COMEÇA com o termo (Ex: 'Ar' acha 'Areia', mas não 'Cimento Votoran')
+             // Isso resolve seu problema da letra 'A' puxar tudo!
+             if (nome.startsWith(termo)) return true;
+
+             // 3. (Opcional) Se você quiser que "Votoran" ache "Cimento Votoran", descomente a linha abaixo:
+             // if (nome.includes(termo)) return true; 
+
+             return false;
+          })
+          .slice(0, 30) // 🛑 AQUI ESTÁ O SEGREDO ANTI-TRAVAMENTO! Mostra só os 30 primeiros.
+          .map(produto => (
+            <div 
+                key={produto.id}
+                style={styles.cardProduto}
+                onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = '#166534';
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                }}
+                onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                }}
+                onClick={() => adicionarAoCarrinho(produto)}
+            >
+                <div style={styles.iconeProduto}>
+                    {produto.categoria?.toLowerCase().includes('bebida') ? '🥤' : 
+                     produto.categoria?.toLowerCase().includes('limpeza') ? '🧹' : 
+                     produto.categoria?.toLowerCase().includes('areia') ? '🏖️' : 
+                     produto.categoria?.toLowerCase().includes('cimento') ? '🧱' : '📦'}
+                </div>
+
+                <div style={styles.nomeProduto}>{produto.nome}</div>
+                <div style={styles.precoProduto}>R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}</div>
+                <div style={styles.estoqueBadge}>
+                  Estoque: {produto.estoque} {produto.unidade || 'UN'}
+                </div>
+
+                {/* Botões Editar/Excluir */}
+                <div style={{marginTop: 10, display: 'flex', gap: 5, width: '100%', justifyContent: 'center'}}>
+                    <button 
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setProdutoEmEdicao(produto); 
+                            // ... (mantenha seu código de preencher formulário aqui igual estava)
+                            setFormProduto({ ...produto, precoCusto: String(produto.precoCusto), precoVenda: String(produto.precoVenda), estoque: String(produto.estoque), ncm: produto.ncm || '', cest: produto.cest || '', cfop: produto.cfop || '5102', csosn: produto.csosn || '102', origem: produto.origem || '0', unidade: produto.unidade || 'UN', fornecedor: produto.fornecedor || '', categoria: produto.categoria || '', localizacao: produto.localizacao || '', ipi: String(produto.ipi||''), icms: String(produto.icms||''), frete: String(produto.frete||'') } as any); 
+                            setModalAberto(true); 
+                        }} 
+                        style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                    >✏️</button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); excluirProduto(produto.id); }} 
+                        style={{ backgroundColor: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                    >🗑️</button>
+                </div>
             </div>
-          </div>
         ))}
       </div>
     )}
@@ -1907,9 +1935,10 @@ containerDestaques: {
   
   gridProdutos: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', // Cria colunas automáticas
-    gap: '15px',
-    padding: '10px 0'
+    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+    gap: '20px',       // Espaçamento horizontal
+    rowGap: '30px',    // 👇 Aumentei aqui! Espaço extra entre as linhas (vertical)
+    padding: '20px 0'
   } as React.CSSProperties,
 
   cardProduto: {
