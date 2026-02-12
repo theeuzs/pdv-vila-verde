@@ -1142,8 +1142,8 @@ export function App() {
             {/* COLUNA ESQUERDA: PRODUTOS */}
 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', height: '75vh' }}> 
   
-  {/* 1. CABEÇALHO: BUSCA E ADICIONAR (Mantive o seu que funciona bem) */}
-  <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+  {/* 1. CABEÇALHO: BUSCA E ADICIONAR */}
+  <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
     <input 
         type="number" 
         min="1" 
@@ -1163,7 +1163,6 @@ export function App() {
     <button
       onClick={() => {
         setProdutoEmEdicao(null);
-        // Reset do formulário (mantive sua lógica original)
         setFormProduto({ nome: '', codigoBarra: '', precoCusto: '', precoVenda: '', estoque: '', unidade: 'UN', categoria: 'Geral', ncm: '', cest: '', cfop: '5102', csosn: '102', origem: '0', fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '' });
         setModalAberto(true);
       }}
@@ -1172,74 +1171,97 @@ export function App() {
     > + </button>
   </div>
 
-  {/* 2. GRADE DE CARDS (Aqui está a mágica ✨) */}
   <div style={{ flex: 1, overflowY: 'auto', paddingRight: 5 }}>
+    
+    {/* ========================================================= */}
+    {/* 🔥 ÁREA DE DESTAQUES (SÓ APARECE SE NÃO TIVER BUSCANDO) */}
+    {/* ========================================================= */}
+    {busca === '' && (
+      <div>
+        <div style={styles.tituloDestaque}>🔥 Mais Vendidos / Destaques</div>
+        <div style={styles.containerDestaques}>
+          {produtos
+            .filter(p => {
+               // AQUI É O SEGREDO: FILTRA OS NOMES QUE VC QUER
+               const destaques = ['cimento', 'areia', 'pedra', 'cal', 'argamassa', 'tijolo'];
+               return destaques.some(d => p.nome.toLowerCase().includes(d));
+            })
+            .map(produto => (
+              <div 
+                key={produto.id}
+                style={{...styles.cardProduto, minWidth: '140px', borderColor: '#fdba74'}} // Borda laranjinha
+                onClick={() => adicionarAoCarrinho(produto)}
+              >
+                 <div style={{...styles.iconeProduto, backgroundColor: '#fff7ed'}}>🏆</div>
+                 <div style={styles.nomeProduto}>{produto.nome}</div>
+                 <div style={{...styles.precoProduto, color: '#c2410c'}}>R$ {Number(produto.precoVenda).toFixed(2)}</div>
+                 <div style={styles.estoqueBadge}>{produto.estoque} {produto.unidade}</div>
+              </div>
+          ))}
+          {/* Se não tiver nenhum destaque cadastrado, mostra mensagem */}
+          {produtos.filter(p => ['cimento', 'areia', 'pedra', 'cal', 'argamassa'].some(d => p.nome.toLowerCase().includes(d))).length === 0 && (
+             <div style={{color: '#94a3b8', fontSize: '0.9rem', padding: 10}}>
+                Cadastre produtos com nome "Cimento", "Areia", etc para eles aparecerem aqui.
+             </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* 2. GRADE DE TODOS OS PRODUTOS */}
+    <h3 style={{ color: '#334155', borderBottom: '2px solid #e2e8f0', paddingBottom: 10, marginTop: 0 }}>
+      📦 Todos os Produtos
+    </h3>
+
     {busca === '' && produtosFiltrados.length === 0 ? (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.6, color: '#888' }}>
-        <div style={{ fontSize: '80px', marginBottom: '20px' }}>🏪</div>
+      <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
         <h2>Vila Verde PDV</h2>
-        <p>Pesquise ou adicione produtos.</p>
+        <p>Carregando produtos...</p>
       </div>
     ) : (
-      // USANDO O ESTILO GRID QUE CRIAMOS
       <div style={styles.gridProdutos}>
         {produtosFiltrados.map(produto => (
           <div 
             key={produto.id}
             style={styles.cardProduto}
-            // Efeito Hover
             onMouseEnter={e => {
                 e.currentTarget.style.borderColor = '#166534';
                 e.currentTarget.style.transform = 'translateY(-3px)';
-                e.currentTarget.style.boxShadow = '0 10px 15px rgba(22, 101, 52, 0.1)';
             }}
             onMouseLeave={e => {
                 e.currentTarget.style.borderColor = '#e2e8f0';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
             }}
             onClick={() => adicionarAoCarrinho(produto)}
           >
-            {/* Ícone */}
             <div style={styles.iconeProduto}>
                 {produto.categoria?.toLowerCase().includes('bebida') ? '🥤' : 
                  produto.categoria?.toLowerCase().includes('limpeza') ? '🧹' : 
-                 produto.categoria?.toLowerCase().includes('carne') ? '🥩' : '📦'}
+                 produto.categoria?.toLowerCase().includes('areia') ? '🏖️' : 
+                 produto.categoria?.toLowerCase().includes('cimento') ? '🧱' : '📦'}
             </div>
 
-            {/* Informações */}
             <div style={styles.nomeProduto}>{produto.nome}</div>
             <div style={styles.precoProduto}>R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}</div>
-            
             <div style={styles.estoqueBadge}>
               Estoque: {produto.estoque} {produto.unidade || 'UN'}
             </div>
 
-            {/* Botões de Ação (Editar/Excluir) - Pequenos no rodapé do card */}
+            {/* Botões Editar/Excluir */}
             <div style={{marginTop: 10, display: 'flex', gap: 5, width: '100%', justifyContent: 'center'}}>
                 <button 
                     onClick={(e) => { 
-                        e.stopPropagation(); // Impede de adicionar ao carrinho quando clica em editar
+                        e.stopPropagation(); 
                         setProdutoEmEdicao(produto); 
-                        // Copiei sua lógica de preencher o form aqui
                         setFormProduto({ ...produto, precoCusto: String(produto.precoCusto), precoVenda: String(produto.precoVenda), estoque: String(produto.estoque), ncm: produto.ncm || '', cest: produto.cest || '', cfop: produto.cfop || '5102', csosn: produto.csosn || '102', origem: produto.origem || '0', unidade: produto.unidade || 'UN', fornecedor: produto.fornecedor || '', categoria: produto.categoria || '', localizacao: produto.localizacao || '', ipi: String(produto.ipi||''), icms: String(produto.icms||''), frete: String(produto.frete||'') } as any); 
                         setModalAberto(true); 
                     }} 
                     style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                    title="Editar"
-                >
-                    ✏️
-                </button>
+                >✏️</button>
                 <button 
-                    onClick={(e) => { 
-                        e.stopPropagation(); 
-                        excluirProduto(produto.id); 
-                    }} 
+                    onClick={(e) => { e.stopPropagation(); excluirProduto(produto.id); }} 
                     style={{ backgroundColor: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                    title="Excluir"
-                >
-                    🗑️
-                </button>
+                >🗑️</button>
             </div>
           </div>
         ))}
@@ -1247,7 +1269,6 @@ export function App() {
     )}
   </div>
 </div>
-
             {/* COLUNA DIREITA: CARRINHO E PAGAMENTO */}
             <div style={{ width: 400, backgroundColor: modoEscuro ? '#2d3748' : 'white', borderRadius: 12, padding: 25, display: 'flex', flexDirection: 'column', boxShadow: '0 10px 15px rgba(0,0,0,0.05)', color: modoEscuro ? 'white' : '#2d3748' }}>
               <h2 style={{ margin: '0 0 20px 0', borderBottom: '1px solid #edf2f7', paddingBottom: 15 }}>🛒 Carrinho</h2>
@@ -1861,6 +1882,29 @@ export function App() {
 }
 
 const styles = {
+
+containerDestaques: {
+    display: 'flex',
+    gap: '15px',
+    overflowX: 'auto', // Permite rolar pro lado se tiver muitos
+    padding: '10px 5px',
+    marginBottom: '15px',
+    borderBottom: '1px solid #e2e8f0',
+    paddingBottom: '20px'
+  } as React.CSSProperties,
+
+  tituloDestaque: {
+    fontSize: '1.1rem',
+    fontWeight: '800',
+    color: '#ea580c', // Um laranja pra destacar
+    marginBottom: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  } as React.CSSProperties,
+  
+  // ...
+  
   gridProdutos: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', // Cria colunas automáticas
@@ -1921,5 +1965,6 @@ const styles = {
     borderRadius: '10px'
   } as React.CSSProperties
 };
+
 
 export default App;
