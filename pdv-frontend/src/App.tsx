@@ -115,6 +115,7 @@ export function App() {
       if (usuarioLogado.cargo === 'MOTORISTA') {
           setAba('entregas');
       }
+      console.log("Debug Contas:", contasReceber);
       carregarProdutos();
       carregarClientes();
       carregarVendas(); // Importante
