@@ -11,6 +11,7 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recha
 interface Produto {
   id: number
   nome: string
+  imagem?: string;
   codigoBarra?: string
   precoCusto: number
   precoVenda: number
@@ -191,7 +192,7 @@ export function App() {
   // --- FORMULÁRIOS ---
   const [formProduto, setFormProduto] = useState({
     nome: '', codigoBarra: '', precoCusto: '', precoVenda: '', estoque: '', unidade: 'UN',
-    categoria: 'Geral', fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '',
+    categoria: 'Geral', imagem: '', fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '',
     ncm: '', cest: '', cfop: '5102', csosn: '102', origem: '0'
   });
 
@@ -962,6 +963,18 @@ export function App() {
   const totalReceber = contasReceber.reduce((acc, c) => acc + Number(c.valor), 0)
   const clienteObjSelecionado = clientes.find(c => c.id === Number(clienteSelecionado))
 
+  // Função para transformar arquivo em Base64
+  const converterImagem = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormProduto({ ...formProduto, imagem: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div style={{ 
       fontFamily: 'Segoe UI, sans-serif', 
@@ -1163,7 +1176,7 @@ export function App() {
     <button
       onClick={() => {
         setProdutoEmEdicao(null);
-        setFormProduto({ nome: '', codigoBarra: '', precoCusto: '', precoVenda: '', estoque: '', unidade: 'UN', categoria: 'Geral', ncm: '', cest: '', cfop: '5102', csosn: '102', origem: '0', fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '' });
+        setFormProduto({ nome: '', codigoBarra: '', precoCusto: '', precoVenda: '', estoque: '', unidade: 'UN', categoria: 'Geral', imagem: '', ncm: '', cest: '', cfop: '5102', csosn: '102', origem: '0', fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '' });
         setModalAberto(true);
       }}
       style={{ backgroundColor: '#2ecc71', color: 'white', border: 'none', borderRadius: '10px', width: '60px', fontSize: '24px', cursor: 'pointer' }}
@@ -1192,7 +1205,11 @@ export function App() {
                 style={{...styles.cardProduto, minWidth: '140px', borderColor: '#fdba74'}} // Borda laranjinha
                 onClick={() => adicionarAoCarrinho(produto)}
               >
-                 <div style={{...styles.iconeProduto, backgroundColor: '#fff7ed'}}>🏆</div>
+                 {produto.imagem ? (
+    <img src={produto.imagem} style={{width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', marginBottom: 10}} />
+) : (
+    <div style={{...styles.iconeProduto, backgroundColor: '#fff7ed'}}>🏆</div>
+)}
                  <div style={styles.nomeProduto}>{produto.nome}</div>
                  <div style={{...styles.precoProduto, color: '#c2410c'}}>R$ {Number(produto.precoVenda).toFixed(2)}</div>
                  <div style={styles.estoqueBadge}>{produto.estoque} {produto.unidade}</div>
@@ -1261,12 +1278,26 @@ export function App() {
                 }}
                 onClick={() => adicionarAoCarrinho(produto)}
             >
-                <div style={styles.iconeProduto}>
-                    {produto.categoria?.toLowerCase().includes('bebida') ? '🥤' : 
-                     produto.categoria?.toLowerCase().includes('limpeza') ? '🧹' : 
-                     produto.categoria?.toLowerCase().includes('areia') ? '🏖️' : 
-                     produto.categoria?.toLowerCase().includes('cimento') ? '🧱' : '📦'}
-                </div>
+                {produto.imagem ? (
+    <img 
+        src={produto.imagem} 
+        alt={produto.nome}
+        style={{
+            width: '80px', 
+            height: '80px', 
+            objectFit: 'cover', 
+            borderRadius: '8px', 
+            marginBottom: '10px'
+        }} 
+    />
+) : (
+    <div style={styles.iconeProduto}>
+        {produto.categoria?.toLowerCase().includes('bebida') ? '🥤' : 
+         produto.categoria?.toLowerCase().includes('limpeza') ? '🧹' : 
+         produto.categoria?.toLowerCase().includes('areia') ? '🏖️' : 
+         produto.categoria?.toLowerCase().includes('cimento') ? '🧱' : '📦'}
+    </div>
+)}
 
                 <div style={styles.nomeProduto}>{produto.nome}</div>
                 <div style={styles.precoProduto}>R$ {Number(produto.precoVenda).toFixed(2).replace('.', ',')}</div>
@@ -1709,6 +1740,35 @@ export function App() {
             </h2>
             
             <form onSubmit={salvarProduto} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+
+              {/* 👇👇 COLE O BLOCO DA FOTO AQUI 👇👇 */}
+    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 10}}>
+        <div style={{
+            width: '100px', height: '100px', borderRadius: '10px', 
+            border: '2px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden', backgroundColor: '#f8fafc', marginBottom: 10
+        }}>
+            {formProduto.imagem ? (
+            <img src={formProduto.imagem} alt="Preview" style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+            ) : (
+            <span style={{fontSize: '2rem'}}>📷</span>
+            )}
+        </div>
+        <input 
+            type="file" 
+            accept="image/*" 
+            onChange={converterImagem}
+            style={{fontSize: '0.9rem'}}
+        />
+        <button 
+            type="button" 
+            onClick={() => setFormProduto({...formProduto, imagem: ''})}
+            style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', marginTop: 5, fontSize: '0.8rem'}}
+        >
+            Remover Foto
+        </button>
+    </div>
+    {/* 👆👆 FIM DO BLOCO DA FOTO 👆👆 */}
               
               {/* LINHA 1: NOME E CÓDIGO */}
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 15 }}>
