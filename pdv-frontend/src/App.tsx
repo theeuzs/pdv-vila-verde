@@ -15,13 +15,6 @@ interface Produto {
   estoque: number
   unidade?: string
   categoria?: string
-  fornecedor?: string
-  localizacao?: string
-  ncm?: string
-  cest?: string
-  cfop?: string
-  csosn?: string
-  origem?: string
 }
 
 interface Cliente {
@@ -43,6 +36,20 @@ interface PagamentoVenda {
   valor: number
 }
 
+interface Venda {
+  id: number
+  data: string
+  total: number
+  cliente?: { nome: string }
+  itens: any[]
+  pagamentos: any[]
+  nota_emitida: boolean
+  nota_cancelada: boolean
+  nota_url_pdf?: string
+  entrega: boolean
+  enderecoEntrega?: string
+  statusEntrega?: string
+}
 
 const API_URL = 'https://api-vila-verde.onrender.com'
 
@@ -70,8 +77,7 @@ export function App() {
   
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
-  const [contasReceber, setContasReceber] = useState<any[]>([])
-
+  const [vendasRealizadas, setVendasRealizadas] = useState<Venda[]>([]) // Recuperei isso!
   const [caixaAberto, setCaixaAberto] = useState<any>(null);
   const [caixa, setCaixa] = useState<any>(null);
   const [modalCaixaVisivel, setModalCaixaVisivel] = useState(false);
@@ -86,6 +92,7 @@ export function App() {
   const [formaPagamento, setFormaPagamento] = useState("Dinheiro");
   const [entrega, setEntrega] = useState(false);
   const [endereco, setEndereco] = useState('');
+  const [contasReceber, setContasReceber] = useState<any[]>([])
 
   const [modalAberto, setModalAberto] = useState(false)
   const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null)
@@ -93,8 +100,7 @@ export function App() {
 
   const [formProduto, setFormProduto] = useState<Partial<Produto>>({
     nome: '', codigoBarra: '', precoCusto: 0, precoVenda: 0, estoque: 0,
-    unidade: 'UN', categoria: '', fornecedor: '', localizacao: '',
-    ncm: '', cest: '', cfop: '', csosn: '102', origem: '0'
+    unidade: 'UN', categoria: ''
   });
 
   const [formCliente, setFormCliente] = useState<Partial<Cliente>>({
@@ -106,8 +112,12 @@ export function App() {
   // ============================================================================
   useEffect(() => {
     if (usuarioLogado) {
+      if (usuarioLogado.cargo === 'MOTORISTA') {
+          setAba('entregas');
+      }
       carregarProdutos();
       carregarClientes();
+      carregarVendas(); // Importante
       carregarContasReceber();
       verificarCaixaAberto();
     }
@@ -127,6 +137,13 @@ export function App() {
     try {
       const res = await fetch(`${API_URL}/clientes`);
       if (res.ok) setClientes(await res.json());
+    } catch (err) { console.error(err); }
+  }
+
+  async function carregarVendas() {
+    try {
+      const res = await fetch(`${API_URL}/vendas`);
+      if (res.ok) setVendasRealizadas(await res.json());
     } catch (err) { console.error(err); }
   }
 
@@ -207,8 +224,7 @@ export function App() {
     setProdutoEmEdicao(null);
     setFormProduto({
       nome: '', codigoBarra: '', precoCusto: 0, precoVenda: 0, estoque: 0,
-      unidade: 'UN', categoria: '', fornecedor: '', localizacao: '',
-      ncm: '', cest: '', cfop: '', csosn: '102', origem: '0'
+      unidade: 'UN', categoria: ''
     });
     setModalAberto(true);
   }
@@ -239,7 +255,6 @@ export function App() {
   // ============================================================================
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault();
-    
     try {
       const res = await fetch(`${API_URL}/clientes`, {
         method: 'POST',
@@ -252,6 +267,42 @@ export function App() {
         setModalClienteAberto(false);
       }
     } catch (err) { console.error(err); }
+  }
+
+  // ============================================================================
+  // FUNÇÕES DE VENDA (CANCELAMENTO)
+  // ============================================================================
+  async function cancelarVenda(vendaId: number) {
+    const motivo = prompt("Motivo do cancelamento (Min. 15 letras):");
+    if (!motivo) return;
+
+    try {
+        const res = await fetch(`${API_URL}/cancelar-fiscal`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vendaId, justificativa: motivo })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            alert("✅ " + data.mensagem);
+            carregarVendas();
+            carregarProdutos(); // Estoque voltou
+            verificarCaixaAberto(); // Dinheiro saiu
+        } else {
+            alert("❌ Erro: " + data.erro);
+        }
+    } catch (error) {
+        alert("Erro de conexão.");
+    }
+  }
+
+  async function marcarEntregue(vendaId: number) {
+     if(!confirm("Marcar como entregue?")) return;
+     try {
+         await fetch(`${API_URL}/vendas/${vendaId}/entregar`, { method: 'PATCH' });
+         carregarVendas();
+     } catch (e) { alert("Erro ao atualizar"); }
   }
 
   // ============================================================================
@@ -340,6 +391,7 @@ export function App() {
         alert(troco > 0 ? `✅ Venda finalizada!\n\nTroco: R$ ${troco.toFixed(2)}` : '✅ Venda finalizada!');
         limparCarrinho();
         carregarProdutos();
+        carregarVendas(); // Atualiza histórico
         verificarCaixaAberto();
       }
     } catch (err) { console.error(err); }
@@ -360,9 +412,24 @@ export function App() {
     return <TelaLogin onLogin={setUsuarioLogado} />;
   }
 
-  if (usuarioLogado.tipo === 'equipe') {
-    return <TelaEquipe usuario={usuarioLogado} onLogout={() => setUsuarioLogado(null)} />;
+  // Se for a tela de equipe (separada), ela tem seu próprio layout
+  if (aba === 'equipe') {
+     return (
+        <div style={styles.appContainer}>
+            <header style={styles.header}>
+                <div style={styles.logoArea}>
+                   <div style={styles.logo}>VV</div>
+                   <div style={styles.companyInfo}><div style={styles.companyName}>Gestão de Equipe</div></div>
+                </div>
+                <button style={styles.btnSecondary} onClick={() => setAba('caixa')}>Voltar ao PDV</button>
+            </header>
+            <main style={styles.mainContent}>
+<TelaEquipe usuario={usuarioLogado} onLogout={() => setUsuarioLogado(null)} />            </main>
+        </div>
+     )
   }
+
+  const isMotorista = usuarioLogado.cargo === 'MOTORISTA';
 
   return (
     <>
@@ -373,36 +440,23 @@ export function App() {
             <div style={styles.logo}>VV</div>
             <div style={styles.companyInfo}>
               <div style={styles.companyName}>PDV Vila Verde</div>
-              <div style={styles.modoBadge}>MODO CHEFE</div>
+              <div style={styles.modoBadge}>{isMotorista ? 'MODO MOTORISTA' : 'MODO CHEFE'}</div>
             </div>
           </div>
           
           <div style={styles.headerCenter}>
-            {caixaAberto ? (
-              <div style={{...styles.cashStatus, ...styles.cashOpen}} onClick={abrirModalGerenciarCaixa}>
-                <div style={{...styles.statusIndicator, ...styles.statusOpen}}></div>
-                <span>CAIXA ABERTO</span>
-              </div>
-            ) : (
-              <div style={{...styles.cashStatus, ...styles.cashClosed}} onClick={() => setModalAbrirCaixa(true)}>
-                <div style={{...styles.statusIndicator, ...styles.statusClosed}}></div>
-                <span>CAIXA FECHADO</span>
-              </div>
-            )}
-            
-            {caixaAberto && (
-              <div style={styles.balanceInfo}>
-                <div style={styles.balanceItem}>
-                  <div style={styles.balanceLabel}>Caixa Hoje</div>
-                  <div style={styles.balanceValue}>R$ {caixaAberto.saldoAtual?.toFixed(2) || '0,00'}</div>
+            {!isMotorista && (
+                caixaAberto ? (
+                <div style={{...styles.cashStatus, ...styles.cashOpen}} onClick={abrirModalGerenciarCaixa}>
+                    <div style={{...styles.statusIndicator, ...styles.statusOpen}}></div>
+                    <span>CAIXA ABERTO</span>
                 </div>
-                <div style={styles.balanceItem}>
-                  <div style={styles.balanceLabel}>A Receber</div>
-                  <div style={styles.balanceValue}>
-                    R$ {contasReceber.filter(c => c.status === 'pendente').reduce((sum, c) => sum + Number(c.valor), 0).toFixed(2)}
-                  </div>
+                ) : (
+                <div style={{...styles.cashStatus, ...styles.cashClosed}} onClick={() => setModalAbrirCaixa(true)}>
+                    <div style={{...styles.statusIndicator, ...styles.statusClosed}}></div>
+                    <span>CAIXA FECHADO</span>
                 </div>
-              </div>
+                )
             )}
           </div>
 
@@ -419,14 +473,24 @@ export function App() {
 
         {/* NAVEGAÇÃO */}
         <nav style={styles.navTabs}>
-          <button style={{...styles.navTab, ...(aba === 'caixa' && styles.navTabActive)}} onClick={() => setAba('caixa')}>
-            🛒 CAIXA
-          </button>
-          <button style={{...styles.navTab, ...(aba === 'vendas' && styles.navTabActive)}} onClick={() => setAba('vendas')}>
-            📊 VENDAS
-          </button>
-          <button style={{...styles.navTab, ...(aba === 'clientes' && styles.navTabActive)}} onClick={() => setAba('clientes')}>
-            👥 CLIENTES
+          {!isMotorista && (
+             <>
+                <button style={{...styles.navTab, ...(aba === 'caixa' && styles.navTabActive)}} onClick={() => setAba('caixa')}>
+                    🛒 CAIXA
+                </button>
+                <button style={{...styles.navTab, ...(aba === 'vendas' && styles.navTabActive)}} onClick={() => setAba('vendas')}>
+                    📊 VENDAS
+                </button>
+                <button style={{...styles.navTab, ...(aba === 'clientes' && styles.navTabActive)}} onClick={() => setAba('clientes')}>
+                    👥 CLIENTES
+                </button>
+                <button style={{...styles.navTab, ...(aba === 'equipe' && styles.navTabActive)}} onClick={() => setAba('equipe')}>
+                    👔 EQUIPE
+                </button>
+             </>
+          )}
+          <button style={{...styles.navTab, ...(aba === 'entregas' && styles.navTabActive)}} onClick={() => setAba('entregas')}>
+            🚚 ENTREGAS
           </button>
         </nav>
 
@@ -448,10 +512,9 @@ export function App() {
                       onChange={(e) => setBusca(e.target.value)}
                       autoFocus
                     />
-                    <button style={styles.searchBtn}>BUSCAR</button>
                   </div>
                   <div style={styles.keyboardHint}>
-                    💡 Pressione F2 para buscar | F3 para novo produto
+                    💡 Dica: Clique no cartão do produto para adicionar ao carrinho
                   </div>
                 </div>
 
@@ -492,6 +555,7 @@ export function App() {
                 <div style={styles.cartHeader}>
                   <span style={styles.cartIcon}>🛒</span>
                   <span style={styles.cartTitle}>Carrinho</span>
+                  <button onClick={limparCarrinho} style={{background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', fontSize:'0.8rem', marginLeft:'auto'}}>Limpar</button>
                 </div>
 
                 <div style={styles.cartItems}>
@@ -580,13 +644,24 @@ export function App() {
                 </div>
 
                 <div style={styles.deliveryCheck}>
-                  <input
-                    type="checkbox"
-                    id="delivery"
-                    checked={entrega}
-                    onChange={(e) => setEntrega(e.target.checked)}
-                  />
-                  <label htmlFor="delivery">🚚 É para entregar?</label>
+                    <div style={{display:'flex', alignItems:'center', gap:10}}>
+                        <input
+                            type="checkbox"
+                            id="delivery"
+                            checked={entrega}
+                            onChange={(e) => setEntrega(e.target.checked)}
+                        />
+                        <label htmlFor="delivery">🚚 É para entregar?</label>
+                    </div>
+                    {entrega && (
+                         <input 
+                            type="text" 
+                            placeholder="Endereço da entrega..."
+                            value={endereco}
+                            onChange={e => setEndereco(e.target.value)}
+                            style={{...styles.modalInput, marginTop: 10, marginBottom:0}}
+                         />
+                    )}
                 </div>
 
                 <div style={styles.actionButtons}>
@@ -598,13 +673,107 @@ export function App() {
             </div>
           )}
 
-          {/* OUTRAS ABAS */}
-          {aba !== 'caixa' && (
+          {/* ABA VENDAS */}
+          {aba === 'vendas' && (
             <div style={styles.contentPanel}>
-              <h2>{aba.toUpperCase()}</h2>
-              <p>Funcionalidade mantida do sistema original</p>
+              <h2>📜 Histórico de Vendas</h2>
+              <table style={{width: '100%', borderCollapse: 'collapse', marginTop: 20}}>
+                <thead>
+                    <tr style={{borderBottom: '1px solid #334155', color: '#94a3b8', textAlign: 'left'}}>
+                        <th style={{padding: 10}}>ID</th>
+                        <th style={{padding: 10}}>Data</th>
+                        <th style={{padding: 10}}>Cliente</th>
+                        <th style={{padding: 10}}>Total</th>
+                        <th style={{padding: 10}}>Status</th>
+                        <th style={{padding: 10}}>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {vendasRealizadas.map(v => (
+                        <tr key={v.id} style={{borderBottom: '1px solid #1e293b', color: '#e2e8f0'}}>
+                            <td style={{padding: 10}}>#{v.id}</td>
+                            <td style={{padding: 10}}>{new Date(v.data).toLocaleString()}</td>
+                            <td style={{padding: 10}}>{v.cliente?.nome || 'Consumidor'}</td>
+                            <td style={{padding: 10, color: '#10b981', fontWeight: 'bold'}}>R$ {Number(v.total).toFixed(2)}</td>
+                            <td style={{padding: 10}}>
+                                {v.nota_cancelada ? <span style={{color:'#ef4444'}}>CANCELADA</span> : <span style={{color:'#10b981'}}>OK</span>}
+                            </td>
+                            <td style={{padding: 10}}>
+                                {!v.nota_cancelada && (
+                                    <button onClick={() => cancelarVenda(v.id)} style={{...styles.btnDanger, padding: '5px 10px', fontSize: '0.8rem'}}>
+                                        Cancelar
+                                    </button>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+              </table>
             </div>
           )}
+
+        {/* ABA CLIENTES */}
+        {aba === 'clientes' && (
+            <div style={styles.contentPanel}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <h2>👥 Meus Clientes</h2>
+                    <button style={styles.btnAddProduct} onClick={() => setModalClienteAberto(true)}>+ Novo Cliente</button>
+                </div>
+                <div style={{marginTop: 20, display:'grid', gap: 10}}>
+                    {clientes.map(c => (
+                        <div key={c.id} style={{background: '#0f172a', padding: 15, borderRadius: 8, display:'flex', justifyContent:'space-between'}}>
+                            <div>
+                                <div style={{fontWeight:'bold', color: '#e2e8f0'}}>{c.nome}</div>
+                                <div style={{fontSize: '0.85rem', color: '#94a3b8'}}>{c.celular || 'Sem telefone'}</div>
+                            </div>
+                            <div style={{textAlign:'right'}}>
+                                <div style={{fontSize:'0.8rem', color:'#94a3b8'}}>Saldo Haver</div>
+                                <div style={{color: '#3b82f6', fontWeight:'bold'}}>R$ {Number(c.saldoHaver || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {/* ABA ENTREGAS */}
+        {aba === 'entregas' && (
+            <div style={styles.contentPanel}>
+                <h2>🚚 Entregas Pendentes</h2>
+                <div style={{marginTop: 20, display:'grid', gap: 15}}>
+                    {vendasRealizadas
+                        .filter(v => v.entrega === true && v.statusEntrega !== 'ENTREGUE' && !v.nota_cancelada)
+                        .map(v => (
+                        <div key={v.id} style={{background: '#0f172a', padding: 20, borderRadius: 8, borderLeft: '5px solid #f59e0b'}}>
+                            <div style={{display:'flex', justifyContent:'space-between', marginBottom: 10}}>
+                                <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>Venda #{v.id}</span>
+                                <span style={{color:'#f59e0b'}}>PENDENTE</span>
+                            </div>
+                            <div style={{color:'#e2e8f0', marginBottom: 5}}>📍 {v.enderecoEntrega}</div>
+                            <div style={{color:'#94a3b8', fontSize:'0.9rem', marginBottom: 15}}>👤 {v.cliente?.nome || 'Cliente Balcão'}</div>
+                            
+                            <div style={{display:'flex', gap: 10}}>
+                                <a 
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(v.enderecoEntrega || '')}`} 
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{...styles.btnPrimary, textDecoration:'none', textAlign:'center', flex:1}}
+                                >
+                                    🗺️ Abrir Mapa
+                                </a>
+                                <button style={{...styles.btnAddProduct, flex:1}} onClick={() => marcarEntregue(v.id)}>
+                                    ✅ Entregue
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                    {vendasRealizadas.filter(v => v.entrega === true && v.statusEntrega !== 'ENTREGUE').length === 0 && (
+                        <p style={{color:'#94a3b8', textAlign:'center'}}>Nenhuma entrega pendente!</p>
+                    )}
+                </div>
+            </div>
+        )}
+
         </main>
 
         {/* MODAIS */}
@@ -731,6 +900,14 @@ export function App() {
                     onChange={(e) => setFormCliente({...formCliente, cpfCnpj: e.target.value})}
                   />
                 </div>
+                <div>
+                    <label style={styles.modalLabel}>Celular</label>
+                    <input
+                        style={styles.modalInput}
+                        value={formCliente.celular}
+                        onChange={(e) => setFormCliente({...formCliente, celular: e.target.value})}
+                    />
+                </div>
                 <div style={styles.modalButtons}>
                   <button type="button" style={styles.btnSecondary} onClick={() => setModalClienteAberto(false)}>
                     Cancelar
@@ -775,7 +952,7 @@ export function App() {
 }
 
 // ============================================================================
-// ESTILOS
+// ESTILOS (Dark Mode Moderno)
 // ============================================================================
 const styles = {
   appContainer: {
@@ -868,26 +1045,6 @@ const styles = {
     background: '#ef4444',
     boxShadow: '0 0 8px #ef4444'
   },
-  balanceInfo: {
-    display: 'flex',
-    gap: '1.5rem'
-  },
-  balanceItem: {
-    textAlign: 'center' as const
-  },
-  balanceLabel: {
-    fontSize: '0.7rem',
-    color: '#94a3b8',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.5px',
-    marginBottom: '0.2rem'
-  },
-  balanceValue: {
-    fontSize: '1.2rem',
-    fontWeight: 700 as const,
-    color: '#10b981',
-    textShadow: '0 0 10px rgba(16, 185, 129, 0.3)'
-  },
   headerRight: {
     display: 'flex',
     alignItems: 'center',
@@ -976,15 +1133,6 @@ const styles = {
     color: '#e2e8f0',
     fontSize: '1rem',
     outline: 'none' as const
-  },
-  searchBtn: {
-    padding: '1rem 2rem',
-    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-    border: 'none',
-    borderRadius: '8px',
-    color: 'white',
-    fontWeight: 600 as const,
-    cursor: 'pointer'
   },
   keyboardHint: {
     fontSize: '0.75rem',
@@ -1194,14 +1342,10 @@ const styles = {
     fontSize: '1.2rem'
   },
   deliveryCheck: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
     padding: '0.75rem',
     background: '#0f172a',
     borderRadius: '8px',
     marginBottom: '1rem',
-    cursor: 'pointer',
     color: '#e2e8f0'
   },
   actionButtons: {
