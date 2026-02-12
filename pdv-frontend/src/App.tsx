@@ -1,57 +1,61 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react';
 import { TelaLogin } from './TelaLogin';
 import { TelaEquipe } from './TelaEquipe';
 
 // ============================================================================
-// INTERFACES
+// INTERFACES (COM DADOS FISCAIS AGORA)
 // ============================================================================
 
 interface Produto {
-  id: number
-  nome: string
-  codigoBarra?: string
-  precoCusto: number
-  precoVenda: number
-  estoque: number
-  unidade?: string
-  categoria?: string
+  id: number;
+  nome: string;
+  codigoBarra?: string;
+  precoCusto: number;
+  precoVenda: number;
+  estoque: number;
+  unidade?: string;   // Voltou
+  categoria?: string;
+  ncm?: string;       // Voltou
+  cest?: string;      // Voltou
+  cfop?: string;      // Voltou
+  origem?: string;    // Voltou
 }
 
 interface Cliente {
-  id: number
-  nome: string
-  cpfCnpj?: string
-  celular?: string
-  endereco?: string
-  saldoHaver: string 
+  id: number;
+  nome: string;
+  cpfCnpj?: string;
+  celular?: string;
+  endereco?: string;  // Voltou
+  saldoHaver: string; 
 }
 
 interface ItemCarrinho {
-  produto: Produto
-  quantidade: number
+  produto: Produto;
+  quantidade: number;
 }
 
 interface PagamentoVenda {
-  forma: string
-  valor: number
+  forma: string;
+  valor: number;
 }
 
 interface Venda {
-  id: number
-  data: string
-  total: number
-  cliente?: { nome: string }
-  itens: any[]
-  pagamentos: any[]
-  nota_emitida: boolean
-  nota_cancelada: boolean
-  nota_url_pdf?: string
-  entrega: boolean
-  enderecoEntrega?: string
-  statusEntrega?: string
+  id: number;
+  data: string;
+  total: number;
+  cliente?: { nome: string };
+  itens: any[];
+  pagamentos: any[];
+  nota_emitida: boolean;
+  nota_cancelada: boolean;
+  nota_url_pdf?: string;
+  entrega: boolean;
+  enderecoEntrega?: string;
+  statusEntrega?: string;
 }
 
-const API_URL = 'https://api-vila-verde.onrender.com'
+const API_URL = 'https://api-vila-verde.onrender.com';
 
 // Helper para ícones
 const getCategoryIcon = (categoria?: string) => {
@@ -75,32 +79,34 @@ export function App() {
   const [usuarioLogado, setUsuarioLogado] = useState<any>(null);
   const [aba, setAba] = useState<string>('caixa');
   
-  const [produtos, setProdutos] = useState<Produto[]>([])
-  const [clientes, setClientes] = useState<Cliente[]>([])
-  const [vendasRealizadas, setVendasRealizadas] = useState<Venda[]>([]) // Recuperei isso!
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [vendasRealizadas, setVendasRealizadas] = useState<Venda[]>([]);
+  const [contasReceber, setContasReceber] = useState<any[]>([]);
+
   const [caixaAberto, setCaixaAberto] = useState<any>(null);
   const [caixa, setCaixa] = useState<any>(null);
   const [modalCaixaVisivel, setModalCaixaVisivel] = useState(false);
   const [modalAbrirCaixa, setModalAbrirCaixa] = useState(false);
   const [valorAbertura, setValorAbertura] = useState("");
 
-  const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
-  const [busca, setBusca] = useState('') 
-  const [clienteSelecionado, setClienteSelecionado] = useState('') 
-  const [listaPagamentos, setListaPagamentos] = useState<PagamentoVenda[]>([])
-  const [valorPagamentoInput, setValorPagamentoInput] = useState('')
+  const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
+  const [busca, setBusca] = useState(''); 
+  const [clienteSelecionado, setClienteSelecionado] = useState(''); 
+  const [listaPagamentos, setListaPagamentos] = useState<PagamentoVenda[]>([]);
+  const [valorPagamentoInput, setValorPagamentoInput] = useState('');
   const [formaPagamento, setFormaPagamento] = useState("Dinheiro");
   const [entrega, setEntrega] = useState(false);
   const [endereco, setEndereco] = useState('');
-  const [contasReceber, setContasReceber] = useState<any[]>([])
 
-  const [modalAberto, setModalAberto] = useState(false)
-  const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null)
-  const [modalClienteAberto, setModalClienteAberto] = useState(false)
+  const [modalAberto, setModalAberto] = useState(false);
+  const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null);
+  const [modalClienteAberto, setModalClienteAberto] = useState(false);
 
+  // FORMULÁRIO DE PRODUTO COMPLETO (FISCAL)
   const [formProduto, setFormProduto] = useState<Partial<Produto>>({
     nome: '', codigoBarra: '', precoCusto: 0, precoVenda: 0, estoque: 0,
-    unidade: 'UN', categoria: ''
+    unidade: 'UN', categoria: '', ncm: '', cest: '', cfop: '5102', origem: '0'
   });
 
   const [formCliente, setFormCliente] = useState<Partial<Cliente>>({
@@ -115,14 +121,16 @@ export function App() {
       if (usuarioLogado.cargo === 'MOTORISTA') {
           setAba('entregas');
       }
-      console.log("Debug Contas:", contasReceber);
+      
+      console.log("Sistema Iniciado. Contas carregadas:", contasReceber.length);
+
       carregarProdutos();
       carregarClientes();
-      carregarVendas(); // Importante
+      carregarVendas();
       carregarContasReceber();
       verificarCaixaAberto();
     }
-  }, [usuarioLogado]);
+  }, [usuarioLogado]); // Removido contasReceber do array para evitar loop, mas mantido o log
 
   // ============================================================================
   // FUNÇÕES DE CARREGAMENTO
@@ -166,10 +174,10 @@ export function App() {
   }
 
   // ============================================================================
-  // FUNÇÕES DE CAIXA
+  // FUNÇÕES DE CAIXA E GAVETA
   // ============================================================================
   async function abrirCaixa() {
-    if (!valorAbertura || Number(valorAbertura) <= 0) {
+    if (!valorAbertura || Number(valorAbertura) < 0) {
       alert('Informe um valor válido!');
       return;
     }
@@ -183,10 +191,12 @@ export function App() {
         })
       });
       if (res.ok) {
-        alert('✅ Caixa aberto!');
+        alert('✅ Caixa aberto com sucesso!');
         verificarCaixaAberto();
         setModalAbrirCaixa(false);
         setValorAbertura('');
+      } else {
+          alert("Erro ao abrir caixa. Verifique se já não existe um aberto.");
       }
     } catch (err) { console.error(err); }
   }
@@ -200,7 +210,7 @@ export function App() {
         body: JSON.stringify({ caixaId: caixa.id })
       });
       if (res.ok) {
-        alert('✅ Caixa fechado!');
+        alert('✅ Caixa fechado! Relatório gerado.');
         setCaixaAberto(null);
         setModalCaixaVisivel(false);
         verificarCaixaAberto();
@@ -218,14 +228,25 @@ export function App() {
     } catch (err) { console.error(err); }
   }
 
+  // NOVA: Função para abrir gaveta (F9)
+  async function abrirGaveta() {
+      try {
+          await fetch(`${API_URL}/abrir-gaveta`, { method: 'POST' });
+          alert("Comando de abrir gaveta enviado! 🔓");
+      } catch (e) {
+          console.log("Erro gaveta", e);
+      }
+  }
+
   // ============================================================================
   // FUNÇÕES DE PRODUTO
   // ============================================================================
   function abrirModalNovoProduto() {
     setProdutoEmEdicao(null);
+    // Reset completo com campos fiscais
     setFormProduto({
       nome: '', codigoBarra: '', precoCusto: 0, precoVenda: 0, estoque: 0,
-      unidade: 'UN', categoria: ''
+      unidade: 'UN', categoria: '', ncm: '', cest: '', cfop: '5102', origem: '0'
     });
     setModalAberto(true);
   }
@@ -244,7 +265,7 @@ export function App() {
         body: JSON.stringify(formProduto)
       });
       if (res.ok) {
-        alert('✅ Produto salvo!');
+        alert('✅ Produto salvo com dados fiscais!');
         carregarProdutos();
         setModalAberto(false);
       }
@@ -271,8 +292,29 @@ export function App() {
   }
 
   // ============================================================================
-  // FUNÇÕES DE VENDA (CANCELAMENTO)
+  // FUNÇÕES DE NOTA FISCAL (NFC-e) E CANCELAMENTO
   // ============================================================================
+  async function emitirNFCe(vendaId: number) {
+      if(!confirm("Emitir NFC-e para esta venda?")) return;
+      try {
+          alert("Enviando para Sefaz... Aguarde ⏳");
+          const res = await fetch(`${API_URL}/emitir-fiscal`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ vendaId })
+          });
+          const data = await res.json();
+          if(res.ok) {
+              alert("✅ Nota Fiscal Emitida!\nURL: " + data.url);
+              carregarVendas();
+          } else {
+              alert("Erro Sefaz: " + data.erro);
+          }
+      } catch (e) {
+          alert("Erro de conexão com Sefaz.");
+      }
+  }
+
   async function cancelarVenda(vendaId: number) {
     const motivo = prompt("Motivo do cancelamento (Min. 15 letras):");
     if (!motivo) return;
@@ -288,8 +330,8 @@ export function App() {
         if (res.ok) {
             alert("✅ " + data.mensagem);
             carregarVendas();
-            carregarProdutos(); // Estoque voltou
-            verificarCaixaAberto(); // Dinheiro saiu
+            carregarProdutos(); 
+            verificarCaixaAberto(); 
         } else {
             alert("❌ Erro: " + data.erro);
         }
@@ -351,6 +393,13 @@ export function App() {
       alert('Informe um valor válido!');
       return;
     }
+    
+    // Lógica para Fiado
+    if (formaPagamento === 'A Prazo' && !clienteSelecionado) {
+        alert("⚠️ Para vender FIADO (A Prazo), selecione um cliente primeiro!");
+        return;
+    }
+
     setListaPagamentos([...listaPagamentos, { forma: formaPagamento, valor }]);
     setValorPagamentoInput('');
   }
@@ -389,11 +438,12 @@ export function App() {
       });
       if (res.ok) {
         const troco = totalPago - subtotalCarrinho;
-        alert(troco > 0 ? `✅ Venda finalizada!\n\nTroco: R$ ${troco.toFixed(2)}` : '✅ Venda finalizada!');
+        alert(troco > 0 ? `✅ Venda realizada!\n\nTroco: R$ ${troco.toFixed(2)}` : '✅ Venda realizada!');
         limparCarrinho();
         carregarProdutos();
-        carregarVendas(); // Atualiza histórico
+        carregarVendas();
         verificarCaixaAberto();
+        carregarContasReceber(); // Atualiza se foi fiado
       }
     } catch (err) { console.error(err); }
   }
@@ -413,7 +463,6 @@ export function App() {
     return <TelaLogin onLogin={setUsuarioLogado} />;
   }
 
-  // Se for a tela de equipe (separada), ela tem seu próprio layout
   if (aba === 'equipe') {
      return (
         <div style={styles.appContainer}>
@@ -425,7 +474,8 @@ export function App() {
                 <button style={styles.btnSecondary} onClick={() => setAba('caixa')}>Voltar ao PDV</button>
             </header>
             <main style={styles.mainContent}>
-<TelaEquipe usuario={usuarioLogado} onLogout={() => setUsuarioLogado(null)} />            </main>
+                <TelaEquipe usuario={usuarioLogado} onLogout={() => setUsuarioLogado(null)} />
+            </main>
         </div>
      )
   }
@@ -458,6 +508,13 @@ export function App() {
                     <span>CAIXA FECHADO</span>
                 </div>
                 )
+            )}
+            
+            {/* BOTÃO RÁPIDO DE GAVETA */}
+            {!isMotorista && caixaAberto && (
+                 <button onClick={abrirGaveta} style={{background:'transparent', border:'1px solid #ffffff50', color:'white', borderRadius:5, padding:'5px 10px', cursor:'pointer', marginLeft: 15}}>
+                    🔓 Abrir Gaveta
+                 </button>
             )}
           </div>
 
@@ -513,9 +570,6 @@ export function App() {
                       onChange={(e) => setBusca(e.target.value)}
                       autoFocus
                     />
-                  </div>
-                  <div style={styles.keyboardHint}>
-                    💡 Dica: Clique no cartão do produto para adicionar ao carrinho
                   </div>
                 </div>
 
@@ -609,7 +663,7 @@ export function App() {
                 </div>
 
                 <div style={styles.paymentSection}>
-                  <label style={styles.paymentLabel}>Cliente (opcional)</label>
+                  <label style={styles.paymentLabel}>Cliente (obrigatório para Fiado)</label>
                   <select
                     style={styles.paymentInput}
                     value={clienteSelecionado}
@@ -632,6 +686,7 @@ export function App() {
                       <option value="Débito">💳 Débito</option>
                       <option value="Crédito">💳 Crédito</option>
                       <option value="PIX">📱 PIX</option>
+                      <option value="A Prazo">📒 FIADO / A PRAZO</option>
                     </select>
                     <input
                       type="number"
@@ -685,7 +740,7 @@ export function App() {
                         <th style={{padding: 10}}>Data</th>
                         <th style={{padding: 10}}>Cliente</th>
                         <th style={{padding: 10}}>Total</th>
-                        <th style={{padding: 10}}>Status</th>
+                        <th style={{padding: 10}}>NFC-e</th>
                         <th style={{padding: 10}}>Ações</th>
                     </tr>
                 </thead>
@@ -697,10 +752,16 @@ export function App() {
                             <td style={{padding: 10}}>{v.cliente?.nome || 'Consumidor'}</td>
                             <td style={{padding: 10, color: '#10b981', fontWeight: 'bold'}}>R$ {Number(v.total).toFixed(2)}</td>
                             <td style={{padding: 10}}>
-                                {v.nota_cancelada ? <span style={{color:'#ef4444'}}>CANCELADA</span> : <span style={{color:'#10b981'}}>OK</span>}
+                                {v.nota_emitida ? (
+                                    <a href={v.nota_url_pdf} target="_blank" style={{color: '#3b82f6', textDecoration: 'none'}}>VER NOTA 📄</a>
+                                ) : (
+                                    !v.nota_cancelada && <button onClick={() => emitirNFCe(v.id)} style={styles.btnSecondary}>Emitir NFC-e</button>
+                                )}
                             </td>
                             <td style={{padding: 10}}>
-                                {!v.nota_cancelada && (
+                                {v.nota_cancelada ? (
+                                    <span style={{color:'#ef4444', fontWeight:'bold'}}>CANCELADA</span>
+                                ) : (
                                     <button onClick={() => cancelarVenda(v.id)} style={{...styles.btnDanger, padding: '5px 10px', fontSize: '0.8rem'}}>
                                         Cancelar
                                     </button>
@@ -725,10 +786,11 @@ export function App() {
                         <div key={c.id} style={{background: '#0f172a', padding: 15, borderRadius: 8, display:'flex', justifyContent:'space-between'}}>
                             <div>
                                 <div style={{fontWeight:'bold', color: '#e2e8f0'}}>{c.nome}</div>
-                                <div style={{fontSize: '0.85rem', color: '#94a3b8'}}>{c.celular || 'Sem telefone'}</div>
+                                <div style={{fontSize: '0.85rem', color: '#94a3b8'}}>Tel: {c.celular || '--'}</div>
+                                <div style={{fontSize: '0.85rem', color: '#94a3b8'}}>End: {c.endereco || '--'}</div>
                             </div>
                             <div style={{textAlign:'right'}}>
-                                <div style={{fontSize:'0.8rem', color:'#94a3b8'}}>Saldo Haver</div>
+                                <div style={{fontSize:'0.8rem', color:'#94a3b8'}}>Saldo Haver/Devedor</div>
                                 <div style={{color: '#3b82f6', fontWeight:'bold'}}>R$ {Number(c.saldoHaver || 0).toFixed(2)}</div>
                             </div>
                         </div>
@@ -768,9 +830,6 @@ export function App() {
                             </div>
                         </div>
                     ))}
-                    {vendasRealizadas.filter(v => v.entrega === true && v.statusEntrega !== 'ENTREGUE').length === 0 && (
-                        <p style={{color:'#94a3b8', textAlign:'center'}}>Nenhuma entrega pendente!</p>
-                    )}
                 </div>
             </div>
         )}
@@ -802,14 +861,19 @@ export function App() {
           </div>
         )}
 
+        {/* MODAL DE PRODUTO COMPLETO (FISCAL) */}
         {modalAberto && (
           <div style={styles.modalOverlay}>
-            <div style={{...styles.modalContent, maxWidth: '800px'}}>
+            <div style={{...styles.modalContent, maxWidth: '900px'}}>
               <h2 style={styles.modalTitle}>📦 {produtoEmEdicao ? 'Editar' : 'Novo'} Produto</h2>
               <form onSubmit={salvarProduto}>
-                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                  <div>
-                    <label style={styles.modalLabel}>Nome</label>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem'}}>
+                  
+                  {/* Dados Básicos */}
+                  <div style={{gridColumn: '1 / -1', borderBottom:'1px solid #334155', paddingBottom: 10, marginBottom: 10, color:'#94a3b8'}}>DADOS GERAIS</div>
+                  
+                  <div style={{gridColumn: 'span 2'}}>
+                    <label style={styles.modalLabel}>Nome do Produto</label>
                     <input
                       style={styles.modalInput}
                       value={formProduto.nome}
@@ -825,54 +889,52 @@ export function App() {
                       onChange={(e) => setFormProduto({...formProduto, codigoBarra: e.target.value})}
                     />
                   </div>
+
                   <div>
-                    <label style={styles.modalLabel}>Preço de Custo</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      style={styles.modalInput}
-                      value={formProduto.precoCusto}
-                      onChange={(e) => setFormProduto({...formProduto, precoCusto: Number(e.target.value)})}
-                      required
-                    />
+                    <label style={styles.modalLabel}>Preço Custo</label>
+                    <input type="number" step="0.01" style={styles.modalInput} value={formProduto.precoCusto} onChange={(e) => setFormProduto({...formProduto, precoCusto: Number(e.target.value)})} />
                   </div>
                   <div>
-                    <label style={styles.modalLabel}>Preço de Venda</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      style={styles.modalInput}
-                      value={formProduto.precoVenda}
-                      onChange={(e) => setFormProduto({...formProduto, precoVenda: Number(e.target.value)})}
-                      required
-                    />
+                    <label style={styles.modalLabel}>Preço Venda</label>
+                    <input type="number" step="0.01" style={styles.modalInput} value={formProduto.precoVenda} onChange={(e) => setFormProduto({...formProduto, precoVenda: Number(e.target.value)})} required />
                   </div>
                   <div>
-                    <label style={styles.modalLabel}>Estoque</label>
-                    <input
-                      type="number"
-                      style={styles.modalInput}
-                      value={formProduto.estoque}
-                      onChange={(e) => setFormProduto({...formProduto, estoque: Number(e.target.value)})}
-                      required
-                    />
+                    <label style={styles.modalLabel}>Estoque Atual</label>
+                    <input type="number" style={styles.modalInput} value={formProduto.estoque} onChange={(e) => setFormProduto({...formProduto, estoque: Number(e.target.value)})} required />
+                  </div>
+
+                  {/* Dados Fiscais */}
+                  <div style={{gridColumn: '1 / -1', borderBottom:'1px solid #334155', paddingBottom: 10, marginBottom: 10, marginTop:10, color:'#94a3b8'}}>DADOS FISCAIS (NFC-e)</div>
+
+                  <div>
+                    <label style={styles.modalLabel}>Unidade (UN, KG)</label>
+                    <input style={styles.modalInput} value={formProduto.unidade} onChange={(e) => setFormProduto({...formProduto, unidade: e.target.value})} />
                   </div>
                   <div>
-                    <label style={styles.modalLabel}>Categoria</label>
-                    <input
-                      style={styles.modalInput}
-                      value={formProduto.categoria}
-                      onChange={(e) => setFormProduto({...formProduto, categoria: e.target.value})}
-                    />
+                    <label style={styles.modalLabel}>NCM (8 dígitos)</label>
+                    <input style={styles.modalInput} placeholder="Ex: 22021000" value={formProduto.ncm} onChange={(e) => setFormProduto({...formProduto, ncm: e.target.value})} />
                   </div>
+                  <div>
+                    <label style={styles.modalLabel}>CEST</label>
+                    <input style={styles.modalInput} value={formProduto.cest} onChange={(e) => setFormProduto({...formProduto, cest: e.target.value})} />
+                  </div>
+                  <div>
+                    <label style={styles.modalLabel}>CFOP</label>
+                    <input style={styles.modalInput} value={formProduto.cfop} onChange={(e) => setFormProduto({...formProduto, cfop: e.target.value})} />
+                  </div>
+                  <div>
+                    <label style={styles.modalLabel}>Origem (0, 1, 2...)</label>
+                    <input style={styles.modalInput} value={formProduto.origem} onChange={(e) => setFormProduto({...formProduto, origem: e.target.value})} />
+                  </div>
+                  <div>
+                    <label style={styles.modalLabel}>Categoria (Visual)</label>
+                    <input style={styles.modalInput} value={formProduto.categoria} onChange={(e) => setFormProduto({...formProduto, categoria: e.target.value})} />
+                  </div>
+
                 </div>
                 <div style={styles.modalButtons}>
-                  <button type="button" style={styles.btnSecondary} onClick={() => setModalAberto(false)}>
-                    Cancelar
-                  </button>
-                  <button type="submit" style={styles.btnPrimary}>
-                    Salvar
-                  </button>
+                  <button type="button" style={styles.btnSecondary} onClick={() => setModalAberto(false)}>Cancelar</button>
+                  <button type="submit" style={styles.btnPrimary}>Salvar Produto</button>
                 </div>
               </form>
             </div>
@@ -907,6 +969,16 @@ export function App() {
                         style={styles.modalInput}
                         value={formCliente.celular}
                         onChange={(e) => setFormCliente({...formCliente, celular: e.target.value})}
+                    />
+                </div>
+                {/* ENDEREÇO VOLTOU */}
+                <div>
+                    <label style={styles.modalLabel}>Endereço Completo</label>
+                    <input
+                        style={styles.modalInput}
+                        placeholder="Rua, Número, Bairro..."
+                        value={formCliente.endereco}
+                        onChange={(e) => setFormCliente({...formCliente, endereco: e.target.value})}
                     />
                 </div>
                 <div style={styles.modalButtons}>
@@ -953,7 +1025,7 @@ export function App() {
 }
 
 // ============================================================================
-// ESTILOS (Dark Mode Moderno)
+// ESTILOS (Dark Mode Moderno - Mantido do Claude)
 // ============================================================================
 const styles = {
   appContainer: {
@@ -1010,7 +1082,7 @@ const styles = {
   },
   headerCenter: {
     display: 'flex',
-    gap: '2rem',
+    gap: '1rem',
     alignItems: 'center'
   },
   cashStatus: {
@@ -1134,11 +1206,6 @@ const styles = {
     color: '#e2e8f0',
     fontSize: '1rem',
     outline: 'none' as const
-  },
-  keyboardHint: {
-    fontSize: '0.75rem',
-    color: '#64748b',
-    textAlign: 'center' as const
   },
   productsGrid: {
     flex: 1,
