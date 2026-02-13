@@ -938,12 +938,16 @@ export function App() {
               display: 'block' // Remove espaços extras abaixo da imagem
             }} 
           />
+          </div>
           
-          <h1 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '800' }}>
-            <span style={{ color: 'white' }}>MEGA LOJA DA CONSTRUÇÃO</span>
-            <span style={{ color: '#4ade80' }}>VILA VERDE</span>
+          <h1 style={{ margin: 0, fontWeight: '800', lineHeight: '1.1' }}>
+            <span style={{ color: 'white', fontSize: '1.4rem', display: 'block' }}>
+              MEGA LOJA DA CONSTRUÇÃO
+            </span>
+            <span style={{ color: '#4ade80', fontSize: '2.2rem', display: 'block' }}>
+              VILA VERDE
+            </span>
           </h1>
-        </div>
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           {caixaAberto ? (
