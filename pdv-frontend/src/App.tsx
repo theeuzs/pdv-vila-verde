@@ -533,9 +533,6 @@ export function App() {
       setMensagemLoading('')
     }
   }
-      alert('Erro ao processar venda')
-    }
-  }
 
   async function salvarOrcamento() {
     if (carrinho.length === 0) {
