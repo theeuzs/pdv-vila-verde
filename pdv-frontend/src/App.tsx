@@ -1157,85 +1157,77 @@ export function App() {
             {/* COLUNA ESQUERDA: PRODUTOS */}
 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', height: '75vh' }}> 
   
-  {/* 1. CABEÇALHO: BUSCA E ADICIONAR */}
-  <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-    <input 
-        type="number" 
-        min="1" 
-        value={qtdParaAdicionar} 
-        onChange={e => setQtdParaAdicionar(Number(e.target.value))} 
-        placeholder="Qtd" 
-        style={{ width: 80, padding: '15px', borderRadius: '10px', border: '1px solid #ddd', textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }} 
-    />
-    <input 
-        autoFocus 
-        type="text" 
-        placeholder="🔍 Digite o nome ou código..." 
-        value={busca} 
-        onChange={(e) => setBusca(e.target.value)} 
-        style={{ flex: 1, padding: '15px', fontSize: '1.2rem', borderRadius: '10px', border: '1px solid #ddd', outline: 'none' }} 
-    />
-    <button
-      onClick={() => {
-        setProdutoEmEdicao(null);
-        setFormProduto({ nome: '', codigoBarra: '', precoCusto: '', precoVenda: '', estoque: '', unidade: 'UN', categoria: 'Geral', imagem: '', ncm: '', cest: '', cfop: '5102', csosn: '102', origem: '0', fornecedor: '', localizacao: '', ipi: '', icms: '', frete: '' });
-        setModalAberto(true);
-      }}
-      style={{ backgroundColor: '#2ecc71', color: 'white', border: 'none', borderRadius: '10px', width: '60px', fontSize: '24px', cursor: 'pointer' }}
-      title="Cadastrar Novo Produto"
-    > + </button>
-  </div>
-
-  <div style={{ flex: 1, overflowY: 'auto', paddingRight: 5 }}>
-    
-    {/* ========================================================= */}
-{/* 🚀 ÁREA DE VENDAS REFORMULADA */}
+  {/* ========================================================= */}
+{/* 📉 ÁREA DE VENDAS COMPACTA (MONITOR PEQUENO) */}
 {/* ========================================================= */}
-<div style={{ display: 'flex', gap: '15px', height: 'calc(100vh - 140px)', paddingBottom: '10px' }}>
+
+{/* 1. BARRA DE TOPO (PESQUISA COMPACTA) */}
+<div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', padding: '0 5px' }}>
+    {/* Input de Quantidade Pequeno */}
+    <div style={{ display: 'flex', flexDirection: 'column', width: '60px' }}>
+        <label style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#666' }}>QTD</label>
+        <input 
+          type="number" 
+          defaultValue={1} 
+          style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc', textAlign: 'center', fontWeight: 'bold' }}
+        />
+    </div>
+
+    {/* Barra de Pesquisa (Ocupa o resto do espaço) */}
+    <div style={{ flex: 1, position: 'relative' }}>
+        <label style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#666' }}>PESQUISAR PRODUTO</label>
+        <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+            <span style={{ position: 'absolute', left: '10px', fontSize: '1rem' }}>🔍</span>
+            <input 
+                type="text" 
+                placeholder="Digite o nome ou código..." 
+                value={busca} 
+                onChange={e => setBusca(e.target.value)}
+                style={{ width: '100%', padding: '8px 10px 8px 35px', borderRadius: '5px', border: '1px solid #ccc' }}
+            />
+        </div>
+    </div>
+
+    {/* Botão Novo Produto (Opcional, pode remover se quiser) */}
+    <div style={{ marginTop: '18px' }}>
+         <button style={{ backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '5px', width: '35px', height: '35px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
+    </div>
+</div>
+
+{/* 2. CONTEÚDO PRINCIPAL (3 COLUNAS AJUSTADAS) */}
+<div style={{ display: 'flex', gap: '10px', height: 'calc(100vh - 180px)', paddingBottom: '5px' }}>
 
   {/* ======================== */}
-  {/* COLUNA 1: GRADE DE PRODUTOS */}
+  {/* COLUNA 1: GRADE DE PRODUTOS (FLEXÍVEL) */}
   {/* ======================== */}
-  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px', backgroundColor: modoEscuro ? '#1e293b' : '#f8fafc' }}>
     
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#f97316', margin: 0 }}>
-          {busca ? `🔍 Resultados para: "${busca}"` : '🔥 Destaques'}
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#f97316', margin: 0 }}>
+          {busca ? `Resultados: "${busca}"` : '🔥 Destaques'}
         </h3>
-        <span style={{ fontSize: '0.8rem', color: '#888' }}>
-          {produtosFiltrados.length} itens
-        </span>
+        <span style={{ fontSize: '0.75rem', color: '#888' }}>{produtosFiltrados.length} itens</span>
     </div>
 
     <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(3, 1fr)', 
-        gap: '10px', 
+        // AQUI ESTÁ O SEGREDO: minmax(160px) força 2 cards em telas pequenas, mas usa o espaço se tiver
+        gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
+        gap: '8px', 
         overflowY: 'auto', 
-        paddingRight: '5px',
-        alignContent: 'start'
+        alignContent: 'start',
+        paddingRight: '5px'
     }}>
       {produtos
         .filter(p => {
-             // 1. SE NÃO TIVER BUSCA: Mostra só os destaques (Cimento, Areia...)
              if (!busca) {
                 const destaques = ['cimento', 'areia', 'pedra', 'cal', 'argamassa', 'tijolo'];
                 return destaques.some(d => p.nome.toLowerCase().includes(d));
              }
-             
-             // 2. LÓGICA DE BUSCA CORRIGIDA
              const termo = busca.toLowerCase();
-             
-             // Busca pelo INÍCIO do nome (ex: "A" acha "Areia", mas não "Casa")
-             const nomeComeca = p.nome.toLowerCase().startsWith(termo);
-             // Busca pelo Código de Barras (qualquer parte)
-             const codigoTem = String(p.codigoBarra).includes(termo);
-             // Busca se a palavra " Areia" (espaço + termo) existe no nome (pra achar segundo nome)
-             const nomeMeio = p.nome.toLowerCase().includes(' ' + termo);
-
-             return nomeComeca || codigoTem || nomeMeio;
+             return p.nome.toLowerCase().startsWith(termo) || String(p.codigoBarra).includes(termo) || p.nome.toLowerCase().includes(' ' + termo);
           })
-          .slice(0, 50)
+          .slice(0, 40)
           .map((produto) => (
           <div
             key={produto.id}
@@ -1243,43 +1235,38 @@ export function App() {
             style={{
               cursor: 'pointer',
               border: produtoSelecionado?.id === produto.id ? '2px solid #f97316' : '1px solid #ddd',
-              backgroundColor: produtoSelecionado?.id === produto.id ? '#fff7ed' : (modoEscuro ? '#2d3748' : 'white'),
-              borderRadius: '10px',
-              padding: '10px',
+              backgroundColor: produtoSelecionado?.id === produto.id ? '#fff7ed' : 'white',
+              borderRadius: '8px',
+              padding: '8px',
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
               justifyContent: 'space-between',
-              minHeight: '160px',
-              position: 'relative',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+              minHeight: '130px', // Card mais baixo
+              position: 'relative'
             }}
           >
-            <div style={{ 
-                position: 'absolute', top: 5, right: 5, fontSize: '0.7rem', fontWeight: 'bold', 
-                backgroundColor: produto.estoque < 10 ? '#fee2e2' : '#dcfce7',
-                color: produto.estoque < 10 ? '#dc2626' : '#166534',
-                padding: '2px 6px', borderRadius: '10px'
-            }}>
+            {/* Estoque Pequeno */}
+            <div style={{ position: 'absolute', top: 5, right: 5, fontSize: '0.65rem', fontWeight: 'bold', backgroundColor: produto.estoque < 10 ? '#fee2e2' : '#dcfce7', color: produto.estoque < 10 ? '#dc2626' : '#166534', padding: '1px 5px', borderRadius: '4px' }}>
                {produto.estoque} {produto.unidade}
             </div>
 
-            <div style={{ width: '60px', height: '60px', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', borderRadius: '8px', fontSize: '2rem' }}>
-                {produto.imagem ? <img src={produto.imagem} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /> : '📦'}
+            {/* Imagem Menor */}
+            <div style={{ alignSelf: 'center', width: '50px', height: '50px', marginBottom: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', borderRadius: '6px', fontSize: '1.5rem' }}>
+                {produto.imagem ? <img src={produto.imagem} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '6px' }} /> : '📦'}
             </div>
 
-            <h4 style={{ fontSize: '0.9rem', fontWeight: 'bold', textAlign: 'center', margin: '0 0 5px 0', color: modoEscuro ? '#eee' : '#333', lineHeight: '1.2' }}>
+            <h4 style={{ fontSize: '0.8rem', fontWeight: 'bold', textAlign: 'center', margin: '0 0 2px 0', lineHeight: '1.1', height: '32px', overflow: 'hidden', color: '#333' }}>
               {produto.nome}
             </h4>
 
-            <p style={{ color: '#ea580c', fontWeight: '800', fontSize: '1.1rem', margin: 0 }}>
+            <p style={{ color: '#ea580c', fontWeight: '800', fontSize: '1rem', textAlign: 'center', margin: 0 }}>
               R$ {Number(produto.precoVenda).toFixed(2)}
             </p>
 
-            {/* Botões rápidos (Editar/Excluir) */}
-            <div style={{ position: 'absolute', bottom: '10px', right: '10px', display: 'flex', gap: '5px' }}>
-                <button onClick={(e) => { e.stopPropagation(); setProdutoEmEdicao(produto); setFormProduto({...produto} as any); setModalAberto(true); }} style={{ border: 'none', backgroundColor: '#fbbf24', color: 'white', borderRadius: '5px', width: '25px', height: '25px', cursor: 'pointer' }}>✏️</button>
-                <button onClick={(e) => { e.stopPropagation(); if(confirm('Excluir?')) excluirProduto(produto.id); }} style={{ border: 'none', backgroundColor: '#ef4444', color: 'white', borderRadius: '5px', width: '25px', height: '25px', cursor: 'pointer' }}>🗑️</button>
+             {/* Botões Miniatura */}
+             <div style={{ position: 'absolute', bottom: '5px', right: '5px', display: 'flex', gap: '3px' }}>
+                <button onClick={(e) => { e.stopPropagation(); setProdutoEmEdicao(produto); setFormProduto({...produto} as any); setModalAberto(true); }} style={{ border: 'none', backgroundColor: '#fbbf24', color: 'white', borderRadius: '4px', width: '20px', height: '20px', cursor: 'pointer', fontSize: '0.7rem' }}>✏️</button>
+                <button onClick={(e) => { e.stopPropagation(); if(confirm('Excluir?')) excluirProduto(produto.id); }} style={{ border: 'none', backgroundColor: '#ef4444', color: 'white', borderRadius: '4px', width: '20px', height: '20px', cursor: 'pointer', fontSize: '0.7rem' }}>🗑️</button>
             </div>
           </div>
         ))}
@@ -1287,127 +1274,102 @@ export function App() {
   </div>
 
   {/* ======================== */}
-  {/* COLUNA 2: PAINEL DE DETALHES (COM BOTÃO DE FECHAR) */}
+  {/* COLUNA 2: DETALHES (MAIS ESTREITO) */}
   {/* ======================== */}
-  <div style={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+  <div style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
       {produtoSelecionado ? (
-        <div style={{ 
-            backgroundColor: '#1e293b', color: 'white', borderRadius: '15px', padding: '20px', 
-            height: '100%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-            display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative'
-        }}>
-          {/* ❌ BOTÃO DE FECHAR O CARD */}
-          <button 
-             onClick={() => setProdutoSelecionado(null)}
-             style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontSize: '1.2rem', zIndex: 20 }}
-          >
-             ✕
-          </button>
+        <div style={{ backgroundColor: '#1e293b', color: 'white', borderRadius: '10px', padding: '15px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative' }}>
+          
+          <button onClick={() => setProdutoSelecionado(null)} style={{ position: 'absolute', top: '5px', right: '5px', background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}>✕</button>
           
           <div>
-              <div style={{ width: '100%', height: '180px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '15px', fontSize: '4rem' }}>
+              <div style={{ width: '100%', height: '120px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px', fontSize: '3rem' }}>
                   {produtoSelecionado.imagem ? <img src={produtoSelecionado.imagem} style={{ maxHeight: '100%', maxWidth: '100%' }} /> : '📦'}
               </div>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '5px', lineHeight: '1.2' }}>{produtoSelecionado.nome}</h2>
-              <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>Cód: {produtoSelecionado.codigoBarra || '---'}</span>
+              <h2 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '5px', lineHeight: '1.2' }}>{produtoSelecionado.nome}</h2>
+              <div style={{ fontSize: '0.75rem', color: '#ccc' }}>Cód: {produtoSelecionado.codigoBarra}</div>
           </div>
 
           <div>
-              <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '0' }}>Preço Unitário</p>
-              <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#4ade80', marginBottom: '15px' }}>R$ {Number(produtoSelecionado.precoVenda).toFixed(2)}</div>
-              <button onClick={() => adicionarAoCarrinho(produtoSelecionado)} style={{ width: '100%', backgroundColor: '#f97316', color: 'white', fontWeight: 'bold', padding: '15px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '1rem' }}>🛒 ADICIONAR</button>
+              <p style={{ color: '#94a3b8', fontSize: '0.7rem', marginBottom: '0' }}>Preço Unitário</p>
+              <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#4ade80', marginBottom: '10px' }}>R$ {Number(produtoSelecionado.precoVenda).toFixed(2)}</div>
+              <button onClick={() => adicionarAoCarrinho(produtoSelecionado)} style={{ width: '100%', backgroundColor: '#f97316', color: 'white', fontWeight: 'bold', padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>ADICIONAR</button>
           </div>
         </div>
       ) : (
-        <div style={{ height: '100%', border: '2px dashed #ccc', borderRadius: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#999', backgroundColor: modoEscuro ? '#2d3748' : '#f9fafb' }}>
-          <span style={{ fontSize: '3rem', marginBottom: '10px', opacity: 0.5 }}>👈</span>
-          <h3 style={{ margin: 0 }}>Selecione um item</h3>
+        <div style={{ height: '100%', border: '2px dashed #ccc', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#999', backgroundColor: '#f9fafb' }}>
+          <span style={{ fontSize: '2rem', opacity: 0.5 }}>👈</span>
+          <p style={{ fontSize: '0.8rem', textAlign: 'center' }}>Selecione um<br/>produto</p>
         </div>
       )}
   </div>
 
   {/* ======================== */}
-  {/* COLUNA 3: LISTA DE COMPRAS (ATUALIZADA) */}
+  {/* COLUNA 3: LISTA DE COMPRAS (MAIS ESTREITO) */}
   {/* ======================== */}
-  <div style={{ 
-      width: '320px', display: 'flex', flexDirection: 'column', 
-      backgroundColor: modoEscuro ? '#1e293b' : 'white', 
-      borderRadius: '15px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-      border: modoEscuro ? '1px solid #334155' : '1px solid #e2e8f0', overflow: 'hidden' 
-  }}>
-    <div style={{ padding: '15px', backgroundColor: modoEscuro ? '#0f172a' : '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-        <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', color: modoEscuro ? 'white' : '#334155' }}>📋 Lista de Compras</h2>
-        
-        {/* Mostra saldo do cliente se selecionado (Resolve erro do clienteObjSelecionado) */}
+  <div style={{ width: '260px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+    <div style={{ padding: '10px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+        <h2 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 'bold', color: '#334155' }}>📋 Lista de Compras</h2>
         {clienteSelecionado && clienteObjSelecionado && (
-           <div style={{ marginTop: '5px', fontSize: '0.8rem', color: Number(clienteObjSelecionado.saldoHaver) > 0 ? '#166534' : '#666' }}>
-              Cliente: <b>{clienteObjSelecionado.nome}</b>
-              {Number(clienteObjSelecionado.saldoHaver) > 0 && (
-                 <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '2px 5px', borderRadius: '4px', marginTop: '2px', display: 'inline-block' }}>
-                    💰 Haver: R$ {Number(clienteObjSelecionado.saldoHaver).toFixed(2)}
-                 </div>
-              )}
+           <div style={{ marginTop: '2px', fontSize: '0.7rem', color: '#166534' }}>
+              Cli: <b>{clienteObjSelecionado.nome.split(' ')[0]}...</b>
            </div>
         )}
     </div>
 
-    {/* Lista simples só com items */}
-    <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: '5px' }}>
         {carrinho.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '50px' }}>Carrinho vazio</div>
+            <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '30px', fontSize: '0.8rem' }}>Carrinho vazio</div>
         ) : (
             carrinho.map((item, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: '1px solid #eee', alignItems: 'center' }}>
-                    <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: modoEscuro ? 'white' : '#333' }}>{item.produto.nome}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#666' }}>{item.quantidade} x R$ {item.produto.precoVenda.toFixed(2)}</div>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 5px', borderBottom: '1px solid #eee', alignItems: 'center' }}>
+                    <div style={{ overflow: 'hidden' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{item.produto.nome}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#666' }}>{item.quantidade} x {item.produto.precoVenda.toFixed(2)}</div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontWeight: 'bold' }}>R$ {(item.quantidade * item.produto.precoVenda).toFixed(2)}</span>
-                        <button onClick={() => removerItemCarrinho(i)} style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer' }}>✖</button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span style={{ fontWeight: 'bold', fontSize: '0.8rem' }}>{(item.quantidade * item.produto.precoVenda).toFixed(2)}</span>
+                        <button onClick={() => removerItemCarrinho(i)} style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>✖</button>
                     </div>
                 </div>
             ))
         )}
     </div>
 
-    {/* Rodapé da Lista (Total + Botões Extras) */}
-    <div style={{ padding: '15px', borderTop: '1px solid #e2e8f0', backgroundColor: modoEscuro ? '#0f172a' : '#f8fafc' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '1.2rem', fontWeight: 'bold', color: modoEscuro ? 'white' : '#333' }}>
+    <div style={{ padding: '10px', borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '1rem', fontWeight: 'bold' }}>
             <span>Total:</span>
             <span>R$ {totalCarrinho.toFixed(2)}</span>
         </div>
         
-        {/* BOTÃO PRINCIPAL */}
         <button 
             onClick={() => setModalPagamentoAberto(true)} 
             disabled={carrinho.length === 0}
-            style={{ width: '100%', padding: '15px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', opacity: carrinho.length === 0 ? 0.5 : 1, marginBottom: '10px' }}
+            style={{ width: '100%', padding: '10px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', marginBottom: '5px' }}
         >
-            ✅ IR PARA PAGAMENTO
+            ✅ PAGAMENTO
         </button>
 
-        {/* BOTÕES EXTRAS (Resolvem os erros de função não usada) */}
         <div style={{ display: 'flex', gap: '5px' }}>
-            <button 
-                onClick={salvarOrcamento} 
-                disabled={carrinho.length === 0}
-                style={{ flex: 1, padding: '8px', backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '0.8rem' }}
-            >
-                📝 Orçamento
-            </button>
-            <button 
-                onClick={prepararNotaFiscal} 
-                disabled={carrinho.length === 0}
-                style={{ flex: 1, padding: '8px', border: '1px solid #f97316', backgroundColor: 'transparent', color: '#f97316', borderRadius: '5px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
-            >
-                📄 NFC-e
-            </button>
-        </div>
+    <button 
+        onClick={salvarOrcamento} 
+        disabled={carrinho.length === 0} 
+        style={{ flex: 1, padding: '6px', backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem' }}
+    >
+        Orçamento
+    </button>
+    <button 
+        onClick={prepararNotaFiscal} 
+        disabled={carrinho.length === 0} 
+        style={{ flex: 1, padding: '6px', border: '1px solid #f97316', backgroundColor: 'transparent', color: '#f97316', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold' }}
+    >
+        NFC-e
+    </button>
+</div>
     </div>
   </div>
-  </div>
-  </div>
+
+</div>
   </div>
   </div>
         )}
