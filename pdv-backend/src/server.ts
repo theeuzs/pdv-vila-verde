@@ -349,7 +349,7 @@ app.get('/clientes', async () => {
   return await prisma.cliente.findMany({ orderBy: { nome: 'asc' } })
 })
 
-app.post('/clientes', async (request, reply) => {
+app.post('/clientes', async (request: any, reply: any) => {
   const dados = request.body as any
   try {
     const novoCliente = await prisma.cliente.create({
@@ -357,7 +357,10 @@ app.post('/clientes', async (request, reply) => {
         nome: dados.nome,
         cpfCnpj: dados.cpfCnpj,
         celular: dados.celular,
-        endereco: dados.endereco
+        endereco: dados.endereco,
+        // 👇 AGORA ELE GUARDA O 2 E O 3 👇
+        endereco2: dados.endereco2, 
+        endereco3: dados.endereco3
       }
     })
     return reply.status(201).send(novoCliente)
@@ -381,7 +384,7 @@ app.get('/clientes/:id/vendas', async (request, reply) => {
   return reply.send(vendas)
 })
 
-app.put('/clientes/:id', async (request, reply) => {
+app.put('/clientes/:id', async (request: any, reply: any) => {
   const { id } = request.params as any
   const dados = request.body as any
   try {
@@ -391,7 +394,10 @@ app.put('/clientes/:id', async (request, reply) => {
         nome: dados.nome,
         cpfCnpj: dados.cpfCnpj,
         celular: dados.celular,
-        endereco: dados.endereco
+        endereco: dados.endereco,
+        // 👇 AGORA ELE ATUALIZA O 2 E O 3 👇
+        endereco2: dados.endereco2,
+        endereco3: dados.endereco3
       }
     })
     return reply.send(clienteAtualizado)

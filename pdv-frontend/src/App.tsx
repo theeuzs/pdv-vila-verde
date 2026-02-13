@@ -631,6 +631,49 @@ export function App() {
     alert('✅ Orçamento carregado no carrinho!')
   }
 
+// ============================================================================
+  // CALCULADORA AUTOMÁTICA DE PREÇOS
+  // ============================================================================
+  function handleCalcProduto(campo: string, valor: string) {
+    const numValor = Number(valor);
+    const novoForm = { ...formProduto, [campo]: valor };
+
+    // 1. Se mexeu na Base de Compra ou Impostos -> Recalcula Custo
+    if (['precoCompra', 'ipi', 'fretePerc', 'encargosPerc'].includes(campo)) {
+      const compra = Number(novoForm.precoCompra || 0);
+      const ipi = Number(novoForm.ipi || 0);
+      const frete = Number(novoForm.fretePerc || 0);
+      const enc = Number(novoForm.encargosPerc || 0);
+      
+      const custo = compra + (compra * (ipi + frete + enc) / 100);
+      novoForm.precoCusto = custo.toFixed(2);
+      
+      // Se já tem margem, empurra pro preço final
+      const margem = Number(novoForm.margemLucro || 0);
+      if (margem > 0) novoForm.precoVenda = (custo + (custo * margem / 100)).toFixed(2);
+    }
+
+    // 2. Se mexeu na Margem de Lucro -> Recalcula Venda
+    if (campo === 'margemLucro') {
+      const custo = Number(novoForm.precoCusto || 0);
+      novoForm.precoVenda = (custo + (custo * numValor / 100)).toFixed(2);
+    }
+
+    // 3. Se mexeu no Custo Manualmente -> Recalcula Venda
+    if (campo === 'precoCusto') {
+      const margem = Number(novoForm.margemLucro || 0);
+      if (margem > 0) novoForm.precoVenda = (numValor + (numValor * margem / 100)).toFixed(2);
+    }
+
+    // 4. Se mexeu na Venda Manualmente -> Descobre a Margem (%)
+    if (campo === 'precoVenda') {
+      const custo = Number(novoForm.precoCusto || 0);
+      if (custo > 0) novoForm.margemLucro = (((numValor - custo) / custo) * 100).toFixed(2);
+    }
+
+    setFormProduto(novoForm);
+  }
+
   // ============================================================================
   // FUNÇÕES DE PRODUTOS
   // ============================================================================
@@ -3049,65 +3092,109 @@ export function App() {
         );
       })()}
 
-{/* MODAL: PRODUTO */}
+{/* MODAL: PRODUTO (COM CALCULADORA ERP) */}
       {modalProduto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, overflowY: 'auto', padding: '20px' }}>
-          <div style={{ background: 'white', borderRadius: '15px', padding: '30px', width: '700px', maxWidth: '100%' }}>
-            <h2 style={{ marginTop: 0, color: '#1e3c72' }}>{formProduto.id ? '✏️ Editar Produto' : '+ Novo Produto'}</h2>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              
-              {/* SEÇÃO 1: DADOS GERAIS */}
-              <div>
-                <h3 style={{ fontSize: '1rem', color: '#64748b', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', marginBottom: '15px' }}>📦 Dados Gerais</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                  <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nome do Produto *</label><input type="text" value={formProduto.nome || ''} onChange={e => setFormProduto({...formProduto, nome: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Código de Barras</label><input type="text" value={formProduto.codigoBarra || ''} onChange={e => setFormProduto({...formProduto, codigoBarra: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Categoria</label><input type="text" value={formProduto.categoria || ''} onChange={e => setFormProduto({...formProduto, categoria: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Preço de Custo *</label><input type="number" step="0.01" value={formProduto.precoCusto || ''} onChange={e => setFormProduto({...formProduto, precoCusto: Number(e.target.value)})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Preço de Venda *</label><input type="number" step="0.01" value={formProduto.precoVenda || ''} onChange={e => setFormProduto({...formProduto, precoVenda: Number(e.target.value)})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Estoque *</label><input type="number" value={formProduto.estoque || ''} onChange={e => setFormProduto({...formProduto, estoque: Number(e.target.value)})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Unidade</label>
-                    <select value={formProduto.unidade || 'UN'} onChange={e => setFormProduto({...formProduto, unidade: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                      <option value="UN">Unidade</option><option value="KG">Quilograma</option><option value="L">Litro</option><option value="CX">Caixa</option><option value="PCT">Pacote</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* SEÇÃO 2: DADOS FISCAIS */}
-              <div>
-                <h3 style={{ fontSize: '1rem', color: '#64748b', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', marginBottom: '15px' }}>📄 Dados Fiscais (NFC-e)</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
-                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.85rem' }}>NCM</label><input type="text" placeholder="Ex: 25232910" value={formProduto.ncm || ''} onChange={e => setFormProduto({...formProduto, ncm: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.85rem' }}>CEST</label><input type="text" placeholder="Opcional" value={formProduto.cest || ''} onChange={e => setFormProduto({...formProduto, cest: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.85rem' }}>CFOP</label><input type="text" placeholder="Ex: 5102" value={formProduto.cfop || ''} onChange={e => setFormProduto({...formProduto, cfop: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-                  
-                  <div style={{ gridColumn: '1 / span 2' }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.85rem' }}>CSOSN / CST</label>
-                    <select value={formProduto.csosn || '102'} onChange={e => setFormProduto({...formProduto, csosn: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                      <option value="102">102 - Simples Nacional (Sem crédito)</option>
-                      <option value="500">500 - ICMS Cobrado por Substituição</option>
-                      <option value="103">103 - Isenção do ICMS no Simples</option>
-                      <option value="400">400 - Não tributada pelo Simples</option>
-                    </select>
-                  </div>
-                  
-                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.85rem' }}>Origem</label>
-                    <select value={formProduto.origem || '0'} onChange={e => setFormProduto({...formProduto, origem: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                      <option value="0">0 - Nacional</option>
-                      <option value="1">1 - Estrangeira</option>
-                      <option value="2">2 - Estrangeira (MI)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
+          
+          <div style={{ background: 'white', borderRadius: '15px', padding: '30px', width: '900px', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* CABEÇALHO DO MODAL */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: '15px' }}>
+               <h2 style={{ margin: 0, color: '#1e3c72' }}>{formProduto.id ? '✏️ Editar Produto' : '+ Novo Produto'}</h2>
+               <button onClick={() => { setModalProduto(false); setFormProduto({}); }} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>✕</button>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '25px' }}>
-              <button onClick={salvarProduto} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #4ade80, #22c55e)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✓ Salvar Produto</button>
-              <button onClick={() => { setModalProduto(false); setFormProduto({}); }} style={{ padding: '12px 20px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+            {/* SEÇÃO 1: DADOS GERAIS */}
+            <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <h3 style={{ fontSize: '1.1rem', color: '#1e3c72', marginTop: 0, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>📦 Dados Principais</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '15px' }}>
+                <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem', color: '#475569' }}>Nome do Produto *</label><input type="text" value={formProduto.nome || ''} onChange={e => setFormProduto({...formProduto, nome: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+                <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem', color: '#475569' }}>Código de Barras</label><input type="text" value={formProduto.codigoBarra || ''} onChange={e => setFormProduto({...formProduto, codigoBarra: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+                <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem', color: '#475569' }}>Categoria</label><input type="text" value={formProduto.categoria || ''} onChange={e => setFormProduto({...formProduto, categoria: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+                <div>
+                   <div style={{ display: 'flex', gap: '10px' }}>
+                     <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem', color: '#475569' }}>Estoque *</label><input type="number" value={formProduto.estoque || ''} onChange={e => setFormProduto({...formProduto, estoque: Number(e.target.value)})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+                     <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem', color: '#475569' }}>Unidade</label>
+                        <select value={formProduto.unidade || 'UN'} onChange={e => setFormProduto({...formProduto, unidade: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                          <option value="UN">UN</option><option value="KG">KG</option><option value="M2">M²</option><option value="M3">M³</option><option value="CX">CX</option><option value="PCT">PCT</option>
+                        </select>
+                     </div>
+                   </div>
+                </div>
+              </div>
             </div>
+
+            {/* DIVISÃO INFERIOR (ESQUERDA: CÁLCULO / DIREITA: FISCAL) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
+                
+                {/* SEÇÃO 2: FORMAÇÃO DE PREÇO (Calculadora) */}
+                <div style={{ background: '#f0fdf4', padding: '20px', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
+                  <h3 style={{ fontSize: '1.1rem', color: '#166534', marginTop: 0, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>🧮 Cálculo de Preço</h3>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '15px' }}>
+                    <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#166534', marginBottom: '3px' }}>Preço de Compra Bruto (R$)</label>
+                      <input type="number" step="0.01" value={formProduto.precoCompra || ''} onChange={e => handleCalcProduto('precoCompra', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac' }} />
+                    </div>
+                    <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#15803d', marginBottom: '3px' }}>+ IPI (%)</label><input type="number" value={formProduto.ipi || ''} onChange={e => handleCalcProduto('ipi', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac' }} /></div>
+                    <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#15803d', marginBottom: '3px' }}>+ Frete (%)</label><input type="number" value={formProduto.fretePerc || ''} onChange={e => handleCalcProduto('fretePerc', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac' }} /></div>
+                    <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#15803d', marginBottom: '3px' }}>+ Encargos (%)</label><input type="number" value={formProduto.encargosPerc || ''} onChange={e => handleCalcProduto('encargosPerc', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac' }} /></div>
+                  </div>
+
+                  <div style={{ background: '#dcfce7', padding: '10px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                     <span style={{ fontWeight: 'bold', color: '#166534' }}>CUSTO LÍQUIDO =</span>
+                     <input type="number" step="0.01" value={formProduto.precoCusto || ''} onChange={e => handleCalcProduto('precoCusto', e.target.value)} style={{ width: '120px', padding: '8px', borderRadius: '6px', border: '1px solid #4ade80', fontWeight: 'bold', color: '#166534', textAlign: 'right' }} />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
+                    <div><label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#166534', marginBottom: '3px' }}>% Margem de Lucro</label>
+                      <input type="number" step="0.01" value={formProduto.margemLucro || ''} onChange={e => handleCalcProduto('margemLucro', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac', background: '#fef9c3' }} />
+                    </div>
+                    <div><label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#166534', marginBottom: '3px' }}>Lucro Real (R$)</label>
+                      <input type="text" readOnly value={Math.max(0, ((Number(formProduto.precoVenda) || 0) - (Number(formProduto.precoCusto) || 0))).toFixed(2)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac', background: '#e2e8f0', color: '#475569' }} />
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#22c55e', padding: '12px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                     <span style={{ fontWeight: 'bold', color: 'white', fontSize: '1.2rem' }}>PREÇO VENDA =</span>
+                     <input type="number" step="0.01" value={formProduto.precoVenda || ''} onChange={e => handleCalcProduto('precoVenda', e.target.value)} style={{ width: '130px', padding: '8px', borderRadius: '6px', border: 'none', fontWeight: 'bold', color: '#166534', textAlign: 'right', fontSize: '1.2rem' }} />
+                  </div>
+                </div>
+
+                {/* SEÇÃO 3: DADOS FISCAIS */}
+                <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <h3 style={{ fontSize: '1.1rem', color: '#1e3c72', marginTop: 0, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>📄 Dados Fiscais</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                       <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '3px', fontWeight: 'bold', fontSize: '0.8rem', color: '#475569' }}>NCM</label><input type="text" placeholder="Ex: 25232910" value={formProduto.ncm || ''} onChange={e => setFormProduto({...formProduto, ncm: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+                       <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '3px', fontWeight: 'bold', fontSize: '0.8rem', color: '#475569' }}>CEST</label><input type="text" value={formProduto.cest || ''} onChange={e => setFormProduto({...formProduto, cest: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                       <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '3px', fontWeight: 'bold', fontSize: '0.8rem', color: '#475569' }}>CFOP Padrão</label><input type="text" placeholder="Ex: 5102" value={formProduto.cfop || ''} onChange={e => setFormProduto({...formProduto, cfop: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
+                       <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '3px', fontWeight: 'bold', fontSize: '0.8rem', color: '#475569' }}>Origem</label>
+                          <select value={formProduto.origem || '0'} onChange={e => setFormProduto({...formProduto, origem: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                            <option value="0">0 - Nacional</option><option value="1">1 - Estrangeira</option><option value="2">2 - Estrang. MI</option>
+                          </select>
+                       </div>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '3px', fontWeight: 'bold', fontSize: '0.8rem', color: '#475569' }}>Situação Tributária (CSOSN / CST)</label>
+                      <select value={formProduto.csosn || '102'} onChange={e => setFormProduto({...formProduto, csosn: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                        <option value="102">102 - Simples Nacional (Sem crédito)</option>
+                        <option value="500">500 - ICMS Cobrado por Substituição</option>
+                        <option value="103">103 - Isenção do ICMS no Simples</option>
+                        <option value="400">400 - Não tributada pelo Simples</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+            </div>
+
+            {/* BOTÕES DE AÇÃO */}
+            <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
+              <button onClick={salvarProduto} style={{ flex: 1, padding: '15px', background: 'linear-gradient(135deg, #4ade80, #22c55e)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(34, 197, 94, 0.3)' }}>✓ SALVAR PRODUTO</button>
+              <button onClick={() => { setModalProduto(false); setFormProduto({}); }} style={{ padding: '15px 30px', background: 'white', color: '#64748b', border: '2px solid #e2e8f0', borderRadius: '8px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer' }}>Cancelar</button>
+            </div>
+
           </div>
         </div>
       )}
