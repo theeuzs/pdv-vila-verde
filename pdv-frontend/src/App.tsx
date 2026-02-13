@@ -163,7 +163,15 @@ export function App() {
       if (resClientes.ok) setClientes(await resClientes.json())
       if (resVendas.ok) setVendas(await resVendas.json())
       if (resOrcamentos.ok) setOrcamentos(await resOrcamentos.json())
-      if (resCaixa.ok) setCaixaAberto(await resCaixa.json())
+      
+      // Trata caixa aberto - pode retornar null se não houver caixa aberto
+      if (resCaixa.ok) {
+        const caixaData = await resCaixa.json()
+        setCaixaAberto(caixaData || null)
+      } else {
+        setCaixaAberto(null)
+      }
+      
       if (resContas.ok) setContasReceber(await resContas.json())
       if (resEntregas.ok) setEntregas(await resEntregas.json())
     } catch (e) {
@@ -235,11 +243,23 @@ export function App() {
         alert('✅ Caixa aberto com sucesso!')
       } else {
         const erro = await res.json()
-        alert('❌ Erro: ' + (erro.erro || 'Não foi possível abrir o caixa'))
+        
+        // Se já existe caixa aberto, oferece opção de usar esse caixa
+        if (erro.erro && erro.erro.includes('Já existe um caixa aberto')) {
+          const usar = confirm('⚠️ Já existe um caixa aberto!\n\nDeseja usar o caixa que já está aberto?')
+          if (usar) {
+            // Recarrega os dados para pegar o caixa aberto
+            await carregarDados()
+            setModalAbrirCaixa(false)
+            setValorAbertura('')
+          }
+        } else {
+          alert('❌ Erro: ' + (erro.erro || 'Não foi possível abrir o caixa'))
+        }
       }
     } catch (e) {
       console.error(e)
-      alert('❌ Erro ao abrir caixa')
+      alert('❌ Erro ao abrir caixa. Verifique sua conexão.')
     }
   }
 
