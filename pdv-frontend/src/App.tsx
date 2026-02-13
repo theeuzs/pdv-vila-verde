@@ -1158,83 +1158,64 @@ export function App() {
 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', height: '75vh' }}> 
   
   {/* ========================================================= */}
-{/* 📉 ÁREA DE VENDAS COMPACTA (MONITOR PEQUENO) */}
+{/* 📉 ÁREA DE VENDAS ULTRA COMPACTA (LAPTOP/MONITOR PEQUENO) */}
 {/* ========================================================= */}
 
-{/* 1. BARRA DE TOPO (PESQUISA COMPACTA) */}
-<div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', padding: '0 5px' }}>
-    {/* Input de Quantidade Pequeno */}
-    <div style={{ display: 'flex', flexDirection: 'column', width: '60px' }}>
-        <label style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#666' }}>QTD</label>
+{/* 1. BARRA DE TOPO (PESQUISA FINA) */}
+<div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', padding: '0 5px' }}>
+    {/* Input QTD */}
+    <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '4px', padding: '0 5px', height: '35px' }}>
+        <span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#666', marginRight: '5px' }}>QTD</span>
         <input 
           type="number" 
           defaultValue={1} 
-          style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc', textAlign: 'center', fontWeight: 'bold' }}
+          style={{ width: '40px', border: 'none', textAlign: 'center', fontWeight: 'bold', outline: 'none' }}
         />
     </div>
 
-    {/* Barra de Pesquisa (Ocupa o resto do espaço) */}
+    {/* Barra de Pesquisa */}
     <div style={{ flex: 1, position: 'relative' }}>
-        <label style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#666' }}>PESQUISAR PRODUTO</label>
         <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-            <span style={{ position: 'absolute', left: '10px', fontSize: '1rem' }}>🔍</span>
+            <span style={{ position: 'absolute', left: '10px', fontSize: '0.9rem' }}>🔍</span>
             <input 
                 type="text" 
-                placeholder="Digite o nome ou código..." 
+                placeholder="Pesquisar (Nome ou Código)..." 
                 value={busca} 
                 onChange={e => setBusca(e.target.value)}
-                style={{ width: '100%', padding: '8px 10px 8px 35px', borderRadius: '5px', border: '1px solid #ccc' }}
+                style={{ width: '100%', padding: '0 10px 0 30px', height: '35px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '0.9rem' }}
             />
         </div>
     </div>
-
-    {/* Botão Novo Produto (Opcional, pode remover se quiser) */}
-    <div style={{ marginTop: '18px' }}>
-         <button style={{ backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '5px', width: '35px', height: '35px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
-    </div>
 </div>
 
-{/* ========================================================= */}
-{/* 📏 ÁREA PRINCIPAL COM TAMANHOS FIXOS (SEU LAYOUT) */}
-{/* ========================================================= */}
+{/* 2. ÁREA PRINCIPAL (Altura ajustada para não criar barra de rolagem na página inteira) */}
 <div style={{ 
     display: 'flex', 
-    gap: '15px', // Espaço entre as colunas principais
-    height: 'calc(100vh - 160px)', // Ajuste fino da altura total
-    paddingBottom: '10px',
-    alignItems: 'stretch' // Garante que todas tenham a mesma altura
+    gap: '10px', 
+    height: 'calc(100vh - 140px)', // Puxa o máximo de altura possível
+    paddingBottom: '5px',
+    alignItems: 'stretch'
 }}>
 
   {/* ======================== */}
-  {/* COLUNA 1: GRADE ("O RESTANTE") */}
+  {/* COLUNA 1: GRADE DE PRODUTOS (COM BOTÕES DE VOLTA) */}
   {/* ======================== */}
   <div style={{ 
-      flex: 1, // ESTA É A MÁGICA: "Ocupe todo o espaço que sobrar"
-      minWidth: 0, // Essencial para o grid interno não estourar
-      display: 'flex', 
-      flexDirection: 'column', 
-      border: '1px solid #e2e8f0', 
-      borderRadius: '12px', 
-      padding: '15px', 
+      flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', 
+      border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px', 
       backgroundColor: modoEscuro ? '#1e293b' : '#f8fafc' 
   }}>
-    
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#f97316', margin: 0 }}>
-          {busca ? `🔍 Resultados: "${busca}"` : '🔥 Destaques'}
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+        <h3 style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#f97316', margin: 0 }}>
+          {busca ? `🔍 "${busca}"` : '🔥 Destaques'}
         </h3>
-        <span style={{ fontSize: '0.8rem', color: '#888' }}>{produtosFiltrados.length} itens</span>
+        <span style={{ fontSize: '0.7rem', color: '#888' }}>{produtosFiltrados.length}</span>
     </div>
 
     <div style={{ 
         display: 'grid', 
-        // AQUI MUDOU: Aumentei para 200px. Isso força ter MENOS colunas e cards maiores.
-        // Vai ficar com 3 ou 4 colunas no máximo em monitores comuns.
-        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
-        gap: '12px', 
-        overflowY: 'auto', 
-        alignContent: 'start',
-        paddingRight: '5px'
+        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', 
+        gap: '8px', overflowY: 'auto', alignContent: 'start', paddingRight: '5px'
     }}>
       {produtos
         .filter(p => {
@@ -1243,193 +1224,179 @@ export function App() {
                 return destaques.some(d => p.nome.toLowerCase().includes(d));
              }
              const termo = busca.toLowerCase();
-             // Busca inteligente (início da palavra ou código)
              return p.nome.toLowerCase().startsWith(termo) || String(p.codigoBarra).includes(termo) || p.nome.toLowerCase().includes(' ' + termo);
           })
-          .slice(0, 50) // Limite de segurança
+          .slice(0, 50)
           .map((produto) => (
           <div
             key={produto.id}
             onClick={() => setProdutoSelecionado(produto)}
             style={{
               cursor: 'pointer',
-              border: produtoSelecionado?.id === produto.id ? '2px solid #f97316' : '1px solid #e2e8f0',
+              border: produtoSelecionado?.id === produto.id ? '2px solid #f97316' : '1px solid #ddd',
               backgroundColor: produtoSelecionado?.id === produto.id ? '#fff7ed' : (modoEscuro ? '#334155' : 'white'),
-              borderRadius: '10px',
-              padding: '12px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              minHeight: '180px', // Cards um pouco mais altos para respirar
-              position: 'relative',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-              transition: 'transform 0.1s',
+              borderRadius: '6px', padding: '8px',
+              display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+              minHeight: '140px', position: 'relative'
             }}
-            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
           >
-            {/* Badge Estoque */}
-            <div style={{ position: 'absolute', top: 8, right: 8, fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: produto.estoque < 10 ? '#fee2e2' : '#dcfce7', color: produto.estoque < 10 ? '#dc2626' : '#166534', padding: '2px 6px', borderRadius: '6px' }}>
+            {/* Estoque */}
+            <div style={{ position: 'absolute', top: 4, right: 4, fontSize: '0.6rem', fontWeight: 'bold', backgroundColor: produto.estoque < 10 ? '#fee2e2' : '#dcfce7', color: produto.estoque < 10 ? '#dc2626' : '#166534', padding: '1px 4px', borderRadius: '4px' }}>
                {produto.estoque} {produto.unidade}
             </div>
 
             {/* Imagem */}
-            <div style={{ alignSelf: 'center', width: '80px', height: '80px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: modoEscuro ? '#1e293b' : '#f1f5f9', borderRadius: '8px', fontSize: '2.5rem' }}>
-                {produto.imagem ? <img src={produto.imagem} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /> : '📦'}
+            <div style={{ alignSelf: 'center', width: '60px', height: '60px', marginBottom: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: modoEscuro ? '#1e293b' : '#f1f5f9', borderRadius: '6px' }}>
+                {produto.imagem ? <img src={produto.imagem} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '6px' }} /> : <span style={{fontSize:'1.5rem'}}>📦</span>}
             </div>
 
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 'bold', textAlign: 'center', margin: '0 0 5px 0', lineHeight: '1.2', height: '38px', overflow: 'hidden', color: modoEscuro ? '#e2e8f0' : '#334155' }}>
+            {/* Nome */}
+            <h4 style={{ fontSize: '0.8rem', fontWeight: 'bold', textAlign: 'center', margin: '0 0 2px 0', lineHeight: '1.1', height: '28px', overflow: 'hidden', color: modoEscuro ? '#e2e8f0' : '#333' }}>
               {produto.nome}
             </h4>
 
-            <p style={{ color: '#ea580c', fontWeight: '800', fontSize: '1.2rem', textAlign: 'center', margin: 0 }}>
+            {/* Preço */}
+            <p style={{ color: '#ea580c', fontWeight: '800', fontSize: '1rem', textAlign: 'center', margin: 0 }}>
               R$ {Number(produto.precoVenda).toFixed(2)}
             </p>
 
-             {/* Botões de Ação */}
-             <div style={{ position: 'absolute', bottom: '10px', right: '10px', display: 'flex', gap: '5px', opacity: 0.8 }}>
-                <button onClick={(e) => { e.stopPropagation(); setProdutoEmEdicao(produto); setFormProduto({...produto} as any); setModalAberto(true); }} style={{ border: 'none', backgroundColor: '#fbbf24', color: 'white', borderRadius: '6px', width: '24px', height: '24px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Editar">✏️</button>
-                <button onClick={(e) => { e.stopPropagation(); if(confirm('Excluir?')) excluirProduto(produto.id); }} style={{ border: 'none', backgroundColor: '#ef4444', color: 'white', borderRadius: '6px', width: '24px', height: '24px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Excluir">🗑️</button>
+            {/* 👇 BOTÕES DE AÇÃO (VOLTARAM!) 👇 */}
+            <div style={{ position: 'absolute', bottom: '5px', right: '5px', display: 'flex', gap: '3px' }}>
+                <button 
+                    onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setProdutoEmEdicao(produto); // Usa a função!
+                        setFormProduto({...produto} as any); 
+                        setModalAberto(true); 
+                    }} 
+                    style={{ border: 'none', backgroundColor: '#fbbf24', color: 'white', borderRadius: '4px', width: '22px', height: '22px', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    title="Editar"
+                >
+                    ✏️
+                </button>
+                <button 
+                    onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if(confirm('Excluir?')) excluirProduto(produto.id); // Usa a função!
+                    }} 
+                    style={{ border: 'none', backgroundColor: '#ef4444', color: 'white', borderRadius: '4px', width: '22px', height: '22px', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    title="Excluir"
+                >
+                    🗑️
+                </button>
             </div>
+
           </div>
         ))}
     </div>
   </div>
 
   {/* ======================== */}
-  {/* COLUNA 2: DETALHES (FIXO 300px) */}
+  {/* COLUNA 2: DETALHES (FIXO 260px) */}
   {/* ======================== */}
-  <div style={{ 
-      width: '300px', // TRAVADO EM 300PX
-      flexShrink: 0, // NÃO DEIXA DIMINUIR
-      display: 'flex', flexDirection: 'column' 
-  }}>
+  <div style={{ width: '260px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
       {produtoSelecionado ? (
-        <div style={{ backgroundColor: '#1e293b', color: 'white', borderRadius: '12px', padding: '20px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        <div style={{ backgroundColor: '#1e293b', color: 'white', borderRadius: '8px', padding: '15px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative' }}>
           
-          <button onClick={() => setProdutoSelecionado(null)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <button onClick={() => setProdutoSelecionado(null)} style={{ position: 'absolute', top: '5px', right: '5px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: '50%', width: '25px', height: '25px', cursor: 'pointer' }}>✕</button>
           
           <div>
-              <div style={{ width: '100%', height: '160px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', fontSize: '4rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+              {/* IMAGEM MENOR PRA NÃO OCUPAR TELA */}
+              <div style={{ width: '100%', height: '120px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px', fontSize: '3rem' }}>
                   {produtoSelecionado.imagem ? <img src={produtoSelecionado.imagem} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} /> : '📦'}
               </div>
-              <h2 style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '10px', lineHeight: '1.2' }}>{produtoSelecionado.nome}</h2>
-              
-              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                <span style={{ backgroundColor: '#f97316', color: 'white', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold' }}>Cód: {produtoSelecionado.codigoBarra || '---'}</span>
-                <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#ccc', padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem' }}>Estoque: {produtoSelecionado.estoque}</span>
-              </div>
+              <h2 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '5px', lineHeight: '1.2' }}>{produtoSelecionado.nome}</h2>
+              <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>Cód: {produtoSelecionado.codigoBarra}</span>
           </div>
 
           <div>
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '5px', textTransform: 'uppercase', fontWeight: 'bold' }}>Preço Unitário</p>
-              <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4ade80', marginBottom: '20px', letterSpacing: '-1px' }}>R$ {Number(produtoSelecionado.precoVenda).toFixed(2)}</div>
+              <p style={{ color: '#94a3b8', fontSize: '0.7rem', marginBottom: '0' }}>Preço Unitário</p>
+              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4ade80', marginBottom: '10px' }}>R$ {Number(produtoSelecionado.precoVenda).toFixed(2)}</div>
               
               <button 
                 onClick={() => adicionarAoCarrinho(produtoSelecionado)} 
-                style={{ width: '100%', backgroundColor: '#f97316', color: 'white', fontWeight: 'bold', padding: '15px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: '0 4px 10px rgba(249, 115, 22, 0.3)' }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#ea580c'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#f97316'}
+                style={{ width: '100%', backgroundColor: '#f97316', color: 'white', fontWeight: 'bold', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
               >
                 🛒 ADICIONAR
               </button>
           </div>
         </div>
       ) : (
-        <div style={{ height: '100%', border: '2px dashed #cbd5e1', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', backgroundColor: modoEscuro ? '#1e293b' : '#f8fafc' }}>
-          <span style={{ fontSize: '3rem', opacity: 0.5, marginBottom: '10px' }}>👈</span>
-          <h3 style={{ margin: 0, fontSize: '1.2rem', color: modoEscuro ? '#cbd5e1' : '#64748b' }}>Selecione um item</h3>
-          <p style={{ fontSize: '0.9rem', textAlign: 'center', marginTop: '5px' }}>Clique no produto ao lado<br/>para ver detalhes.</p>
+        <div style={{ height: '100%', border: '2px dashed #ccc', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#999', backgroundColor: modoEscuro ? '#1e293b' : '#f8fafc' }}>
+          <span style={{ fontSize: '2rem', opacity: 0.5 }}>👈</span>
+          <p style={{ fontSize: '0.8rem' }}>Selecione um item</p>
         </div>
       )}
   </div>
 
   {/* ======================== */}
-  {/* COLUNA 3: CARRINHO (FIXO 350px) */}
+  {/* COLUNA 3: CARRINHO (COMPACTO) */}
   {/* ======================== */}
   <div style={{ 
-      width: '350px', // TRAVADO EM 350PX
-      flexShrink: 0, // NÃO DEIXA DIMINUIR
-      display: 'flex', flexDirection: 'column', 
-      backgroundColor: modoEscuro ? '#1e293b' : 'white', 
-      borderRadius: '12px', 
-      boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
+      width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', 
+      backgroundColor: modoEscuro ? '#1e293b' : 'white', borderRadius: '8px', 
       border: modoEscuro ? '1px solid #334155' : '1px solid #e2e8f0', overflow: 'hidden' 
   }}>
-    <div style={{ padding: '15px', backgroundColor: modoEscuro ? '#0f172a' : '#f8fafc', borderBottom: modoEscuro ? '1px solid #334155' : '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', color: modoEscuro ? 'white' : '#334155', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            🛒 Cesta de Compras
-        </h2>
-        <span style={{ backgroundColor: '#ffedd5', color: '#c2410c', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 'bold' }}>{carrinho.length} itens</span>
+    <div style={{ padding: '8px 10px', backgroundColor: modoEscuro ? '#0f172a' : '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 'bold', color: modoEscuro ? 'white' : '#334155' }}>🛒 Cesta ({carrinho.length})</h2>
+        {clienteSelecionado && clienteObjSelecionado && (
+            <div style={{ fontSize: '0.7rem', color: '#166534', backgroundColor: '#dcfce7', padding: '2px 5px', borderRadius: '4px' }}>
+                <b>{clienteObjSelecionado.nome.split(' ')[0]}</b>
+            </div>
+        )}
     </div>
 
-    {/* Info do Cliente (se houver) */}
-    {clienteSelecionado && clienteObjSelecionado && (
-        <div style={{ padding: '10px 15px', backgroundColor: '#f0fdf4', borderBottom: '1px solid #dcfce7', fontSize: '0.85rem', color: '#166534', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-                Cliente: <b>{clienteObjSelecionado.nome.split(' ')[0]}</b>
-                {Number(clienteObjSelecionado.saldoHaver) > 0 && (
-                <span style={{ marginLeft: '10px', backgroundColor: '#dcfce7', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem' }}>
-                    💰 Haver: R$ {Number(clienteObjSelecionado.saldoHaver).toFixed(2)}
-                </span>
-                )}
-            </div>
-            <button onClick={() => {setClienteSelecionado(''); setTermoCliente('')}} style={{border:'none', background:'transparent', color:'#dc2626', cursor:'pointer', fontWeight:'bold'}}>✕</button>
-        </div>
-    )}
-
-    <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
+    {/* LISTA DE ITENS (AQUI VAI CABER MAIS COISA AGORA) */}
+    <div style={{ flex: 1, overflowY: 'auto', padding: '5px' }}>
         {carrinho.length === 0 ? (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', opacity: 0.7 }}>
-                <span style={{ fontSize: '3rem', marginBottom: '10px' }}>🛍️</span>
-                <p style={{ fontSize: '1rem' }}>Sua cesta está vazia</p>
-            </div>
+            <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '30px', fontSize: '0.8rem' }}>Cesta vazia</div>
         ) : (
             carrinho.map((item, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 10px', borderBottom: modoEscuro ? '1px solid #334155' : '1px solid #f1f5f9', alignItems: 'center', backgroundColor: modoEscuro ? (i%2 ? '#1e293b' : '#0f172a') : (i%2 ? 'white' : '#f8fafc') }}>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 5px', borderBottom: '1px solid #eee', alignItems: 'center', backgroundColor: modoEscuro ? '#1e293b' : 'white' }}>
                     <div style={{ overflow: 'hidden', flex: 1 }}>
-                        <div style={{ fontWeight: '600', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: modoEscuro ? 'white' : '#334155' }}>{item.produto.nome}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' }}>
-                            <span style={{ fontWeight: 'bold', color: modoEscuro ? '#cbd5e1' : '#64748b' }}>{item.quantidade}x</span> R$ {item.produto.precoVenda.toFixed(2)}
+                        <div style={{ fontWeight: '600', fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: modoEscuro ? '#e2e8f0' : '#333' }}>{item.produto.nome}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#888' }}>
+                            {item.quantidade}x R$ {item.produto.precoVenda.toFixed(2)}
                         </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontWeight: '800', fontSize: '0.95rem', color: modoEscuro ? 'white' : '#334155' }}>R$ {(item.quantidade * item.produto.precoVenda).toFixed(2)}</span>
-                        <button onClick={() => removerItemCarrinho(i)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: '5px', display: 'flex', alignItems: 'center' }} title="Remover">🗑️</button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: modoEscuro ? 'white' : 'black' }}>{(item.quantidade * item.produto.precoVenda).toFixed(2)}</span>
+                        <button onClick={() => removerItemCarrinho(i)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem' }}>✖</button>
                     </div>
                 </div>
             ))
         )}
     </div>
 
-    <div style={{ padding: '20px', borderTop: modoEscuro ? '1px solid #334155' : '1px solid #e2e8f0', backgroundColor: modoEscuro ? '#0f172a' : '#f8fafc' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'flex-end' }}>
-            <span style={{ color: '#94a3b8', fontWeight: 'bold' }}>Total Geral</span>
-            <span style={{ fontSize: '1.8rem', fontWeight: '800', color: modoEscuro ? 'white' : '#1e293b', lineHeight: 1 }}>R$ {totalCarrinho.toFixed(2)}</span>
+    {/* RODAPÉ DO CARRINHO (BEM MAIS FINO AGORA) */}
+    <div style={{ padding: '8px', borderTop: '1px solid #e2e8f0', backgroundColor: modoEscuro ? '#0f172a' : '#f8fafc' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'center' }}>
+            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 'bold' }}>Total:</span>
+            <span style={{ fontSize: '1.4rem', fontWeight: '800', color: modoEscuro ? 'white' : '#1e293b' }}>R$ {totalCarrinho.toFixed(2)}</span>
         </div>
         
         <button 
             onClick={() => setModalPagamentoAberto(true)} 
             disabled={carrinho.length === 0}
-            style={{ width: '100%', padding: '15px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', opacity: carrinho.length === 0 ? 0.5 : 1, marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: carrinho.length > 0 ? '0 4px 10px rgba(34, 197, 94, 0.3)' : 'none' }}
+            style={{ width: '100%', padding: '8px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', opacity: carrinho.length === 0 ? 0.5 : 1, marginBottom: '5px' }}
         >
-            ✅ Finalizar Venda
+            ✅ PAGAR
         </button>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '5px' }}>
             <button 
                 onClick={salvarOrcamento} 
                 disabled={carrinho.length === 0} 
-                style={{ flex: 1, padding: '10px', backgroundColor: modoEscuro ? '#475569' : '#e2e8f0', color: modoEscuro ? 'white' : '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', opacity: carrinho.length === 0 ? 0.5 : 1 }}
+                style={{ flex: 1, padding: '5px', backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', opacity: carrinho.length === 0 ? 0.5 : 1 }}
             >
-                📝 Orçamento
+                Orçamento
             </button>
             <button 
                 onClick={prepararNotaFiscal} 
                 disabled={carrinho.length === 0} 
-                style={{ flex: 1, padding: '10px', border: '2px solid #f97316', backgroundColor: 'transparent', color: '#f97316', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', opacity: carrinho.length === 0 ? 0.5 : 1 }}
+                style={{ flex: 1, padding: '5px', border: '1px solid #f97316', backgroundColor: 'transparent', color: '#f97316', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold', opacity: carrinho.length === 0 ? 0.5 : 1 }}
             >
-                📄 NFC-e
+                NFC-e
             </button>
         </div>
     </div>
