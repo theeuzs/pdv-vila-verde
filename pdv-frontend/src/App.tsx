@@ -108,6 +108,9 @@ export function App() {
   // ESTADOS DO DASHBOARD
   const [dashboard, setDashboard] = useState<any>(null)
   
+  // ESTADOS DE PAGINAÇÃO
+  const [produtosVisiveis, setProdutosVisiveis] = useState(30)
+  
   // MODAIS
   const [modalPagamento, setModalPagamento] = useState(false)
   const [modalProduto, setModalProduto] = useState(false)
@@ -134,6 +137,11 @@ export function App() {
   useEffect(() => {
     carregarDashboard()
   }, [vendas])
+
+  // Reset paginação ao trocar de aba
+  useEffect(() => {
+    setProdutosVisiveis(30)
+  }, [aba])
 
   // ============================================================================
   // FUNÇÕES DE CARREGAMENTO
@@ -621,7 +629,7 @@ export function App() {
   const produtosFiltrados = produtos.filter(p => 
     p.nome.toLowerCase().includes(busca.toLowerCase()) ||
     p.codigoBarra?.includes(busca)
-  )
+  ).slice(0, 30) // Limita a 30 produtos para melhor performance
 
   return (
     <div style={{ 
@@ -1287,7 +1295,7 @@ export function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {produtos.map(p => (
+                  {produtos.slice(0, produtosVisiveis).map(p => (
                     <tr key={p.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                       <td style={{ padding: '15px', fontWeight: 'bold' }}>{p.nome}</td>
                       <td style={{ padding: '15px', color: '#64748b' }}>{p.codigoBarra || '-'}</td>
@@ -1338,6 +1346,26 @@ export function App() {
                   ))}
                 </tbody>
               </table>
+              
+              {/* Botão Carregar Mais */}
+              {produtosVisiveis < produtos.length && (
+                <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                  <button
+                    onClick={() => setProdutosVisiveis(prev => prev + 30)}
+                    style={{
+                      padding: '12px 30px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    📦 Carregar mais produtos ({produtos.length - produtosVisiveis} restantes)
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2267,6 +2295,28 @@ export function App() {
                   />
                 )}
 
+                {/* Checkbox Emitir NFC-e */}
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '20px',
+                  cursor: 'pointer',
+                  padding: '12px',
+                  background: '#f0fdf4',
+                  borderRadius: '8px',
+                  border: '1px solid #86efac'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={true}
+                    readOnly
+                  />
+                  <span style={{ fontWeight: 'bold', color: '#059669' }}>
+                    📄 Emitir NFC-e (Nota Fiscal)
+                  </span>
+                </label>
+
                 {/* Botão Finalizar */}
                 <button
                   onClick={finalizarVenda}
@@ -2286,7 +2336,7 @@ export function App() {
                     boxShadow: faltaPagar <= 0.01 ? '0 4px 15px rgba(34, 197, 94, 0.3)' : 'none'
                   }}
                 >
-                  ✅ CONCLUIR VENDA
+                  ✅ CONCLUIR VENDA COM NFC-e
                 </button>
               </div>
             </div>
