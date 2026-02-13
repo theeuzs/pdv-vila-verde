@@ -138,7 +138,7 @@ export function TelaLogin({ onLoginSucesso }: Props) {
          
          {/* SUA LOGO NEON AQUI */}
          <img 
-           src="/logoloja.png" 
+           src="/logoequipe.png" 
            alt="Logo Vila Verde" 
            style={{
              width: '100%',
