@@ -131,6 +131,7 @@ export function App() {
   useEffect(() => {
     if (usuarioLogado) {
       carregarDados()
+      buscarCaixaAberto() // Busca o caixa aberto separadamente
     }
   }, [usuarioLogado])
 
@@ -219,6 +220,24 @@ export function App() {
   // FUNÇÕES DO CAIXA
   // ============================================================================
 
+  async function buscarCaixaAberto() {
+    try {
+      const res = await fetch(`${API_URL}/caixa/aberto`)
+      if (res.ok) {
+        const caixa = await res.json()
+        setCaixaAberto(caixa)
+        return caixa
+      } else {
+        setCaixaAberto(null)
+        return null
+      }
+    } catch (e) {
+      console.error('Erro ao buscar caixa:', e)
+      setCaixaAberto(null)
+      return null
+    }
+  }
+
   async function abrirCaixa() {
     if (!valorAbertura || Number(valorAbertura) < 0) {
       alert('Digite um valor válido para abertura')
@@ -248,10 +267,15 @@ export function App() {
         if (erro.erro && erro.erro.includes('Já existe um caixa aberto')) {
           const usar = confirm('⚠️ Já existe um caixa aberto!\n\nDeseja usar o caixa que já está aberto?')
           if (usar) {
-            // Recarrega os dados para pegar o caixa aberto
-            await carregarDados()
-            setModalAbrirCaixa(false)
-            setValorAbertura('')
+            // Busca especificamente o caixa aberto
+            const caixaExistente = await buscarCaixaAberto()
+            if (caixaExistente) {
+              setModalAbrirCaixa(false)
+              setValorAbertura('')
+              alert('✅ Usando o caixa já aberto!')
+            } else {
+              alert('❌ Não foi possível encontrar o caixa aberto. Tente novamente.')
+            }
           }
         } else {
           alert('❌ Erro: ' + (erro.erro || 'Não foi possível abrir o caixa'))
