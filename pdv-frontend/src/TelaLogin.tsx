@@ -166,7 +166,7 @@ export function TelaLogin({ onLoginSucesso }: Props) {
           {/* Logo mobile (Aparece só em celular) */}
           <div className="show-mobile-only" style={{textAlign: 'center', marginBottom: '30px'}}>
             <img 
-              src="/logoloja.png" 
+              src="/logoequipe.png" 
               alt="Logo Vila Verde" 
               style={{
                 width: '200px', // Tamanho reduzido para celular
