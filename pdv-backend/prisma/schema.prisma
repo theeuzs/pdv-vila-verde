@@ -29,6 +29,8 @@ model Venda {
   pagamentos      Pagamento[]
   caixa           Caixa?        @relation(fields: [caixaId], references: [id])
   cliente         Cliente?      @relation(fields: [clienteId], references: [id])
+  usuarioId       String?     // O "?" deixa opcional para não quebrar vendas antigas
+  usuario         User? @relation(fields: [usuarioId], references: [id])
 
   @@map("vendas")
 }
@@ -93,6 +95,7 @@ model User {
   cargo    String
   criadoEm DateTime @default(now())
   caixas   Caixa[]
+  vendas   Venda[]
 
   @@map("users")
 }

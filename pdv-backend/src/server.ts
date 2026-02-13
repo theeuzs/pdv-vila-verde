@@ -278,7 +278,8 @@ app.get('/vendas', async () => {
     include: { 
       itens: { include: { produto: true } }, 
       cliente: true,
-      pagamentos: true 
+      pagamentos: true,
+      usuario: true
     },
     orderBy: { data: 'desc' }
   })

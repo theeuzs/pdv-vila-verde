@@ -478,6 +478,7 @@ export function App() {
           total: totalComDesconto, 
           clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
           caixaId: caixaAberto.id,
+          usuarioId: usuarioLogado.id,
           entrega,
           enderecoEntrega: endereco || null,
           itens: carrinho.map(i => {
@@ -545,6 +546,7 @@ export function App() {
           total: totalCarrinho,
           clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
           caixaId: caixaAberto.id,
+          usuarioId: usuarioLogado.id,
           entrega,
           enderecoEntrega: endereco || null,
           itens: carrinho.map(i => ({
