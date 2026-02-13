@@ -17,7 +17,10 @@ const styles = {
     padding: '40px',
     color: 'white',
     flexDirection: 'column' as const,
-    borderRight: '1px solid #333' // Borda mais sutil
+    position: 'relative' as const, // Necessário para a sombra ficar por cima
+    zIndex: 2, // Garante que este lado está "acima" do lado direito
+    // Uma sombra preta, deslocada 20px pra direita, bem difusa (60px blur):
+    boxShadow: '20px 0 60px -15px rgba(0,0,0,1)' 
   },
   ladoDireito: {
     flex: 1,
