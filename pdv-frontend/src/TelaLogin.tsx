@@ -148,6 +148,27 @@ export function TelaLogin({ onLoginSucesso }: Props) {
              marginBottom: '20px'
            }}
          />
+          <h1 style={{
+
+           fontSize: '2.5rem',
+
+           fontWeight: '800',
+
+           marginBottom: '15px',
+
+           background: 'linear-gradient(135deg, #4ade80, #22c55e)',
+
+           WebkitBackgroundClip: 'text',
+
+           WebkitTextFillColor: 'transparent',
+
+           backgroundClip: 'text'
+
+         }}>
+
+           PDV Vila Verde
+
+         </h1>
          
          <p style={{
            opacity: 0.8, 
