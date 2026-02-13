@@ -2135,12 +2135,15 @@ export function App() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 9999
+          zIndex: 9999,
+          padding: '20px'
         }}>
           <div style={{
             background: 'white',
             borderRadius: '15px',
-            width: '800px',
+            width: '1000px',
+            maxWidth: '95vw',
+            height: '700px',
             maxHeight: '90vh',
             overflow: 'hidden',
             display: 'flex',
@@ -2172,7 +2175,7 @@ export function App() {
             </div>
 
             {/* Conteúdo */}
-            <div style={{ display: 'flex', height: '500px' }}>
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
               
               {/* Resumo */}
               <div style={{
@@ -2180,29 +2183,40 @@ export function App() {
                 padding: '20px',
                 background: '#f8fafc',
                 borderRight: '1px solid #e2e8f0',
-                overflowY: 'auto'
+                display: 'flex',
+                flexDirection: 'column'
               }}>
-                <h3 style={{ marginTop: 0, color: '#64748b', fontSize: '1rem' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '15px', color: '#64748b', fontSize: '1rem' }}>
                   Resumo do Pedido
                 </h3>
                 
-                {carrinho.map((item, i) => (
-                  <div key={i} style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '0.9rem',
-                    marginBottom: '10px',
-                    color: '#1e3c72'
-                  }}>
-                    <span>{item.quantidade}x {item.produto.nome}</span>
-                    <span style={{ fontWeight: 'bold' }}>
-                      R$ {(item.quantidade * item.produto.precoVenda).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
+                {/* ÁREA COM SCROLL - SÓ A LISTA DE ITENS */}
+                <div style={{ 
+                  flex: 1, 
+                  overflowY: 'auto',
+                  marginBottom: '15px'
+                }}>
+                  {carrinho.map((item, i) => (
+                    <div key={i} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.9rem',
+                      marginBottom: '10px',
+                      color: '#1e3c72',
+                      padding: '8px',
+                      background: 'white',
+                      borderRadius: '6px'
+                    }}>
+                      <span>{item.quantidade}x {item.produto.nome}</span>
+                      <span style={{ fontWeight: 'bold' }}>
+                        R$ {(item.quantidade * item.produto.precoVenda).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
 
+                {/* TOTAL FIXO NO FINAL */}
                 <div style={{
-                  marginTop: '20px',
                   paddingTop: '15px',
                   borderTop: '2px solid #cbd5e1',
                   fontSize: '1.5rem',
