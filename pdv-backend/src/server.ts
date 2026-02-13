@@ -916,15 +916,51 @@ app.post('/verificar-gerente', async (req, res) => {
 app.post('/emitir-fiscal', async (request: any, reply: any) => {
   console.log("🚨 1. ROTA EMISSÃO + SALVAMENTO INICIADA");
   
-  // 👇 AGORA PRECISAMOS DO 'vendaId' PARA SABER ONDE SALVAR
-  const { itens, total, pagamento, cliente, vendaId } = request.body; 
+  // 👇 1. MUDE DE 'const' PARA 'let' PARA PODERMOS ALTERAR SE VIER VAZIO
+  let { itens, total, pagamento, cliente, vendaId } = request.body; 
+
+  // 👇👇👇 COLE ESTE BLOCO NOVO AQUI (O SALVA-VIDAS) 👇👇👇
+  if (!itens || itens.length === 0) {
+      console.log("⚠️ Veio sem itens (Histórico). Tentando recuperar venda ID:", vendaId);
+      
+      if (vendaId) {
+          const vendaNoBanco = await prisma.venda.findUnique({
+              where: { id: Number(vendaId) },
+              include: { 
+                  itens: { include: { produto: true } }, // Traz os produtos junto
+                  cliente: true 
+              }
+          });
+
+          if (vendaNoBanco) {
+              console.log("✅ Venda achada no banco! Recuperando produtos...");
+              
+              // Reconstrói a lista de itens igual o Front mandaria
+              itens = vendaNoBanco.itens.map(i => ({
+                  id: i.produtoId,          // O sistema espera 'id' ou 'produtoId'
+                  produtoId: i.produtoId,
+                  descricao: i.produto.nome,
+                  quantidade: Number(i.quantidade),
+                  preco: Number(i.precoUnit),
+                  ncm: i.produto.ncm,       // Importante pra nota
+                  cest: i.produto.cest,
+                  cfop: i.produto.cfop,
+                  unidade: i.produto.unidade
+              }));
+
+              // Recupera o total e cliente se faltar
+              total = Number(vendaNoBanco.total);
+              if (!cliente) cliente = vendaNoBanco.cliente;
+          }
+      }
+  }
+  // 👆👆👆 FIM DO BLOCO NOVO 👆👆👆
 
   try {
     // 1. Validação básica
     if (!vendaId) {
-       console.warn("⚠️ ALERTA: Venda ID não informado. A nota será emitida mas não será salva no histórico.");
+       console.warn("⚠️ ALERTA: Venda ID não informado...");
     }
-
     // 2. Busca produtos
     const idsProdutos = itens.map((i: any) => Number(i.id || i.produtoId)).filter((id: number) => !isNaN(id));
     const produtosDb = await prisma.produto.findMany({ where: { id: { in: idsProdutos } } });
