@@ -1188,133 +1188,174 @@ export function App() {
   <div style={{ flex: 1, overflowY: 'auto', paddingRight: 5 }}>
     
     {/* ========================================================= */}
-{/* 🚀 NOVA ÁREA DE VENDAS (LAYOUT 3 COLUNAS) */}
+{/* 🚀 ÁREA DE VENDAS - VERSÃO CSS PURO (SEM TAILWIND) */}
 {/* ========================================================= */}
-<div className="flex w-full h-[calc(100vh-120px)] gap-4 pb-2">
+<div style={{ display: 'flex', gap: '15px', height: 'calc(100vh - 140px)', paddingBottom: '10px' }}>
 
   {/* ======================== */}
-  {/* COLUNA 1: GRADE E DETALHES */}
+  {/* COLUNA 1: GRADE DE PRODUTOS */}
   {/* ======================== */}
-  <div className="flex-1 flex gap-4 min-w-0">
+  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
     
-    {/* A. GRADE DE PRODUTOS (SCROLL) */}
-    <div className="flex-1 flex flex-col">
-      <div className="flex justify-between items-center mb-3 px-1">
-          <h3 className="text-xl font-bold text-orange-500 flex items-center gap-2">
-            {busca ? `🔍 Buscando: "${busca}"` : '🔥 Destaques / Produtos'}
-          </h3>
-          <span className="text-xs text-gray-400">
-            {produtosFiltrados.length} itens encontrados
-          </span>
-      </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#f97316', margin: 0 }}>
+          {busca ? `🔍 Buscando: "${busca}"` : '🔥 Produtos em Destaque'}
+        </h3>
+        <span style={{ fontSize: '0.8rem', color: '#888' }}>
+          {produtosFiltrados.length} itens
+        </span>
+    </div>
 
-      <div className="grid grid-cols-3 2xl:grid-cols-4 gap-3 overflow-y-auto pr-2 content-start">
-        {produtos
-          .filter(p => {
+    {/* AQUI É O GRID QUE VAI FUNCIONAR */}
+    <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(3, 1fr)', // FORÇA 3 COLUNAS
+        gap: '10px', 
+        overflowY: 'auto', 
+        paddingRight: '5px',
+        alignContent: 'start'
+    }}>
+      {produtos
+        .filter(p => {
              if (!busca) {
-                // Se não tem busca, mostra os destaques (Cimento, Areia, etc)
                 const destaques = ['cimento', 'areia', 'pedra', 'cal', 'argamassa', 'tijolo'];
                 return destaques.some(d => p.nome.toLowerCase().includes(d));
              }
              const termo = busca.toLowerCase();
              return p.nome.toLowerCase().includes(termo) || String(p.codigoBarra).includes(termo);
           })
-          .slice(0, 50) // Limite de segurança para não travar
+          .slice(0, 50)
           .map((produto) => (
           <div
             key={produto.id}
             onClick={() => setProdutoSelecionado(produto)}
-            className={`
-              cursor-pointer border rounded-xl p-3 transition-all hover:shadow-lg relative flex flex-col justify-between group
-              ${produtoSelecionado?.id === produto.id 
-                  ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' 
-                  : modoEscuro ? 'bg-slate-700 border-slate-600 hover:border-orange-400' : 'bg-white border-gray-200 hover:border-orange-300'}
-            `}
-            style={{ minHeight: '160px' }}
+            style={{
+              cursor: 'pointer',
+              border: produtoSelecionado?.id === produto.id ? '2px solid #f97316' : '1px solid #ddd',
+              backgroundColor: produtoSelecionado?.id === produto.id ? '#fff7ed' : (modoEscuro ? '#2d3748' : 'white'),
+              borderRadius: '10px',
+              padding: '10px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              minHeight: '160px',
+              position: 'relative',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+            }}
           >
-            {/* Badge de Estoque */}
-            <div className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${produto.estoque < 10 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>
+            {/* Badge Estoque */}
+            <div style={{ 
+                position: 'absolute', top: 5, right: 5, 
+                fontSize: '0.7rem', fontWeight: 'bold', 
+                backgroundColor: produto.estoque < 10 ? '#fee2e2' : '#dcfce7',
+                color: produto.estoque < 10 ? '#dc2626' : '#166534',
+                padding: '2px 6px', borderRadius: '10px'
+            }}>
                {produto.estoque} {produto.unidade}
             </div>
 
-            <div className="flex flex-col items-center mb-2">
-                <div className="h-16 w-16 mb-2 rounded-lg flex items-center justify-center text-3xl bg-black/5">
-  {produto.imagem ? (
-    <img src={produto.imagem} className="h-full w-full object-cover rounded-lg" />
-  ) : (
-    <span>📦</span>
-  )}
-</div>
-                <h4 className={`font-bold text-sm text-center leading-tight line-clamp-2 ${modoEscuro ? 'text-gray-200' : 'text-gray-700'}`}>
-                  {produto.nome}
-                </h4>
+            {/* Imagem */}
+            <div style={{ width: '60px', height: '60px', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', borderRadius: '8px', fontSize: '2rem' }}>
+                {produto.imagem ? (
+                  <img src={produto.imagem} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                ) : '📦'}
             </div>
 
-            <div className="text-center">
-                <p className="text-orange-600 font-extrabold text-lg">
-                  R$ {Number(produto.precoVenda).toFixed(2)}
-                </p>
+            {/* Nome */}
+            <h4 style={{ fontSize: '0.9rem', fontWeight: 'bold', textAlign: 'center', margin: '0 0 5px 0', color: modoEscuro ? '#eee' : '#333', lineHeight: '1.2' }}>
+              {produto.nome}
+            </h4>
+
+            {/* Preço */}
+            <p style={{ color: '#ea580c', fontWeight: '800', fontSize: '1.1rem', margin: 0 }}>
+              R$ {Number(produto.precoVenda).toFixed(2)}
+            </p>
+
+<div style={{ position: 'absolute', bottom: '10px', right: '10px', display: 'flex', gap: '5px' }}>
+                <button 
+                    onClick={(e) => { 
+                        e.stopPropagation(); // Impede de selecionar o produto ao clicar aqui
+                        setProdutoEmEdicao(produto); 
+                        setFormProduto({...produto} as any); 
+                        setModalAberto(true); 
+                    }}
+                    style={{ border: 'none', backgroundColor: '#fbbf24', color: 'white', borderRadius: '5px', width: '30px', height: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    title="Editar"
+                >
+                    ✏️
+                </button>
+                <button 
+                    onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if(confirm('Tem certeza que deseja excluir?')) excluirProduto(produto.id); 
+                    }}
+                    style={{ border: 'none', backgroundColor: '#ef4444', color: 'white', borderRadius: '5px', width: '30px', height: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    title="Excluir"
+                >
+                    🗑️
+                </button>
             </div>
 
-            {/* Botões de Ação Rápida (Aparecem ao passar o mouse) */}
-            <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-               <button 
-                 onClick={(e) => { e.stopPropagation(); setProdutoEmEdicao(produto); setFormProduto({...produto} as any); setModalAberto(true); }}
-                 className="bg-yellow-400 text-white p-1.5 rounded-md hover:bg-yellow-500 shadow-sm" title="Editar"
-               >
-                 ✏️
-               </button>
-               <button 
-                 onClick={(e) => { e.stopPropagation(); excluirProduto(produto.id); }}
-                 className="bg-red-400 text-white p-1.5 rounded-md hover:bg-red-500 shadow-sm" title="Excluir"
-               >
-                 🗑️
-               </button>
-            </div>
           </div>
         ))}
-      </div>
     </div>
 
-    {/* B. PAINEL DE DETALHES (CENTRO) */}
-    <div className="w-[320px] shrink-0 hidden md:block">
-      {produtoSelecionado ? (
-        <div className={`h-full rounded-2xl p-6 shadow-2xl flex flex-col relative overflow-hidden ${modoEscuro ? 'bg-slate-800 text-white' : 'bg-slate-900 text-white'}`}>
-          {/* Fundo Decorativo */}
-          <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500 rounded-full blur-[80px] opacity-20 -mr-16 -mt-16 pointer-events-none"></div>
+    
+  </div>
 
-          <div className="relative z-10 flex-1">
-              <div className="w-full h-56 bg-white/5 rounded-2xl flex items-center justify-center text-8xl mb-6 backdrop-blur-sm border border-white/10 shadow-inner">
-                  {produtoSelecionado.imagem || produtoSelecionado.foto ? (
-                    <img src={produtoSelecionado.imagem || produtoSelecionado.foto} className="h-full w-full object-contain p-4" />
-                  ) : '📦'}
+  
+
+  {/* ======================== */}
+  {/* COLUNA 2: PAINEL DE DETALHES (MEIO) */}
+  {/* ======================== */}
+  <div style={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+      {produtoSelecionado ? (
+        <div style={{ 
+            backgroundColor: '#1e293b', // Fundo Escuro (Slate 800)
+            color: 'white', 
+            borderRadius: '15px', 
+            padding: '20px', 
+            height: '100%', 
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+            position: 'relative', overflow: 'hidden'
+        }}>
+          
+          <div style={{ position: 'relative', zIndex: 10 }}>
+              <div style={{ width: '100%', height: '180px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '15px', fontSize: '4rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  {produtoSelecionado.imagem ? <img src={produtoSelecionado.imagem} style={{ maxHeight: '100%', maxWidth: '100%' }} /> : '📦'}
               </div>
 
-              <span className="inline-block bg-orange-500/20 text-orange-300 text-xs font-bold px-2 py-1 rounded mb-2 border border-orange-500/30">
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '5px', lineHeight: '1.2' }}>{produtoSelecionado.nome}</h2>
+              <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>
                   Cód: {produtoSelecionado.codigoBarra || '---'}
               </span>
-
-              <h2 className="text-2xl font-bold leading-tight mb-2">{produtoSelecionado.nome}</h2>
               
-              <div className="space-y-2 mt-4 text-sm text-gray-400 border-t border-gray-700 pt-4">
-                  <p className="flex justify-between">
-                      <span>Categoria:</span> <span className="text-gray-200">{produtoSelecionado.categoria || 'Geral'}</span>
+              <div style={{ marginTop: '20px', borderTop: '1px solid #475569', paddingTop: '10px', fontSize: '0.9rem', color: '#cbd5e1' }}>
+                  <p style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0' }}>
+                      <span>Categoria:</span> <span>{produtoSelecionado.categoria || 'Geral'}</span>
                   </p>
-                  <p className="flex justify-between">
-                      <span>Estoque:</span> <span className={produtoSelecionado.estoque < 5 ? 'text-red-400 font-bold' : 'text-green-400 font-bold'}>{produtoSelecionado.estoque} {produtoSelecionado.unidade}</span>
+                  <p style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0' }}>
+                      <span>Estoque:</span> <span style={{ color: '#4ade80', fontWeight: 'bold' }}>{produtoSelecionado.estoque} {produtoSelecionado.unidade}</span>
                   </p>
               </div>
           </div>
 
-          <div className="relative z-10 mt-4">
-              <p className="text-gray-400 text-xs mb-1">Preço Unitário</p>
-              <div className="text-5xl font-bold text-green-400 mb-6 tracking-tighter">
+          <div style={{ position: 'relative', zIndex: 10 }}>
+              <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '0' }}>Preço Unitário</p>
+              <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#4ade80', marginBottom: '15px' }}>
                   R$ {Number(produtoSelecionado.precoVenda).toFixed(2)}
               </div>
 
               <button 
                   onClick={() => adicionarAoCarrinho(produtoSelecionado)}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-900/50 transition-all active:scale-95 flex items-center justify-center gap-3 text-lg"
+                  style={{ 
+                      width: '100%', backgroundColor: '#f97316', color: 'white', 
+                      fontWeight: 'bold', padding: '15px', borderRadius: '10px', 
+                      border: 'none', cursor: 'pointer', fontSize: '1rem',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+                  }}
               >
                   🛒 ADICIONAR
               </button>
@@ -1322,53 +1363,71 @@ export function App() {
         </div>
       ) : (
         // ESTADO VAZIO
-        <div className={`h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-8 text-center opacity-60 ${modoEscuro ? 'border-gray-700 bg-slate-800/50' : 'border-gray-300 bg-gray-50'}`}>
-          <span className="text-6xl mb-4 grayscale opacity-50">👈</span>
-          <h3 className="text-xl font-bold mb-2">Selecione um item</h3>
-          <p className="text-sm">Clique em um produto na grade ao lado para ver detalhes e adicionar ao caixa.</p>
+        <div style={{ height: '100%', border: '2px dashed #ccc', borderRadius: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#999', backgroundColor: modoEscuro ? '#2d3748' : '#f9fafb' }}>
+          <span style={{ fontSize: '3rem', marginBottom: '10px', opacity: 0.5 }}>👈</span>
+          <h3 style={{ margin: 0 }}>Selecione um item</h3>
         </div>
       )}
-    </div>
-
   </div>
 
   {/* ======================== */}
-  {/* COLUNA 2: CARRINHO (DIREITA) */}
+  {/* COLUNA 3: CARRINHO (DIREITA) - CSS PURO */}
   {/* ======================== */}
-  <div className={`w-[400px] flex flex-col rounded-2xl shadow-xl overflow-hidden ${modoEscuro ? 'bg-slate-800 text-gray-100' : 'bg-white text-gray-800'}`}>
+  <div style={{ 
+      width: '380px', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      backgroundColor: modoEscuro ? '#1e293b' : 'white', // Slate 800 ou White
+      borderRadius: '15px', 
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+      border: modoEscuro ? '1px solid #334155' : '1px solid #e2e8f0',
+      overflow: 'hidden' // Para o conteúdo não vazar as bordas arredondadas
+  }}>
     
     {/* CABEÇALHO CARRINHO */}
-    <div className={`p-4 border-b flex justify-between items-center ${modoEscuro ? 'border-slate-700 bg-slate-700/50' : 'border-gray-100 bg-gray-50'}`}>
-        <h2 className="font-bold text-lg flex items-center gap-2">🛒 Seu Carrinho</h2>
-        <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded-full">{carrinho.length} itens</span>
+    <div style={{ 
+        padding: '15px', 
+        borderBottom: modoEscuro ? '1px solid #334155' : '1px solid #f1f5f9',
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        backgroundColor: modoEscuro ? '#0f172a' : '#f8fafc'
+    }}>
+        <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', color: modoEscuro ? 'white' : '#334155' }}>
+          🛒 Carrinho
+        </h2>
+        <span style={{ backgroundColor: '#ffedd5', color: '#c2410c', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+          {carrinho.length} itens
+        </span>
     </div>
 
-    {/* CONTEÚDO SCROLLÁVEL */}
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    {/* CONTEÚDO COM SCROLL (LISTA DE ITENS + CLIENTE) */}
+    <div style={{ flex: 1, overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
         
         {/* SELEÇÃO DE CLIENTE */}
         <div>
-            <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Cliente</label>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '5px' }}>Cliente</label>
             {clienteSelecionado ? (
-                <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg text-green-800">
-                    <div className="flex items-center gap-2 font-bold">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold' }}>
                         👤 {clientes.find(c => String(c.id) === String(clienteSelecionado))?.nome || 'Cliente'}
                     </div>
-                    <button onClick={() => { setClienteSelecionado(''); setTermoCliente(''); }} className="text-red-500 hover:text-red-700 font-bold px-2">✕</button>
+                    <button onClick={() => { setClienteSelecionado(''); setTermoCliente(''); }} style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer' }}>✕</button>
                 </div>
             ) : (
-                <div className="relative">
+                <div style={{ position: 'relative' }}>
                     <input 
                         type="text" 
                         placeholder="🔍 Buscar cliente..." 
                         value={termoCliente} 
                         onChange={e => setTermoCliente(e.target.value)}
-                        className={`w-full p-3 rounded-lg border ${modoEscuro ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200'}`} 
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: modoEscuro ? '#334155' : 'white', color: modoEscuro ? 'white' : 'black' }} 
                     />
+                    {/* Lista suspensa de clientes */}
                     {termoCliente.length > 0 && (
-                        <div className={`absolute left-0 right-0 top-full mt-1 rounded-lg shadow-xl z-50 max-h-40 overflow-auto ${modoEscuro ? 'bg-slate-700 border border-slate-600' : 'bg-white border border-gray-200'}`}>
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '5px', borderRadius: '8px', boxShadow: '0 10px 15px rgba(0,0,0,0.1)', zIndex: 50, maxHeight: '150px', overflowY: 'auto', backgroundColor: modoEscuro ? '#334155' : 'white', border: '1px solid #cbd5e1' }}>
                             {clientes.filter(c => c.nome.toLowerCase().includes(termoCliente.toLowerCase())).map(c => (
-                                <div key={c.id} onClick={() => { setClienteSelecionado(String(c.id)); setTermoCliente(''); }} className={`p-3 cursor-pointer border-b last:border-0 ${modoEscuro ? 'hover:bg-slate-600 border-slate-600' : 'hover:bg-gray-50 border-gray-100'}`}>
+                                <div key={c.id} onClick={() => { setClienteSelecionado(String(c.id)); setTermoCliente(''); }} style={{ padding: '10px', borderBottom: '1px solid #eee', cursor: 'pointer', color: modoEscuro ? 'white' : 'black' }}>
                                     {c.nome}
                                 </div>
                             ))}
@@ -1376,32 +1435,32 @@ export function App() {
                     )}
                 </div>
             )}
-            {/* Aviso de Haver */}
-            {clienteObjSelecionado && Number(clienteObjSelecionado.saldoHaver) > 0 && (
-                <div className="mt-2 text-xs bg-green-100 text-green-700 p-2 rounded-md font-bold text-center">
+             {/* Aviso de Haver */}
+             {clienteObjSelecionado && Number(clienteObjSelecionado.saldoHaver) > 0 && (
+                <div style={{ marginTop: '5px', fontSize: '0.8rem', backgroundColor: '#dcfce7', color: '#15803d', padding: '5px', borderRadius: '5px', textAlign: 'center', fontWeight: 'bold' }}>
                     💰 Haver disponível: R$ {Number(clienteObjSelecionado.saldoHaver).toFixed(2)}
                 </div>
             )}
         </div>
 
-        {/* LISTA DE ITENS */}
-        <div className={`flex-1 min-h-[150px] border rounded-xl overflow-hidden ${modoEscuro ? 'border-slate-700 bg-slate-900/30' : 'border-gray-100 bg-gray-50/50'}`}>
+        {/* LISTA DE ITENS NO CARRINHO */}
+        <div style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden', backgroundColor: modoEscuro ? '#0f172a' : '#f8fafc', minHeight: '150px' }}>
             {carrinho.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60">
-                    <span className="text-4xl mb-2">🛒</span>
-                    <p className="text-sm">Carrinho vazio</p>
+                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', opacity: 0.7 }}>
+                    <span style={{ fontSize: '2rem' }}>🛒</span>
+                    <p style={{ fontSize: '0.9rem' }}>Carrinho vazio</p>
                 </div>
             ) : (
-                <div className="max-h-[250px] overflow-y-auto">
+                <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
                     {carrinho.map((item, i) => (
-                        <div key={i} className={`flex justify-between items-center p-3 border-b last:border-0 ${modoEscuro ? 'border-slate-700' : 'border-gray-100'}`}>
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #e2e8f0', backgroundColor: modoEscuro ? '#1e293b' : 'white' }}>
                             <div>
-                                <div className="font-medium text-sm line-clamp-1">{item.produto.nome}</div>
-                                <div className="text-xs text-gray-500">{item.quantidade}x R$ {Number(item.produto.precoVenda).toFixed(2)}</div>
+                                <div style={{ fontWeight: '500', fontSize: '0.9rem', color: modoEscuro ? 'white' : '#334155' }}>{item.produto.nome}</div>
+                                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{item.quantidade}x R$ {Number(item.produto.precoVenda).toFixed(2)}</div>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <span className="font-bold">R$ {(item.quantidade * Number(item.produto.precoVenda)).toFixed(2)}</span>
-                                <button onClick={() => removerItemCarrinho(i)} className="text-red-400 hover:text-red-600 p-1">🗑️</button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontWeight: 'bold', color: modoEscuro ? '#cbd5e1' : '#334155' }}>R$ {(item.quantidade * Number(item.produto.precoVenda)).toFixed(2)}</span>
+                                <button onClick={() => removerItemCarrinho(i)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0 5px' }}>🗑️</button>
                             </div>
                         </div>
                     ))}
@@ -1409,30 +1468,31 @@ export function App() {
             )}
         </div>
 
-        {/* ÁREA DE PAGAMENTO */}
-        <div className={`p-4 rounded-xl ${modoEscuro ? 'bg-slate-900/50' : 'bg-gray-100'}`}>
-             <div className="flex justify-between items-end mb-4 border-b border-gray-300/20 pb-4">
-                 <span className="text-gray-500 font-medium">Total Geral</span>
-                 <span className={`text-3xl font-bold ${modoEscuro ? 'text-white' : 'text-gray-800'}`}>R$ {totalCarrinho.toFixed(2)}</span>
+        {/* ÁREA DE TOTAIS E PAGAMENTO */}
+        <div style={{ padding: '15px', borderRadius: '10px', backgroundColor: modoEscuro ? '#0f172a' : '#f1f5f9' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '10px', borderBottom: '1px dashed #cbd5e0', paddingBottom: '10px' }}>
+                 <span style={{ color: '#64748b', fontWeight: 'bold' }}>Total Geral</span>
+                 <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: modoEscuro ? 'white' : '#1e293b' }}>R$ {totalCarrinho.toFixed(2)}</span>
              </div>
 
-             <div className="flex justify-between items-center mb-2 text-sm font-bold">
-                 <span className={faltaPagar > 0 ? 'text-red-500' : 'text-green-500'}>Falta: R$ {Math.max(0, faltaPagar).toFixed(2)}</span>
-                 {troco > 0 && <span className="text-green-500">Troco: R$ {troco.toFixed(2)}</span>}
+             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                 <span style={{ color: faltaPagar > 0 ? '#ef4444' : '#22c55e' }}>Falta: R$ {Math.max(0, faltaPagar).toFixed(2)}</span>
+                 {troco > 0 && <span style={{ color: '#22c55e' }}>Troco: R$ {troco.toFixed(2)}</span>}
              </div>
 
-             <div className="flex gap-2 mb-3">
+             {/* Inputs de Pagamento */}
+             <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
                  <input 
                     type="number" 
                     placeholder="R$ 0,00" 
                     value={valorPagamentoInput} 
                     onChange={e => setValorPagamentoInput(e.target.value)} 
-                    className={`w-24 p-2 rounded-lg text-center font-bold ${modoEscuro ? 'bg-slate-700 text-white' : 'bg-white'}`}
+                    style={{ width: '80px', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold' }}
                  />
                  <select 
                     value={formaPagamento} 
                     onChange={(e) => setFormaPagamento(e.target.value)}
-                    className={`flex-1 p-2 rounded-lg font-medium ${modoEscuro ? 'bg-slate-700 text-white' : 'bg-white'}`}
+                    style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '500' }}
                  >
                     <option value="Dinheiro">💵 Dinheiro</option>
                     <option value="Pix">💠 Pix</option>
@@ -1444,28 +1504,32 @@ export function App() {
                  <button 
                     onClick={adicionarPagamento}
                     disabled={faltaPagar <= 0.05} 
-                    className={`px-4 rounded-lg font-bold text-white transition-colors ${faltaPagar <= 0.05 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'}`}
+                    style={{ 
+                        padding: '0 15px', borderRadius: '6px', border: 'none', 
+                        fontWeight: 'bold', color: 'white', cursor: faltaPagar <= 0.05 ? 'not-allowed' : 'pointer',
+                        backgroundColor: faltaPagar <= 0.05 ? '#94a3b8' : '#3b82f6' // Azul se ativo, Cinza se inativo
+                    }}
                  >
                     +
                  </button>
              </div>
 
-             {/* Lista de Pagamentos Adicionados */}
-             <div className="space-y-1 text-xs">
+             {/* Lista de Pagamentos já lançados */}
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {listaPagamentos.map((p, i) => (
-                    <div key={i} className="flex justify-between items-center bg-black/10 px-2 py-1 rounded">
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', backgroundColor: 'rgba(0,0,0,0.05)', padding: '2px 5px', borderRadius: '4px' }}>
                         <span>{p.forma}: R$ {p.valor.toFixed(2)}</span>
-                        <button onClick={() => setListaPagamentos(listaPagamentos.filter((_, idx) => idx !== i))} className="text-red-500 font-bold">✕</button>
+                        <button onClick={() => setListaPagamentos(listaPagamentos.filter((_, idx) => idx !== i))} style={{ border: 'none', background: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer' }}>✕</button>
                     </div>
                 ))}
              </div>
         </div>
     </div>
 
-    {/* BOTÕES FINAIS */}
-    <div className={`p-4 border-t ${modoEscuro ? 'border-slate-700 bg-slate-800' : 'border-gray-100 bg-white'}`}>
-        <label className="flex items-center gap-2 mb-4 cursor-pointer select-none text-sm font-bold text-gray-500">
-             <input type="checkbox" checked={entrega} onChange={(e) => setEntrega(e.target.checked)} className="w-5 h-5 rounded text-orange-500 focus:ring-orange-500" />
+    {/* RODAPÉ DO CARRINHO (BOTÕES FINAIS) */}
+    <div style={{ padding: '15px', borderTop: modoEscuro ? '1px solid #334155' : '1px solid #e2e8f0', backgroundColor: modoEscuro ? '#1e293b' : 'white' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', color: '#64748b' }}>
+             <input type="checkbox" checked={entrega} onChange={(e) => setEntrega(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
              🚛 É para entregar?
         </label>
         {entrega && (
@@ -1474,33 +1538,34 @@ export function App() {
                 placeholder="📍 Endereço de entrega..." 
                 value={endereco} 
                 onChange={(e) => setEndereco(e.target.value)} 
-                className={`w-full p-2 mb-4 rounded border text-sm ${modoEscuro ? 'bg-slate-700 border-slate-600' : 'bg-white border-gray-300'}`}
+                style={{ width: '100%', padding: '8px', marginBottom: '15px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
             />
         )}
 
-        <div className="grid grid-cols-2 gap-2">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <button 
                 onClick={salvarOrcamento} 
                 disabled={carrinho.length === 0}
-                className="col-span-1 py-3 bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-lg disabled:opacity-50"
+                style={{ padding: '12px', backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
             >
                 📝 Orçamento
             </button>
             <button 
                 onClick={() => finalizarVendaNoBanco()} 
                 disabled={carrinho.length === 0}
-                className="col-span-1 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-lg shadow-green-500/30 disabled:opacity-50"
+                style={{ padding: '12px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(34, 197, 94, 0.3)' }}
             >
                 ✅ FINALIZAR
             </button>
             <button 
                 onClick={prepararNotaFiscal} 
-                className="col-span-2 py-2 border-2 border-orange-500 text-orange-500 font-bold rounded-lg hover:bg-orange-50 text-sm"
+                style={{ gridColumn: 'span 2', padding: '8px', border: '2px solid #f97316', backgroundColor: 'transparent', color: '#f97316', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '5px' }}
             >
                 📄 Emitir NFC-e
             </button>
         </div>
     </div>
+
   </div>
   </div>
   </div>
