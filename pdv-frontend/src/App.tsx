@@ -71,6 +71,22 @@ interface Orcamento {
   }[]
 }
 
+interface Caixa {
+  id: number
+  dataAbertura: string
+  dataFechamento?: string
+  saldoInicial: number
+  saldoAtual: number
+  saldoFinal?: number
+  status: string
+  observacoes?: string
+  usuarioId?: string
+  usuario?: {
+    id: string
+    nome: string
+  }
+}
+
 // ============================================================================
 // CONFIGURAÇÃO
 // ============================================================================
@@ -98,8 +114,10 @@ export function App() {
   const [entregas, setEntregas] = useState<Venda[]>([])
   
   // ESTADOS DO CAIXA
-  const [caixaAberto, setCaixaAberto] = useState<any>(null)
+  const [caixaAberto, setCaixaAberto] = useState<Caixa | null>(null)
+  const [todosCaixas, setTodosCaixas] = useState<Caixa[]>([]) // Para gerentes verem todos
   const [modalAbrirCaixa, setModalAbrirCaixa] = useState(false)
+  const [modalGerenciarCaixas, setModalGerenciarCaixas] = useState(false)
   const [valorAbertura, setValorAbertura] = useState('')
   
   // ESTADOS DO CARRINHO
@@ -159,12 +177,11 @@ export function App() {
 
   async function carregarDados() {
     try {
-      const [resProdutos, resClientes, resVendas, resOrcamentos, resCaixa, resContas, resEntregas] = await Promise.all([
+      const [resProdutos, resClientes, resVendas, resOrcamentos, resContas, resEntregas] = await Promise.all([
         fetch(`${API_URL}/produtos`),
         fetch(`${API_URL}/clientes`),
         fetch(`${API_URL}/vendas`),
         fetch(`${API_URL}/orcamentos`),
-        fetch(`${API_URL}/caixa/aberto`),
         fetch(`${API_URL}/contas-receber`),
         fetch(`${API_URL}/entregas`)
       ])
@@ -173,17 +190,10 @@ export function App() {
       if (resClientes.ok) setClientes(await resClientes.json())
       if (resVendas.ok) setVendas(await resVendas.json())
       if (resOrcamentos.ok) setOrcamentos(await resOrcamentos.json())
-      
-      // Trata caixa aberto - pode retornar null se não houver caixa aberto
-      if (resCaixa.ok) {
-        const caixaData = await resCaixa.json()
-        setCaixaAberto(caixaData || null)
-      } else {
-        setCaixaAberto(null)
-      }
-      
       if (resContas.ok) setContasReceber(await resContas.json())
       if (resEntregas.ok) setEntregas(await resEntregas.json())
+      
+      // Não carrega o caixa aqui, use buscarCaixaAberto() separadamente
     } catch (e) {
       console.error('Erro ao carregar dados:', e)
     }
@@ -231,7 +241,8 @@ export function App() {
 
   async function buscarCaixaAberto() {
     try {
-      const res = await fetch(`${API_URL}/caixa/aberto`)
+      // Busca o caixa do usuário logado
+      const res = await fetch(`${API_URL}/caixa/aberto/${usuarioLogado.id}`)
       if (res.ok) {
         const caixa = await res.json()
         setCaixaAberto(caixa)
@@ -247,6 +258,21 @@ export function App() {
     }
   }
 
+  async function buscarTodosCaixas() {
+    // Apenas gerentes podem ver todos os caixas
+    if (usuarioLogado?.cargo !== 'GERENTE') return
+
+    try {
+      const res = await fetch(`${API_URL}/caixa/todos`)
+      if (res.ok) {
+        const caixas = await res.json()
+        setTodosCaixas(caixas)
+      }
+    } catch (e) {
+      console.error('Erro ao buscar todos os caixas:', e)
+    }
+  }
+
   async function abrirCaixa() {
     if (!valorAbertura || Number(valorAbertura) < 0) {
       alert('Digite um valor válido para abertura')
@@ -259,6 +285,7 @@ export function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           saldoInicial: Number(valorAbertura),
+          usuarioId: usuarioLogado.id,
           observacoes: `Abertura por ${usuarioLogado.nome}`
         })
       })
@@ -269,14 +296,18 @@ export function App() {
         setModalAbrirCaixa(false)
         setValorAbertura('')
         alert('✅ Caixa aberto com sucesso!')
+        
+        // Se for gerente, atualiza a lista de todos os caixas
+        if (usuarioLogado.cargo === 'GERENTE') {
+          buscarTodosCaixas()
+        }
       } else {
         const erro = await res.json()
         
-        // Se já existe caixa aberto, oferece opção de usar esse caixa
+        // Se já existe caixa aberto para este usuário
         if (erro.erro && erro.erro.includes('Já existe um caixa aberto')) {
-          const usar = confirm('⚠️ Já existe um caixa aberto!\n\nDeseja usar o caixa que já está aberto?')
+          const usar = confirm('⚠️ Você já tem um caixa aberto!\n\nDeseja usar o caixa que já está aberto?')
           if (usar) {
-            // Busca especificamente o caixa aberto
             const caixaExistente = await buscarCaixaAberto()
             if (caixaExistente) {
               setModalAbrirCaixa(false)
@@ -433,7 +464,11 @@ export function App() {
         alert('✅ Venda finalizada com sucesso!\n📄 Recibo simples gerado.')
         limparCarrinho()
         setModalPagamento(false)
-        carregarDados()
+        
+        // Recarrega dados mas preserva o caixa
+        const caixaAtual = caixaAberto
+        await carregarDados()
+        await buscarCaixaAberto() // Recarrega o caixa para pegar saldo atualizado
       } else {
         const erro = await res.json()
         alert('Erro: ' + (erro.erro || 'Não foi possível finalizar a venda'))
@@ -517,13 +552,15 @@ export function App() {
         
         limparCarrinho()
         setModalPagamento(false)
-        carregarDados()
+        await carregarDados()
+        await buscarCaixaAberto()
       } else {
         const erroNota = await resNota.json()
         alert('⚠️ Venda salva, mas erro ao emitir NFC-e:\n' + (erroNota.erro || 'Erro desconhecido'))
         limparCarrinho()
         setModalPagamento(false)
-        carregarDados()
+        await carregarDados()
+        await buscarCaixaAberto()
       }
     } catch (e) {
       console.error(e)
@@ -846,25 +883,52 @@ export function App() {
                 borderRadius: '8px',
                 border: '1px solid #4ade80',
                 color: '#4ade80',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '2px'
               }}>
-                CAIXA ABERTO - R$ {Number(caixaAberto.saldoAtual).toFixed(2)}
+                <div>MEU CAIXA - R$ {Number(caixaAberto.saldoAtual || caixaAberto.saldoInicial).toFixed(2)}</div>
+                <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                  {usuarioLogado.nome}
+                </div>
               </div>
+              
               {usuarioLogado.cargo === 'GERENTE' && (
-                <button
-                  onClick={fecharCaixa}
-                  style={{
-                    background: '#ef4444',
-                    color: 'white',
-                    border: 'none',
-                    padding: '8px 20px',
-                    borderRadius: '8px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Fechar Caixa
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      buscarTodosCaixas()
+                      setModalGerenciarCaixas(true)
+                    }}
+                    style={{
+                      background: 'rgba(59, 130, 246, 0.2)',
+                      color: '#60a5fa',
+                      border: '1px solid #60a5fa',
+                      padding: '8px 20px',
+                      borderRadius: '8px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    👥 Ver Todos os Caixas
+                  </button>
+                  <button
+                    onClick={fecharCaixa}
+                    style={{
+                      background: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 20px',
+                      borderRadius: '8px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Fechar Meu Caixa
+                  </button>
+                </>
               )}
             </>
           ) : (
@@ -3059,6 +3123,178 @@ export function App() {
                 Cancelar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: GERENCIAR TODOS OS CAIXAS (APENAS GERENTES) */}
+      {modalGerenciarCaixas && usuarioLogado.cargo === 'GERENTE' && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '15px',
+            padding: '30px',
+            width: '800px',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '25px'
+            }}>
+              <h2 style={{ margin: 0, color: '#1e3c72' }}>
+                👥 Todos os Caixas Abertos
+              </h2>
+              <button
+                onClick={() => setModalGerenciarCaixas(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: '#64748b'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {todosCaixas.length === 0 ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '40px', 
+                color: '#64748b' 
+              }}>
+                Nenhum caixa aberto no momento
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {todosCaixas.map(caixa => (
+                  <div 
+                    key={caixa.id}
+                    style={{
+                      border: '2px solid #e2e8f0',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      background: caixa.usuarioId === usuarioLogado.id ? '#f0fdf4' : '#f8fafc'
+                    }}
+                  >
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      marginBottom: '15px'
+                    }}>
+                      <div>
+                        <div style={{ 
+                          fontSize: '1.2rem', 
+                          fontWeight: 'bold',
+                          color: '#1e3c72',
+                          marginBottom: '5px'
+                        }}>
+                          {caixa.usuario?.nome || 'Usuário Desconhecido'}
+                          {caixa.usuarioId === usuarioLogado.id && (
+                            <span style={{ 
+                              marginLeft: '10px',
+                              fontSize: '0.8rem',
+                              background: '#4ade80',
+                              color: 'white',
+                              padding: '2px 8px',
+                              borderRadius: '10px'
+                            }}>
+                              MEU CAIXA
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                          Aberto em: {new Date(caixa.dataAbertura).toLocaleString('pt-BR')}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                          Saldo Inicial
+                        </div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#059669' }}>
+                          R$ {Number(caixa.saldoInicial).toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '15px',
+                      padding: '15px',
+                      background: 'white',
+                      borderRadius: '8px'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '5px' }}>
+                          Saldo Atual
+                        </div>
+                        <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#1e3c72' }}>
+                          R$ {Number(caixa.saldoAtual || caixa.saldoInicial).toFixed(2)}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '5px' }}>
+                          Status
+                        </div>
+                        <div style={{ 
+                          fontSize: '1rem', 
+                          fontWeight: 'bold',
+                          color: caixa.status === 'ABERTO' ? '#059669' : '#dc2626'
+                        }}>
+                          {caixa.status === 'ABERTO' ? '🟢 ABERTO' : '🔴 FECHADO'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {caixa.observacoes && (
+                      <div style={{ 
+                        marginTop: '10px',
+                        fontSize: '0.85rem',
+                        color: '#64748b',
+                        fontStyle: 'italic'
+                      }}>
+                        💬 {caixa.observacoes}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                buscarTodosCaixas()
+              }}
+              style={{
+                width: '100%',
+                marginTop: '20px',
+                padding: '12px',
+                background: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              🔄 Atualizar Lista
+            </button>
           </div>
         </div>
       )}

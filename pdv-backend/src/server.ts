@@ -456,7 +456,7 @@ app.get('/contas-receber', async () => {
   return await prisma.contaReceber.findMany({
     where: { status: 'PENDENTE' },
     include: { cliente: true, venda: true },
-    orderBy: { data: 'asc' }
+    orderBy: { dataCriacao: 'asc' } // ✅ Nome correto da coluna
   })
 })
 
@@ -513,138 +513,179 @@ app.post('/clientes/:id/haver', async (request, reply) => {
   return reply.send(cliente)
 })
 
-// --- ROTAS DE CONTROLE DE CAIXA ---
+// ============================================================================
+// ROTAS DE CAIXA - CORRIGIDAS PARA FASTIFY
+// ============================================================================
 
-// ==========================================
-// 💰 ROTAS DE CAIXA (NOVO - COLE ISSO NO SEU ARQUIVO)
-// ==========================================
-
-// 1. Verificar Status
-app.get('/caixa/status', async (request, reply) => {
-  const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } });
-  return caixaAberto || null; 
-});
-
-// 2. Abrir Caixa
-app.post('/caixa/abrir', async (req, reply) => {
-  const { saldoInicial, observacoes } = req.body as any
-  const jaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } })
-  
-  if (jaAberto) return reply.status(400).send({ erro: "Já existe um caixa aberto!" })
-
-  const novoCaixa = await prisma.caixa.create({
-    data: {
-      saldoInicial: Number(saldoInicial),
-      saldoAtual: Number(saldoInicial),
-      status: 'ABERTO',
-      observacoes: observacoes
+// Abrir caixa
+app.post('/caixa/abrir', async (request: any, reply: any) => {
+  try {
+    const { saldoInicial, observacoes, usuarioId } = request.body
+    
+    if (!saldoInicial || saldoInicial < 0) {
+      return reply.status(400).send({ erro: 'Saldo inicial inválido' })
     }
-  })
-  
-  // Cria o registro da movimentação inicial
-  await prisma.movimentacaoCaixa.create({
-    data: {
-      caixaId: novoCaixa.id,
-      tipo: 'ABERTURA',
-      valor: Number(saldoInicial),
-      descricao: 'Abertura de Caixa'
+    
+    if (!usuarioId) {
+      return reply.status(400).send({ erro: 'usuarioId é obrigatório' })
     }
-  })
-
-  return reply.send(novoCaixa)
+    
+    // Verifica se já existe caixa aberto para este usuário
+    const caixaExistente = await prisma.caixa.findFirst({
+      where: { 
+        status: 'ABERTO',
+        usuarioId: usuarioId
+      },
+      include: {
+        user: {
+          select: { id: true, nome: true, cargo: true }
+        }
+      }
+    })
+    
+    if (caixaExistente) {
+      return reply.status(400).send({ 
+        erro: 'Já existe um caixa aberto para este usuário',
+        caixa: caixaExistente 
+      })
+    }
+    
+    // Cria novo caixa
+    const novoCaixa = await prisma.caixa.create({
+      data: {
+        saldoInicial: Number(saldoInicial),
+        saldoAtual: Number(saldoInicial),
+        status: 'ABERTO',
+        observacoes: observacoes || null,
+        usuarioId: usuarioId
+      },
+      include: {
+        user: {
+          select: { id: true, nome: true, cargo: true }
+        }
+      }
+    })
+    
+    // Registra movimentação
+    await prisma.movimentacaoCaixa.create({
+      data: {
+        caixaId: novoCaixa.id,
+        tipo: 'ABERTURA',
+        valor: Number(saldoInicial),
+        descricao: observacoes || 'Abertura de caixa'
+      }
+    })
+    
+    return reply.send(novoCaixa)
+    
+  } catch (error) {
+    console.error('Erro ao abrir caixa:', error)
+    return reply.status(500).send({ erro: 'Erro ao abrir caixa' })
+  }
 })
 
-// 3. Fechar Caixa
-app.post('/caixa/fechar', async (request, reply) => {
-    const { caixaId } = request.body as { caixaId: number };
-    const caixa = await prisma.caixa.findUnique({ where: { id: Number(caixaId) } });
+// Buscar caixa aberto de um usuário específico
+app.get('/caixa/aberto/:usuarioId', async (request: any, reply: any) => {
+  try {
+    const { usuarioId } = request.params
     
-    if (!caixa) return reply.status(404).send({ error: "Caixa não encontrado" });
+    const caixa = await prisma.caixa.findFirst({
+      where: {
+        status: 'ABERTO',
+        usuarioId: usuarioId
+      },
+      include: {
+        user: {
+          select: { id: true, nome: true, cargo: true }
+        }
+      }
+    })
+    
+    if (!caixa) {
+      return reply.status(404).send({ erro: 'Nenhum caixa aberto para este usuário' })
+    }
+    
+    return reply.send(caixa)
+    
+  } catch (error) {
+    console.error('Erro ao buscar caixa:', error)
+    return reply.status(500).send({ erro: 'Erro ao buscar caixa' })
+  }
+})
 
+// Listar todos os caixas abertos
+app.get('/caixa/todos', async (request: any, reply: any) => {
+  try {
+    const caixas = await prisma.caixa.findMany({
+      where: { status: 'ABERTO' },
+      include: {
+        user: {
+          select: { id: true, nome: true, cargo: true }
+        }
+      },
+      orderBy: { dataAbertura: 'desc' }
+    })
+    
+    return reply.send(caixas)
+    
+  } catch (error) {
+    console.error('Erro ao listar caixas:', error)
+    return reply.status(500).send({ erro: 'Erro ao listar caixas' })
+  }
+})
+
+// Fechar caixa
+app.post('/caixa/fechar', async (request: any, reply: any) => {
+  try {
+    const { caixaId, observacoes } = request.body
+    
+    if (!caixaId) {
+      return reply.status(400).send({ erro: 'caixaId é obrigatório' })
+    }
+    
+    const caixa = await prisma.caixa.findUnique({
+      where: { id: Number(caixaId) }
+    })
+    
+    if (!caixa) {
+      return reply.status(404).send({ erro: 'Caixa não encontrado' })
+    }
+    
+    if (caixa.status !== 'ABERTO') {
+      return reply.status(400).send({ erro: 'Este caixa já está fechado' })
+    }
+    
     const caixaFechado = await prisma.caixa.update({
       where: { id: Number(caixaId) },
       data: {
-        status: "FECHADO",
+        status: 'FECHADO',
         dataFechamento: new Date(),
-        saldoFinal: caixa.saldoAtual
+        saldoFinal: caixa.saldoAtual,
+        observacoes: observacoes || caixa.observacoes
+      },
+      include: {
+        user: {
+          select: { id: true, nome: true }
+        }
       }
-    });
-    return caixaFechado;
-});
-
-// 4. Movimentar (Sangria/Suprimento)
-app.post('/caixa/movimentar', async (req, reply) => {
-  const { tipo, valor, descricao } = req.body as any 
-  const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } })
-  
-  if (!caixaAberto) return reply.status(400).send({ erro: "Nenhum caixa aberto!" })
-
-  // Atualiza saldo
-  if (tipo === 'SANGRIA') {
-      await prisma.caixa.update({
-          where: { id: caixaAberto.id },
-          data: { saldoAtual: { decrement: Number(valor) } }
-      })
-  } else {
-      await prisma.caixa.update({
-          where: { id: caixaAberto.id },
-          data: { saldoAtual: { increment: Number(valor) } }
-      })
+    })
+    
+    await prisma.movimentacaoCaixa.create({
+      data: {
+        caixaId: caixaFechado.id,
+        tipo: 'FECHAMENTO',
+        valor: Number(caixaFechado.saldoFinal || 0),
+        descricao: observacoes || 'Fechamento de caixa'
+      }
+    })
+    
+    return reply.send(caixaFechado)
+    
+  } catch (error) {
+    console.error('Erro ao fechar caixa:', error)
+    return reply.status(500).send({ erro: 'Erro ao fechar caixa' })
   }
-
-  // Registra histórico
-  const movimento = await prisma.movimentacaoCaixa.create({
-    data: {
-      caixaId: caixaAberto.id,
-      tipo: tipo,
-      valor: Number(valor),
-      descricao: descricao
-    }
-  })
-  return reply.send(movimento)
 })
-
-// Rota para Atualizar Saldo (Sangria/Suprimento)
-  // Rota para Atualizar Saldo (Versão Fastify ⚡)
-  app.post('/movimentacao', async (request, reply) => {
-    // 1. "Avisa" pro TypeScript o que tem dentro do corpo da requisição
-    const { caixaId, tipo, valor, motivo } = request.body as { 
-      caixaId: number | string, 
-      tipo: string, 
-      valor: number | string, 
-      motivo: string 
-    };
-
-    try {
-      // 2. Busca o caixa atual
-      const caixa = await prisma.caixa.findUnique({ where: { id: Number(caixaId) } });
-      
-      if (!caixa) {
-        return reply.status(404).send({ error: "Caixa não encontrado" });
-      }
-
-      // 3. Calcula o novo saldo (Convertendo Decimal do banco para JS Number)
-      const valorNumerico = Number(valor);
-      const saldoAtualNumerico = Number(caixa.saldoAtual);
-
-      const novoSaldo = tipo === 'SUPRIMENTO' 
-        ? saldoAtualNumerico + valorNumerico 
-        : saldoAtualNumerico - valorNumerico;
-
-      // 4. Atualiza no banco
-      const caixaAtualizado = await prisma.caixa.update({
-        where: { id: Number(caixaId) },
-        data: { saldoAtual: novoSaldo }
-      });
-
-      // No Fastify, basta retornar o objeto que ele vira JSON sozinho
-      return caixaAtualizado;
-
-    } catch (error) {
-      console.log(error);
-      return reply.status(500).send({ error: "Erro ao realizar movimentação" });
-    }
-  });
 
 // --- ROTA DO DASHBOARD (ESTATÍSTICAS) ---
 app.get('/dashboard', async () => {
