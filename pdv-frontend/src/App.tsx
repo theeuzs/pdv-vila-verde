@@ -938,7 +938,6 @@ export function App() {
               display: 'block' // Remove espaços extras abaixo da imagem
             }} 
           />
-          </div>
 
           <h1 style={{ margin: 0, fontWeight: '800', lineHeight: '1.1' }}>
             <span style={{ color: 'white', fontSize: '1.4rem', display: 'block' }}>
@@ -948,6 +947,7 @@ export function App() {
               VILA VERDE
             </span>
           </h1>
+          </div>
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           {caixaAberto ? (
