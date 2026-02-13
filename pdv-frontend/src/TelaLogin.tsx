@@ -3,9 +3,16 @@ import { useState } from 'react';
 const styles = {
   container: {
     display: 'flex',
-    height: '100vh', // Garante que pegue a tela toda
     fontFamily: "'Segoe UI', sans-serif",
     background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+    position: 'fixed' as const, // Ignora margens de outros elementos
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    margin: 0,
+    padding: 0,
+    zIndex: 9999,
   },
   ladoEsquerdo: {
     flex: 1.2,
