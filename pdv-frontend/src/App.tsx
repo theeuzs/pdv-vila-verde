@@ -1198,33 +1198,52 @@ export function App() {
 }}>
 
   {/* ======================== */}
-  {/* COLUNA 1: GRADE DE PRODUTOS (COM BOTÕES DE VOLTA) */}
+  {/* COLUNA 1: GRADE DE PRODUTOS (SÓ MOSTRA SE DIGITAR) */}
   {/* ======================== */}
   <div style={{ 
       flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', 
       border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px', 
       backgroundColor: modoEscuro ? '#1e293b' : '#f8fafc' 
   }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-        <h3 style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#f97316', margin: 0 }}>
-          {busca ? `🔍 "${busca}"` : '🔥 Destaques'}
+   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: modoEscuro ? 'white' : '#334155', margin: 0 }}>
+          {busca ? `Resultados para: "${busca}"` : 'PDV Vila Verde'}
         </h3>
-        <span style={{ fontSize: '0.7rem', color: '#888' }}>{produtosFiltrados.length}</span>
+        
+        {/* 👇 AQUI ESTÁ A CORREÇÃO: Usamos o produtosFiltrados.length */}
+        {busca && (
+            <span style={{ fontSize: '0.7rem', color: '#888' }}>
+                {produtosFiltrados.length} encontrados
+            </span>
+        )}
     </div>
 
     <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', 
-        gap: '8px', overflowY: 'auto', alignContent: 'start', paddingRight: '5px'
+        gap: '8px', overflowY: 'auto', alignContent: 'start', paddingRight: '5px',
+        flex: 1 // Ocupa a altura toda para centralizar a mensagem de vazio
     }}>
+      
+      {/* MENSAGEM DE "DIGITE PARA BUSCAR" */}
+      {!busca && (
+        <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', opacity: 0.6 }}>
+            <span style={{ fontSize: '3rem', marginBottom: '10px' }}>🔍</span>
+            <p style={{ fontSize: '1rem', fontWeight: 'bold' }}>Digite o nome ou código<br/>para pesquisar produtos...</p>
+        </div>
+      )}
+
+      {/* LISTA DE PRODUTOS (SÓ FILTRA SE TIVER BUSCA) */}
       {produtos
         .filter(p => {
-             if (!busca) {
-                const destaques = ['cimento', 'areia', 'pedra', 'cal', 'argamassa', 'tijolo'];
-                return destaques.some(d => p.nome.toLowerCase().includes(d));
-             }
+             // 1. SE NÃO TIVER BUSCA: NÃO MOSTRA NADA (return false)
+             if (!busca) return false;
+             
+             // 2. SE TIVER BUSCA: FILTRA NORMAL
              const termo = busca.toLowerCase();
-             return p.nome.toLowerCase().startsWith(termo) || String(p.codigoBarra).includes(termo) || p.nome.toLowerCase().includes(' ' + termo);
+             return p.nome.toLowerCase().startsWith(termo) || 
+                    String(p.codigoBarra).includes(termo) || 
+                    p.nome.toLowerCase().includes(' ' + termo);
           })
           .slice(0, 50)
           .map((produto) => (
@@ -1260,32 +1279,21 @@ export function App() {
               R$ {Number(produto.precoVenda).toFixed(2)}
             </p>
 
-            {/* 👇 BOTÕES DE AÇÃO (VOLTARAM!) 👇 */}
+            {/* Botões de Ação */}
             <div style={{ position: 'absolute', bottom: '5px', right: '5px', display: 'flex', gap: '3px' }}>
                 <button 
-                    onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setProdutoEmEdicao(produto); // Usa a função!
-                        setFormProduto({...produto} as any); 
-                        setModalAberto(true); 
-                    }} 
+                    onClick={(e) => { e.stopPropagation(); setProdutoEmEdicao(produto); setFormProduto({...produto} as any); setModalAberto(true); }} 
                     style={{ border: 'none', backgroundColor: '#fbbf24', color: 'white', borderRadius: '4px', width: '22px', height: '22px', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    title="Editar"
                 >
                     ✏️
                 </button>
                 <button 
-                    onClick={(e) => { 
-                        e.stopPropagation(); 
-                        if(confirm('Excluir?')) excluirProduto(produto.id); // Usa a função!
-                    }} 
+                    onClick={(e) => { e.stopPropagation(); if(confirm('Excluir?')) excluirProduto(produto.id); }} 
                     style={{ border: 'none', backgroundColor: '#ef4444', color: 'white', borderRadius: '4px', width: '22px', height: '22px', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    title="Excluir"
                 >
                     🗑️
                 </button>
             </div>
-
           </div>
         ))}
     </div>
