@@ -996,20 +996,6 @@ export function App() {
                   >
                     👥 Ver Todos os Caixas
                   </button>
-                  <button
-                    onClick={fecharCaixa}
-                    style={{
-                      background: '#ef4444',
-                      color: 'white',
-                      border: 'none',
-                      padding: '8px 20px',
-                      borderRadius: '8px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Fechar Meu Caixa
-                  </button>
                 </>
               )}
             </>
@@ -3060,6 +3046,7 @@ export function App() {
 
                 {/* COLUNA 2: INFORMATIVOS E BOTÕES */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  
                   {/* Informativo */}
                   <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', flex: 1 }}>
                     <h4 style={{ margin: '0 0 10px 0', color: '#475569', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>Informativo</h4>
@@ -3080,6 +3067,32 @@ export function App() {
                       Aberto em: {new Date(caixaAberto.dataAbertura).toLocaleString()}
                     </div>
                   </div>
+
+                  {/* 👇 NOVO BOTÃO DE FECHAR CAIXA AQUI 👇 */}
+                  <button
+                    onClick={() => {
+                      setModalResumoCaixa(false); // Fecha o modal visualmente
+                      fecharCaixa(); // Executa a função de fechar o caixa
+                    }}
+                    style={{
+                      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '15px',
+                      borderRadius: '8px',
+                      fontWeight: 'bold',
+                      fontSize: '1.1rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)',
+                      transition: 'transform 0.1s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    🔒 ENCERRAR CAIXA
+                  </button>
+                  {/* 👆 FIM DO NOVO BOTÃO 👆 */}
+
                 </div>
 
                 {/* COLUNA 3: EXTRATO (LOG) */}
