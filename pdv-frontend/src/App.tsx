@@ -904,31 +904,45 @@ export function App() {
       fontFamily: 'system-ui, -apple-system, sans-serif'
     }}>
       
-      {/* BARRA SUPERIOR */}
+      {/* 👇 ADICIONE ESTE BLOCO AQUI PARA MATAR A MOLDURA BRANCA 👇 */}
+      <style>{`
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background-color: #1a1a1a;
+        }
+        * {
+          box-sizing: border-box;
+        }
+      `}</style>
+      {/* 👆 FIM DO BLOCO 👆 */}
+
+      {/* BARRA SUPERIOR (Agora Preta) */}
       <div style={{ 
-        background: 'linear-gradient(90deg, #1f1f1f 0%, #2a2a2a 100%)',
+        background: '#000000', // MUDAMOS PARA PRETO SÓLIDO
         padding: '15px 30px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+        borderBottom: '1px solid #333'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ 
-            width: '45px', 
-            height: '45px', 
-            background: '#4ade80', 
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 'bold',
-            fontSize: '1.3rem',
-            color: '#1e3c72'
-          }}>VV</div>
-          <span style={{ color: 'white', fontSize: '1.5rem', fontWeight: 'bold' }}>
-            PDV Vila Verde
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          {/* NOVA LOGO (Substitui o quadrado VV) */}
+          <img 
+            src="logoloja.png" 
+            alt="Logo" 
+            style={{ 
+              height: '65px', // Altura boa para essa logo
+              width: 'auto',  // Largura automática para não distorcer
+              display: 'block' // Remove espaços extras abaixo da imagem
+            }} 
+          />
+          
+          <h1 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '800' }}>
+            <span style={{ color: 'white' }}>Visual</span>
+            <span style={{ color: '#4ade80' }}>Vendas</span>
+          </h1>
         </div>
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
