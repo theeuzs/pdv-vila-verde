@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react'
 import { TelaLogin } from './TelaLogin';
 import { TelaEquipe } from './TelaEquipe';
@@ -28,6 +30,8 @@ interface Cliente {
   cpfCnpj?: string
   celular?: string
   endereco?: string
+  endereco2?: string
+  endereco3?: string
   saldoHaver: number
 }
 
@@ -104,6 +108,11 @@ export function App() {
   const [clienteSelecionado, setClienteSelecionado] = useState<string>('')
   const [entrega, setEntrega] = useState(false)
   const [endereco, setEndereco] = useState('')
+  const [enderecoSelecionado, setEnderecoSelecionado] = useState<number>(1)
+  
+  // ESTADOS DE LOADING
+  const [processandoVenda, setProcessandoVenda] = useState(false)
+  const [mensagemLoading, setMensagemLoading] = useState('')
   
   // ESTADOS DO DASHBOARD
   const [dashboard, setDashboard] = useState<any>(null)
@@ -380,6 +389,8 @@ export function App() {
   }
 
   async function finalizarVendaNormal() {
+    if (processandoVenda) return // Evita duplo clique
+    
     if (!caixaAberto) {
       alert('⚠️ Caixa fechado! Abra o caixa para continuar.')
       return
@@ -394,6 +405,9 @@ export function App() {
       alert('⚠️ Falta pagar R$ ' + faltaPagar.toFixed(2))
       return
     }
+
+    setProcessandoVenda(true)
+    setMensagemLoading('Processando venda...')
 
     try {
       const res = await fetch(`${API_URL}/vendas`, {
@@ -415,7 +429,7 @@ export function App() {
       })
 
       if (res.ok) {
-        await res.json() // Só para consumir a resposta
+        await res.json()
         alert('✅ Venda finalizada com sucesso!\n📄 Recibo simples gerado.')
         limparCarrinho()
         setModalPagamento(false)
@@ -427,10 +441,15 @@ export function App() {
     } catch (e) {
       console.error(e)
       alert('Erro ao finalizar venda')
+    } finally {
+      setProcessandoVenda(false)
+      setMensagemLoading('')
     }
   }
 
   async function finalizarVendaComNFCe() {
+    if (processandoVenda) return // Evita duplo clique
+    
     if (!caixaAberto) {
       alert('⚠️ Caixa fechado! Abra o caixa para continuar.')
       return
@@ -445,6 +464,9 @@ export function App() {
       alert('⚠️ Falta pagar R$ ' + faltaPagar.toFixed(2))
       return
     }
+
+    setProcessandoVenda(true)
+    setMensagemLoading('Salvando venda...')
 
     try {
       // 1. Primeiro salva a venda
@@ -469,13 +491,15 @@ export function App() {
       if (!resVenda.ok) {
         const erro = await resVenda.json()
         alert('Erro ao salvar venda: ' + (erro.erro || 'Erro desconhecido'))
+        setProcessandoVenda(false)
+        setMensagemLoading('')
         return
       }
 
       const venda = await resVenda.json()
 
       // 2. Agora emite a NFC-e
-      alert('⏳ Emitindo NFC-e... Aguarde...')
+      setMensagemLoading('Emitindo NFC-e na Sefaz...\nPor favor aguarde...')
       
       const resNota = await fetch(`${API_URL}/emitir-fiscal`, {
         method: 'POST',
@@ -503,6 +527,12 @@ export function App() {
       }
     } catch (e) {
       console.error(e)
+      alert('Erro ao processar venda')
+    } finally {
+      setProcessandoVenda(false)
+      setMensagemLoading('')
+    }
+  }
       alert('Erro ao processar venda')
     }
   }
@@ -2433,36 +2463,122 @@ export function App() {
                   <input
                     type="checkbox"
                     checked={entrega}
-                    onChange={e => setEntrega(e.target.checked)}
+                    onChange={e => {
+                      setEntrega(e.target.checked)
+                      // Se marcar entrega e tiver cliente, carrega endereço automaticamente
+                      if (e.target.checked && clienteSelecionado) {
+                        const cliente = clientes.find(c => c.id === Number(clienteSelecionado))
+                        if (cliente?.endereco) {
+                          setEndereco(cliente.endereco)
+                          setEnderecoSelecionado(1)
+                        }
+                      }
+                    }}
                   />
                   🚛 É para entregar?
                 </label>
 
                 {entrega && (
-                  <input
-                    type="text"
-                    placeholder="Endereço de entrega..."
-                    value={endereco}
-                    onChange={e => setEndereco(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      marginBottom: '20px',
-                      borderRadius: '8px',
-                      border: '1px solid #e2e8f0'
-                    }}
-                  />
+                  <div style={{ marginBottom: '20px' }}>
+                    {clienteSelecionado && (() => {
+                      const cliente = clientes.find(c => c.id === Number(clienteSelecionado))
+                      const enderecos = [
+                        cliente?.endereco,
+                        cliente?.endereco2,
+                        cliente?.endereco3
+                      ].filter(e => e && e.trim())
+                      
+                      if (enderecos.length > 0) {
+                        return (
+                          <>
+                            <label style={{
+                              display: 'block',
+                              fontSize: '0.9rem',
+                              fontWeight: 'bold',
+                              marginBottom: '8px',
+                              color: '#1e3c72'
+                            }}>
+                              Selecione o endereço:
+                            </label>
+                            <select
+                              value={enderecoSelecionado}
+                              onChange={e => {
+                                const idx = Number(e.target.value)
+                                setEnderecoSelecionado(idx)
+                                setEndereco(enderecos[idx - 1] || '')
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '12px',
+                                borderRadius: '8px',
+                                border: '1px solid #e2e8f0',
+                                marginBottom: '10px',
+                                fontSize: '1rem'
+                              }}
+                            >
+                              {enderecos.map((end, i) => (
+                                <option key={i} value={i + 1}>
+                                  📍 Endereço {i + 1}: {end}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              placeholder="Ou digite outro endereço..."
+                              value={endereco}
+                              onChange={e => setEndereco(e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '12px',
+                                borderRadius: '8px',
+                                border: '1px solid #e2e8f0',
+                                fontSize: '0.9rem'
+                              }}
+                            />
+                          </>
+                        )
+                      } else {
+                        return (
+                          <input
+                            type="text"
+                            placeholder="Digite o endereço de entrega..."
+                            value={endereco}
+                            onChange={e => setEndereco(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              border: '1px solid #e2e8f0'
+                            }}
+                          />
+                        )
+                      }
+                    })() || (
+                      <input
+                        type="text"
+                        placeholder="Digite o endereço de entrega..."
+                        value={endereco}
+                        onChange={e => setEndereco(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0'
+                        }}
+                      />
+                    )}
+                  </div>
                 )}
 
                 {/* Botões de Finalização */}
                 <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                   <button
                     onClick={finalizarVendaNormal}
-                    disabled={faltaPagar > 0.01}
+                    disabled={faltaPagar > 0.01 || processandoVenda}
                     style={{
                       flex: 1,
                       padding: '15px',
-                      background: faltaPagar > 0.01 
+                      background: (faltaPagar > 0.01 || processandoVenda)
                         ? '#e2e8f0' 
                         : 'linear-gradient(135deg, #60a5fa, #3b82f6)',
                       color: 'white',
@@ -2470,8 +2586,9 @@ export function App() {
                       borderRadius: '8px',
                       fontSize: '1rem',
                       fontWeight: 'bold',
-                      cursor: faltaPagar > 0.01 ? 'not-allowed' : 'pointer',
-                      boxShadow: faltaPagar <= 0.01 ? '0 4px 15px rgba(59, 130, 246, 0.3)' : 'none'
+                      cursor: (faltaPagar > 0.01 || processandoVenda) ? 'not-allowed' : 'pointer',
+                      boxShadow: (faltaPagar <= 0.01 && !processandoVenda) ? '0 4px 15px rgba(59, 130, 246, 0.3)' : 'none',
+                      opacity: processandoVenda ? 0.6 : 1
                     }}
                   >
                     📄 VENDA NORMAL
@@ -2482,11 +2599,11 @@ export function App() {
 
                   <button
                     onClick={finalizarVendaComNFCe}
-                    disabled={faltaPagar > 0.01}
+                    disabled={faltaPagar > 0.01 || processandoVenda}
                     style={{
                       flex: 1,
                       padding: '15px',
-                      background: faltaPagar > 0.01 
+                      background: (faltaPagar > 0.01 || processandoVenda)
                         ? '#e2e8f0' 
                         : 'linear-gradient(135deg, #4ade80, #22c55e)',
                       color: 'white',
@@ -2494,8 +2611,9 @@ export function App() {
                       borderRadius: '8px',
                       fontSize: '1rem',
                       fontWeight: 'bold',
-                      cursor: faltaPagar > 0.01 ? 'not-allowed' : 'pointer',
-                      boxShadow: faltaPagar <= 0.01 ? '0 4px 15px rgba(34, 197, 94, 0.3)' : 'none'
+                      cursor: (faltaPagar > 0.01 || processandoVenda) ? 'not-allowed' : 'pointer',
+                      boxShadow: (faltaPagar <= 0.01 && !processandoVenda) ? '0 4px 15px rgba(34, 197, 94, 0.3)' : 'none',
+                      opacity: processandoVenda ? 0.6 : 1
                     }}
                   >
                     ✅ VENDA COM NFC-e
@@ -2790,17 +2908,57 @@ export function App() {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                  Endereço
+                  📍 Endereço 1 (Principal)
                 </label>
                 <input
                   type="text"
+                  placeholder="Rua, número, bairro..."
                   value={formCliente.endereco || ''}
                   onChange={e => setFormCliente({...formCliente, endereco: e.target.value})}
                   style={{
                     width: '100%',
                     padding: '12px',
                     borderRadius: '8px',
-                    border: '1px solid #e2e8f0'
+                    border: '1px solid #e2e8f0',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                  📍 Endereço 2 (Opcional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Casa de aluguel, trabalho..."
+                  value={formCliente.endereco2 || ''}
+                  onChange={e => setFormCliente({...formCliente, endereco2: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                  📍 Endereço 3 (Opcional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Outro endereço..."
+                  value={formCliente.endereco3 || ''}
+                  onChange={e => setFormCliente({...formCliente, endereco3: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
@@ -2905,6 +3063,62 @@ export function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* MODAL DE LOADING */}
+      {processandoVenda && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '15px',
+            padding: '40px 50px',
+            textAlign: 'center',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              border: '6px solid #e2e8f0',
+              borderTop: '6px solid #4ade80',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 20px'
+            }} />
+            <div style={{
+              fontSize: '1.2rem',
+              fontWeight: 'bold',
+              color: '#1e3c72',
+              marginBottom: '10px'
+            }}>
+              {mensagemLoading.split('\n')[0]}
+            </div>
+            {mensagemLoading.includes('\n') && (
+              <div style={{
+                fontSize: '0.9rem',
+                color: '#64748b'
+              }}>
+                {mensagemLoading.split('\n')[1]}
+              </div>
+            )}
+          </div>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
         </div>
       )}
 
