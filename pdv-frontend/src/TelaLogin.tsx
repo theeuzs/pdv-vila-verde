@@ -3,13 +3,13 @@ import { useState } from 'react';
 const styles = {
   container: {
     display: 'flex',
-    height: '100vh',
+    height: '100vh', // Garante que pegue a tela toda
     fontFamily: "'Segoe UI', sans-serif",
     background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
   },
   ladoEsquerdo: {
     flex: 1.2,
-    background: 'linear-gradient(135deg, #1f1f1f 0%, #2a2a2a 100%)',
+    background: '#000000', // PRETO ABSOLUTO PARA O NEON BRILHAR
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -34,18 +34,6 @@ const styles = {
     borderRadius: '15px',
     border: '1px solid rgba(255,255,255,0.1)',
     boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
-  },
-  logoGrande: {
-    width: '350px',
-    maxWidth: '80%',
-    height: 'auto',
-    objectFit: 'contain' as const,
-    filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.5))'
-  },
-  logoMobile: {
-    width: '150px',
-    marginBottom: '20px',
-    display: 'none'
   },
   titulo: {
     fontSize: '2rem',
@@ -145,37 +133,21 @@ export function TelaLogin({ onLoginSucesso }: Props) {
 
   return (
     <div style={styles.container}>
-      {/* LADO ESQUERDO (ESCURO) */}
+      {/* LADO ESQUERDO (ESCURO TOTAL PARA O NEON) */}
       <div className="hidden md:flex" style={styles.ladoEsquerdo}>
-         {/* Logo */}
-         <div style={{ 
-           width: '120px', 
-           height: '120px', 
-           background: '#4ade80', 
-           borderRadius: '20px',
-           display: 'flex',
-           alignItems: 'center',
-           justifyContent: 'center',
-           fontWeight: 'bold',
-           fontSize: '3rem',
-           color: '#1a1a1a',
-           marginBottom: '30px',
-           boxShadow: '0 10px 30px rgba(74, 222, 128, 0.3)'
-         }}>
-           VV
-         </div>
          
-         <h1 style={{ 
-           fontSize: '2.5rem', 
-           fontWeight: '800', 
-           marginBottom: '15px',
-           background: 'linear-gradient(135deg, #4ade80, #22c55e)',
-           WebkitBackgroundClip: 'text',
-           WebkitTextFillColor: 'transparent',
-           backgroundClip: 'text'
-         }}>
-           PDV Vila Verde
-         </h1>
+         {/* SUA LOGO NEON AQUI */}
+         <img 
+           src="/logoloja.png" 
+           alt="Logo Vila Verde" 
+           style={{
+             width: '100%',
+             maxWidth: '450px', // Define um tamanho máximo bacana
+             height: 'auto',
+             display: 'block',
+             marginBottom: '20px'
+           }}
+         />
          
          <p style={{
            opacity: 0.8, 
@@ -191,23 +163,17 @@ export function TelaLogin({ onLoginSucesso }: Props) {
       <div style={styles.ladoDireito}>
         <div style={styles.card}>
           
-          {/* Logo mobile */}
+          {/* Logo mobile (Aparece só em celular) */}
           <div className="show-mobile-only" style={{textAlign: 'center', marginBottom: '30px'}}>
-            <div style={{ 
-              width: '80px', 
-              height: '80px', 
-              background: '#4ade80', 
-              borderRadius: '15px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '2rem',
-              color: '#1a1a1a',
-              marginBottom: '15px'
-            }}>
-              VV
-            </div>
+            <img 
+              src="/logoloja.png" 
+              alt="Logo Vila Verde" 
+              style={{
+                width: '200px', // Tamanho reduzido para celular
+                height: 'auto',
+                display: 'inline-block'
+              }}
+            />
           </div>
 
           <div style={styles.titulo}>Bem-vindo!</div>
@@ -252,8 +218,20 @@ export function TelaLogin({ onLoginSucesso }: Props) {
         </div>
       </div>
 
-      {/* CSS para responsividade */}
+      {/* CSS GLOBAL E PARA RESPONSIVIDADE */}
       <style>{`
+        /* 👇 ISSO AQUI MATA A MOLDURA BRANCA 👇 */
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background-color: #1a1a1a;
+          height: 100%;
+          overflow: hidden; /* Evita rolagem desnecessária na tela de login */
+        }
+        * {
+          box-sizing: border-box;
+        }
+
         .show-mobile-only { display: none; }
 
         @media (max-width: 768px) {
