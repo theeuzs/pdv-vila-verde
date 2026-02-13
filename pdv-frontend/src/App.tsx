@@ -45,6 +45,7 @@ interface Venda {
   data: string
   total: number
   cliente?: Cliente
+  caixaId?: number
   nota_emitida?: boolean
   nota_cancelada?: boolean
   urlFiscal?: string
@@ -119,6 +120,7 @@ export function App() {
   const [modalAbrirCaixa, setModalAbrirCaixa] = useState(false)
   const [modalGerenciarCaixas, setModalGerenciarCaixas] = useState(false)
   const [valorAbertura, setValorAbertura] = useState('')
+  const [modalResumoCaixa, setModalResumoCaixa] = useState(false)
   
   // ESTADOS DO CARRINHO
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
@@ -876,23 +878,30 @@ export function App() {
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           {caixaAberto ? (
             <>
-              <div style={{ 
-                background: 'rgba(74, 222, 128, 0.2)',
-                padding: '8px 20px',
-                borderRadius: '8px',
-                border: '1px solid #4ade80',
-                color: '#4ade80',
-                fontWeight: 'bold',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '2px'
-              }}>
+              <button 
+                onClick={() => setModalResumoCaixa(true)}
+                style={{ 
+                  background: 'rgba(74, 222, 128, 0.2)',
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  border: '1px solid #4ade80',
+                  color: '#4ade80',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '2px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(74, 222, 128, 0.3)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(74, 222, 128, 0.2)'}
+              >
                 <div>MEU CAIXA - R$ {Number(caixaAberto.saldoAtual || caixaAberto.saldoInicial).toFixed(2)}</div>
                 <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
-                  {usuarioLogado.nome}
+                  📊 Clique para Resumo
                 </div>
-              </div>
+              </button>
               
               {usuarioLogado.cargo === 'GERENTE' && (
                 <>
@@ -2883,6 +2892,130 @@ export function App() {
           </div>
         </div>
       )}
+
+      {/* MODAL: RESUMO DO CAIXA (RAIO-X) */}
+      {modalResumoCaixa && caixaAberto && (() => {
+        // MATEMÁTICA DO CAIXA
+        const vendasDoCaixa = vendas.filter(v => v.caixaId === caixaAberto.id && !v.nota_cancelada);
+        const vendasCanceladas = vendas.filter(v => v.caixaId === caixaAberto.id && v.nota_cancelada);
+        
+        let totDinheiro = 0, totPix = 0, totCartao = 0, totPrazo = 0;
+        
+        vendasDoCaixa.forEach(v => {
+          v.pagamentos?.forEach(p => {
+            if (p.forma === 'Dinheiro') totDinheiro += Number(p.valor);
+            else if (p.forma === 'Pix') totPix += Number(p.valor);
+            else if (p.forma.includes('Cartão')) totCartao += Number(p.valor);
+            else totPrazo += Number(p.valor);
+          });
+        });
+
+        const totalVendidoAcesso = totDinheiro + totPix + totCartao + totPrazo;
+        const totalGaveta = Number(caixaAberto.saldoInicial) + totDinheiro; // Sangrias entram no futuro
+        const ticketMedio = vendasDoCaixa.length > 0 ? (totalVendidoAcesso / vendasDoCaixa.length) : 0;
+
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+          }}>
+            <div style={{
+              background: '#f1f5f9', borderRadius: '15px', padding: '25px', width: '1100px', maxWidth: '95vw',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column'
+            }}>
+              {/* CABEÇALHO */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #cbd5e1', paddingBottom: '10px' }}>
+                <h2 style={{ margin: 0, color: '#1e3c72', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  📊 Resumo Financeiro do Caixa
+                </h2>
+                <button onClick={() => setModalResumoCaixa(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>✕</button>
+              </div>
+
+              {/* CORPO DO CAIXA - 3 COLUNAS */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '20px' }}>
+                
+                {/* COLUNA 1: MOVIMENTAÇÃO E FORMAS */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  {/* Movimento Geral */}
+                  <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <h4 style={{ margin: '0 0 10px 0', color: '#475569', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>Movimento Geral</h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><span>À vista</span><b style={{ color: '#059669' }}>R$ {(totDinheiro + totPix + totCartao).toFixed(2)}</b></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><span>À prazo</span><b style={{ color: '#3b82f6' }}>R$ {totPrazo.toFixed(2)}</b></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', paddingTop: '5px', borderTop: '1px dashed #cbd5e1', fontSize: '1.1rem' }}>
+                      <b>Total Movimentado</b><b>R$ {totalVendidoAcesso.toFixed(2)}</b>
+                    </div>
+                  </div>
+
+                  {/* Formas de Pagamento */}
+                  <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <h4 style={{ margin: '0 0 10px 0', color: '#475569', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>Formas de Pagamento</h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', padding: '4px', background: '#f0fdf4', borderRadius: '4px' }}><span>+ PIX</span><b>R$ {totPix.toFixed(2)}</b></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', padding: '4px', background: '#f0fdf4', borderRadius: '4px' }}><span>+ Cartão</span><b>R$ {totCartao.toFixed(2)}</b></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', padding: '4px', background: '#eff6ff', borderRadius: '4px' }}><span>+ Prazo/Haver</span><b>R$ {totPrazo.toFixed(2)}</b></div>
+                  </div>
+
+                  {/* Dinheiro na Gaveta */}
+                  <div style={{ background: '#fef9c3', padding: '15px', borderRadius: '8px', border: '2px solid #fde047' }}>
+                    <h4 style={{ margin: '0 0 10px 0', color: '#854d0e', borderBottom: '1px solid #fde047', paddingBottom: '5px' }}>Dinheiro na Gaveta</h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><span>+ Saldo Inicial</span><b>R$ {Number(caixaAberto.saldoInicial).toFixed(2)}</b></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><span>+ Vendas em Dinheiro</span><b style={{ color: '#059669' }}>R$ {totDinheiro.toFixed(2)}</b></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', paddingTop: '5px', borderTop: '1px dashed #fde047', fontSize: '1.2rem', color: '#713f12' }}>
+                      <b>EM ESPÉCIE =</b><b>R$ {totalGaveta.toFixed(2)}</b>
+                    </div>
+                  </div>
+                </div>
+
+                {/* COLUNA 2: INFORMATIVOS E BOTÕES */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  {/* Informativo */}
+                  <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', flex: 1 }}>
+                    <h4 style={{ margin: '0 0 10px 0', color: '#475569', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>Informativo</h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Qtd de Vendas</span><b>{vendasDoCaixa.length}</b></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Qtd Vendas Canceladas</span><b style={{ color: '#dc2626' }}>{vendasCanceladas.length}</b></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Valor Cancelado</span><b style={{ color: '#dc2626' }}>R$ {vendasCanceladas.reduce((a,b)=>a+Number(b.total),0).toFixed(2)}</b></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '15px', padding: '10px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <span style={{ color: '#475569' }}>Ticket Médio</span>
+                      <b style={{ fontSize: '1.1rem', color: '#1e3c72' }}>R$ {ticketMedio.toFixed(2)}</b>
+                    </div>
+                  </div>
+
+                  {/* Operador Info */}
+                  <div style={{ background: '#e0f2fe', padding: '15px', borderRadius: '8px', border: '1px solid #bfdbfe', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.85rem', color: '#1e40af', marginBottom: '5px' }}>Operador do Caixa</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1e3c72' }}>{usuarioLogado.nome}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '10px' }}>
+                      Aberto em: {new Date(caixaAberto.dataAbertura).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* COLUNA 3: EXTRATO (LOG) */}
+                <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', height: '500px' }}>
+                  <h4 style={{ margin: '0 0 10px 0', color: '#475569', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Extrato de Caixa</span>
+                    <button style={{ fontSize: '0.75rem', padding: '2px 8px', cursor: 'pointer' }}>🖨️ Imprimir</button>
+                  </h4>
+                  
+                  <div style={{ flex: 1, overflowY: 'auto', fontFamily: 'monospace', fontSize: '0.85rem', paddingRight: '5px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px dotted #ccc' }}>
+                      <span>{new Date(caixaAberto.dataAbertura).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} ABERTURA/SUPRIMENTO</span>
+                      <span>+ R$ {Number(caixaAberto.saldoInicial).toFixed(2)}</span>
+                    </div>
+
+                    {vendasDoCaixa.slice().reverse().map(v => (
+                      <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px dotted #ccc' }}>
+                        <span>{new Date(v.data).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} VENDA #{v.id}</span>
+                        <span>+ R$ {Number(v.total).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* MODAL DE LOADING */}
       {processandoVenda && (
