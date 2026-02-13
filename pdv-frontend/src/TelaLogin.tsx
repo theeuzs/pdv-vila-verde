@@ -143,10 +143,12 @@ export function TelaLogin({ onLoginSucesso }: Props) {
            alt="Logo Vila Verde" 
            style={{
              width: '100%',
-             maxWidth: '450px', // Define um tamanho máximo bacana
+             maxWidth: '320px', // ✅ Tamanho perfeito para nitidez
              height: 'auto',
              display: 'block',
-             marginBottom: '20px'
+             marginBottom: '20px',
+             // Truque extra: um leve brilho via CSS para realçar o neon
+             filter: 'drop-shadow(0 0 10px rgba(74, 222, 128, 0.2))' 
            }}
          />
           <h1 style={{ 
