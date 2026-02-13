@@ -1,22 +1,22 @@
 import { useState } from 'react';
 
-// Estilos
 const styles = {
   container: {
     display: 'flex',
     height: '100vh',
     fontFamily: "'Segoe UI', sans-serif",
-    backgroundColor: '#f1f5f9',
+    background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
   },
   ladoEsquerdo: {
-    flex: 1.2, // Aumentei um pouco o lado verde pra logo caber bem
-    background: 'linear-gradient(135deg, #15803d 0%, #166534 100%)', // Verde Vila Verde
+    flex: 1.2,
+    background: 'linear-gradient(135deg, #1f1f1f 0%, #2a2a2a 100%)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     padding: '40px',
     color: 'white',
-    flexDirection: 'column' as const
+    flexDirection: 'column' as const,
+    borderRight: '1px solid rgba(255,255,255,0.1)'
   },
   ladoDireito: {
     flex: 1,
@@ -24,36 +24,38 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     padding: '20px',
-    backgroundColor: '#ffffff'
+    background: 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%)'
   },
   card: {
     width: '100%',
     maxWidth: '380px',
     padding: '40px',
+    background: 'rgba(255,255,255,0.05)',
+    borderRadius: '15px',
+    border: '1px solid rgba(255,255,255,0.1)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
   },
-  // 👇 Estilo novo para a logo no lado verde
   logoGrande: {
-    width: '350px',     // Bem grande
+    width: '350px',
     maxWidth: '80%',
     height: 'auto',
     objectFit: 'contain' as const,
-    filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.2))' // Sombra pra destacar no verde
+    filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.5))'
   },
-  // 👇 Logo mobile (só aparece no celular)
   logoMobile: {
     width: '150px',
     marginBottom: '20px',
-    display: 'none' // Por padrão escondida, media query ativa ela
+    display: 'none'
   },
   titulo: {
     fontSize: '2rem',
     fontWeight: '800',
-    color: '#0f172a',
+    color: 'white',
     marginBottom: '10px',
     textAlign: 'center' as const,
   },
   subtitulo: {
-    color: '#64748b',
+    color: '#9ca3af',
     textAlign: 'center' as const,
     marginBottom: '30px',
   },
@@ -61,43 +63,45 @@ const styles = {
     display: 'block',
     fontSize: '0.9rem',
     fontWeight: '600',
-    color: '#334155',
+    color: '#e5e7eb',
     marginBottom: '8px',
   },
   input: {
     width: '100%',
     padding: '12px 16px',
     borderRadius: '8px',
-    border: '1px solid #cbd5e1',
+    border: '1px solid rgba(255,255,255,0.2)',
     fontSize: '1rem',
     outline: 'none',
     boxSizing: 'border-box' as const,
     marginBottom: '20px',
-    backgroundColor: '#f8fafc',
-    transition: 'border 0.2s'
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    color: 'white',
+    transition: 'all 0.2s'
   },
   botao: {
     width: '100%',
     padding: '14px',
-    backgroundColor: '#166534',
+    background: 'linear-gradient(135deg, #4ade80, #22c55e)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '1rem',
     fontWeight: 'bold',
     cursor: 'pointer',
-    transition: 'opacity 0.2s',
+    transition: 'all 0.2s',
     marginTop: '10px',
+    boxShadow: '0 4px 15px rgba(74, 222, 128, 0.3)'
   },
   erro: {
-    backgroundColor: '#fee2e2',
-    color: '#991b1b',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    color: '#fca5a5',
     padding: '12px',
-    borderRadius: '6px',
+    borderRadius: '8px',
     marginBottom: '20px',
     textAlign: 'center' as const,
     fontSize: '0.9rem',
-    border: '1px solid #fecaca',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
   }
 };
 
@@ -141,25 +145,69 @@ export function TelaLogin({ onLoginSucesso }: Props) {
 
   return (
     <div style={styles.container}>
-      {/* 🟩 LADO ESQUERDO (VERDE) 
-          Agora a logo está aqui!
-      */}
+      {/* LADO ESQUERDO (ESCURO) */}
       <div className="hidden md:flex" style={styles.ladoEsquerdo}>
-         {/* 👇 SUA LOGO AQUI */}
-         <img src="/logo.jpg" alt="Logo Vila Verde" style={styles.logoGrande} />
+         {/* Logo */}
+         <div style={{ 
+           width: '120px', 
+           height: '120px', 
+           background: '#4ade80', 
+           borderRadius: '20px',
+           display: 'flex',
+           alignItems: 'center',
+           justifyContent: 'center',
+           fontWeight: 'bold',
+           fontSize: '3rem',
+           color: '#1a1a1a',
+           marginBottom: '30px',
+           boxShadow: '0 10px 30px rgba(74, 222, 128, 0.3)'
+         }}>
+           VV
+         </div>
          
-         <p style={{opacity: 0.9, fontSize: '1.4rem', marginTop: '20px', fontWeight: 600}}>
+         <h1 style={{ 
+           fontSize: '2.5rem', 
+           fontWeight: '800', 
+           marginBottom: '15px',
+           background: 'linear-gradient(135deg, #4ade80, #22c55e)',
+           WebkitBackgroundClip: 'text',
+           WebkitTextFillColor: 'transparent',
+           backgroundClip: 'text'
+         }}>
+           PDV Vila Verde
+         </h1>
+         
+         <p style={{
+           opacity: 0.8, 
+           fontSize: '1.2rem', 
+           fontWeight: 500,
+           color: '#9ca3af'
+         }}>
             Gestão Profissional
          </p>
       </div>
 
-      {/* ⬜ LADO DIREITO (BRANCO) */}
+      {/* LADO DIREITO (FORMULÁRIO) */}
       <div style={styles.ladoDireito}>
         <div style={styles.card}>
           
-          {/* Logo só aparece aqui se for Celular (Mobile) */}
-          <div className="show-mobile-only" style={{textAlign: 'center'}}>
-            <img src="/logo.jpg" alt="Logo" style={{width: '120px', marginBottom: 20}} />
+          {/* Logo mobile */}
+          <div className="show-mobile-only" style={{textAlign: 'center', marginBottom: '30px'}}>
+            <div style={{ 
+              width: '80px', 
+              height: '80px', 
+              background: '#4ade80', 
+              borderRadius: '15px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '2rem',
+              color: '#1a1a1a',
+              marginBottom: '15px'
+            }}>
+              VV
+            </div>
           </div>
 
           <div style={styles.titulo}>Bem-vindo!</div>
@@ -198,24 +246,29 @@ export function TelaLogin({ onLoginSucesso }: Props) {
               style={{...styles.botao, opacity: loading ? 0.7 : 1}}
               disabled={loading}
             >
-              {loading ? 'Entrando...' : 'ACESSAR SISTEMA 🔐'}
+              {loading ? 'Entrando...' : '🔓 ACESSAR SISTEMA'}
             </button>
           </form>
         </div>
       </div>
 
-      {/* CSS para responsividade e ajustes finos */}
+      {/* CSS para responsividade */}
       <style>{`
-        /* No computador, esconde a logo mobile */
         .show-mobile-only { display: none; }
 
         @media (max-width: 768px) {
-          /* No celular, esconde o lado verde */
           .hidden.md\\:flex { display: none !important; }
-          /* No celular, mostra a logo pequena em cima do form */
           .show-mobile-only { display: block; }
         }
-        input:focus { border-color: #166534 !important; border-width: 2px; }
+        
+        input:focus { 
+          border-color: #4ade80 !important; 
+          box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1);
+        }
+        
+        input::placeholder {
+          color: rgba(255, 255, 255, 0.4);
+        }
       `}</style>
     </div>
   );
