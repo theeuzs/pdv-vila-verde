@@ -9,14 +9,15 @@ const styles = {
   },
   ladoEsquerdo: {
     flex: 1.2,
-    background: 'linear-gradient(135deg, #1f1f1f 0%, #2a2a2a 100%)', 
+    // 👇 O SEGREDO ESTÁ AQUI: Um brilho verde bem fraquinho no centro, indo pro preto
+    background: 'radial-gradient(circle at center, #0f291e 0%, #000000 70%)', 
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     padding: '40px',
     color: 'white',
     flexDirection: 'column' as const,
-    borderRight: '0px solid rgba(255,255,255,0.1)'
+    borderRight: '1px solid #333' // Borda mais sutil
   },
   ladoDireito: {
     flex: 1,
@@ -148,33 +149,24 @@ export function TelaLogin({ onLoginSucesso }: Props) {
              marginBottom: '20px'
            }}
          />
-          <h1 style={{
-
-           fontSize: '2.5rem',
-
-           fontWeight: '800',
-
-           marginBottom: '15px',
-
-           background: 'linear-gradient(135deg, #4ade80, #22c55e)',
-
-           WebkitBackgroundClip: 'text',
-
-           WebkitTextFillColor: 'transparent',
-
-           backgroundClip: 'text'
-
+          <h1 style={{ 
+           fontSize: '2.5rem', 
+           fontWeight: '800', 
+           marginTop: '20px', // Um pouco de espaço da logo
+           marginBottom: '10px',
+           color: '#ffffff', // 👇 BRANCO para destacar do neon
+           textShadow: '0 4px 20px rgba(0,0,0,0.5)', // Sombra para ler bem
+           letterSpacing: '1px'
          }}>
-
            PDV Vila Verde
-
          </h1>
          
          <p style={{
-           opacity: 0.8, 
-           fontSize: '1.2rem', 
-           fontWeight: 500,
-           color: '#9ca3af'
+           opacity: 0.6, // Deixei um pouco mais transparente pra ficar elegante
+           fontSize: '1.1rem', 
+           fontWeight: 400,
+           color: '#e5e7eb',
+           marginTop: 0
          }}>
             Gestão Profissional
          </p>
