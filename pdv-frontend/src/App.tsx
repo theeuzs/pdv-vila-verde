@@ -129,6 +129,7 @@ export function App() {
   const [entrega, setEntrega] = useState(false)
   const [endereco, setEndereco] = useState('')
   const [enderecoSelecionado, setEnderecoSelecionado] = useState<number>(1)
+  const [desconto, setDesconto] = useState('')
   
   // ESTADOS DE LOADING
   const [processandoVenda, setProcessandoVenda] = useState(false)
@@ -396,22 +397,30 @@ export function App() {
     setEndereco('')
     setListaPagamentos([])
     setValorPagamento('')
+    setDesconto('')
   }
 
   const totalCarrinho = carrinho.reduce((acc, item) => 
     acc + (Number(item.produto.precoVenda) * Number(item.quantidade)), 0
   )
+  const valorDesconto = Number(desconto) || 0
+  const totalComDesconto = Math.max(0, totalCarrinho - valorDesconto)
 
   const totalPago = listaPagamentos.reduce((acc, p) => acc + p.valor, 0)
-  const faltaPagar = totalCarrinho - totalPago
-  const troco = totalPago > totalCarrinho ? totalPago - totalCarrinho : 0
+  const faltaPagar = totalComDesconto - totalPago
+  const troco = totalPago > totalComDesconto ? totalPago - totalComDesconto : 0
 
   // ============================================================================
   // FUNÇÕES DE VENDA
   // ============================================================================
 
   function adicionarPagamento() {
-    const valor = Number(valorPagamento)
+    // MÁGICA: Se o campo estiver vazio, ele assume que é o valor que falta!
+    let valor = Number(valorPagamento)
+    if (!valorPagamento) {
+      valor = faltaPagar 
+    }
+
     if (!valor || valor <= 0) return
     
     setListaPagamentos([...listaPagamentos, { 
@@ -447,16 +456,20 @@ export function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          total: totalCarrinho,
+          total: totalComDesconto, 
           clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
           caixaId: caixaAberto.id,
           entrega,
           enderecoEntrega: endereco || null,
-          itens: carrinho.map(i => ({
-            produtoId: i.produto.id,
-            quantidade: i.quantidade,
-            precoUnit: i.produto.precoVenda
-          })),
+          itens: carrinho.map(i => {
+            // Calcula o rateio invisível do desconto para a SEFAZ não reclamar
+            const fatorDesconto = totalCarrinho > 0 ? (totalComDesconto / totalCarrinho) : 1;
+            return {
+              produtoId: i.produto.id,
+              quantidade: i.quantidade,
+              precoUnit: Number((Number(i.produto.precoVenda) * fatorDesconto).toFixed(2))
+            }
+          }),
           pagamentos: listaPagamentos
         })
       })
@@ -2374,17 +2387,23 @@ export function App() {
                 </div>
 
                 {/* TOTAL FIXO NO FINAL */}
-                <div style={{
-                  paddingTop: '15px',
-                  borderTop: '2px solid #cbd5e1',
-                  fontSize: '1.5rem',
-                  fontWeight: 'bold',
-                  color: '#1e3c72',
-                  textAlign: 'right'
-                }}>
-                  Total: R$ {Number(totalCarrinho).toFixed(2)}
+                <div style={{ paddingTop: '15px', borderTop: '2px solid #cbd5e1' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: '#64748b', marginBottom: '5px' }}>
+                    <span>Subtotal:</span>
+                    <span>R$ {Number(totalCarrinho).toFixed(2)}</span>
+                  </div>
+                  {valorDesconto > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: '#dc2626', marginBottom: '5px' }}>
+                      <span>Desconto:</span>
+                      <span>- R$ {valorDesconto.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.5rem', fontWeight: 'bold', color: '#1e3c72' }}>
+                    <span>Total a Pagar:</span>
+                    <span>R$ {Number(totalComDesconto).toFixed(2)}</span>
+                  </div>
                 </div>
-              </div>
+                </div>
 
               {/* Pagamento */}
               <div style={{
@@ -2419,6 +2438,19 @@ export function App() {
                       <option key={c.id} value={c.id}>{c.nome}</option>
                     ))}
                   </select>
+                  {/* Desconto */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#1e3c72' }}>
+                    🏷️ Desconto (R$) Opcional
+                  </label>
+                  <input
+                    type="number"
+                    value={desconto}
+                    onChange={e => setDesconto(e.target.value)}
+                    placeholder="0.00"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem' }}
+                  />
+                </div>
                 </div>
 
                 {/* Forma de Pagamento */}
@@ -2437,7 +2469,7 @@ export function App() {
                       type="number"
                       value={valorPagamento}
                       onChange={e => setValorPagamento(e.target.value)}
-                      placeholder="Valor"
+                      placeholder={`R$ ${Math.max(0, faltaPagar).toFixed(2)}`} // AQUI ESTÁ O TRUQUE!
                       style={{
                         width: '120px',
                         padding: '10px',
