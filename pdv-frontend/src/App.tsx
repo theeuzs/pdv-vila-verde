@@ -46,6 +46,7 @@ interface Venda {
   total: number
   cliente?: Cliente
   caixaId?: number
+  usuario?: { id: number; nome: string }
   nota_emitida?: boolean
   nota_cancelada?: boolean
   urlFiscal?: string
@@ -166,6 +167,11 @@ export function App() {
   const [listaPagamentos, setListaPagamentos] = useState<any[]>([])
   const [valorPagamento, setValorPagamento] = useState('')
   const [formaPagamento, setFormaPagamento] = useState('Dinheiro')
+
+  // Filtros do Histórico
+  const [filtroVendedor, setFiltroVendedor] = useState('')
+  const [dataInicio, setDataInicio] = useState('')
+  const [dataFim, setDataFim] = useState('')
 
   // ============================================================================
   // EFEITOS
@@ -823,6 +829,34 @@ export function App() {
     } catch (e) {
       alert('Erro ao emitir nota fiscal')
       console.error(e)
+    }
+  }
+
+async function abrirEmissao(venda: Venda) {
+    if (!confirm(`Deseja emitir NFC-e para a venda #${venda.id}?`)) return;
+
+    try {
+      // Chama a rota inteligente que criamos no backend
+      const res = await fetch(`${API_URL}/emitir-fiscal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+           vendaId: venda.id, // Manda só o ID e deixa o back se virar
+           itens: [], // Manda vazio pro back buscar no banco
+           total: venda.total
+        })
+      })
+
+      const json = await res.json();
+      
+      if (res.ok) {
+        alert('✅ Nota Emitida com Sucesso!');
+        carregarDados(); // Recarrega a tela pra ficar verde
+      } else {
+        alert('❌ Erro: ' + (json.erro || 'Falha na emissão'));
+      }
+    } catch (error) {
+      alert('Erro de conexão ao emitir nota.');
     }
   }
 
@@ -1863,6 +1897,129 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
 
         {/* ABA: VENDAS */}
         {aba === 'vendas' && (
+        <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.5s' }}>
+          
+          {/* CABEÇALHO COM FILTROS */}
+          <div style={{ background: 'white', padding: '20px', borderRadius: '15px', marginBottom: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+            <h2 style={{ marginTop: 0, color: '#1e3c72', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              💰 Histórico de Vendas
+            </h2>
+
+            {/* BARRA DE FILTROS */}
+            <div style={{ display: 'flex', gap: '15px', marginTop: '15px', flexWrap: 'wrap' }}>
+              
+              {/* Filtro Vendedor */}
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '5px' }}>Filtrar por Vendedor</label>
+                <select 
+                  value={filtroVendedor} 
+                  onChange={e => setFiltroVendedor(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                >
+                  <option value="">Todos os Vendedores</option>
+                  {/* Pega lista única de vendedores que já venderam algo */}
+                  {Array.from(new Set(vendas.map(v => v.usuario?.nome || 'Desconhecido'))).map(nome => (
+                    <option key={nome} value={nome}>{nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro Data Inicio */}
+              <div style={{ flex: 1, minWidth: '150px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '5px' }}>De (Data)</label>
+                <input 
+                  type="date" 
+                  value={dataInicio} 
+                  onChange={e => setDataInicio(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
+                />
+              </div>
+
+              {/* Filtro Data Fim */}
+              <div style={{ flex: 1, minWidth: '150px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '5px' }}>Até (Data)</label>
+                <input 
+                  type="date" 
+                  value={dataFim} 
+                  onChange={e => setDataFim(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
+                />
+              </div>
+
+              {/* Botão Limpar */}
+              <div style={{ display: 'flex', alignItems: 'end' }}>
+                <button 
+                  onClick={() => { setFiltroVendedor(''); setDataInicio(''); setDataFim(''); }}
+                  style={{ padding: '10px 20px', background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', height: '42px' }}
+                >
+                  Limpar Filtros
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          {/* TABELA DE RESULTADOS */}
+          <div style={{ background: 'white', borderRadius: '15px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', color: '#64748b', textAlign: 'left' }}>
+                  <th style={{ padding: '15px' }}>ID</th>
+                  <th style={{ padding: '15px' }}>Data</th>
+                  <th style={{ padding: '15px' }}>Vendedor</th> {/* COLUNA NOVA */}
+                  <th style={{ padding: '15px' }}>Cliente</th>
+                  <th style={{ padding: '15px' }}>Total</th>
+                  <th style={{ padding: '15px' }}>Status</th>
+                  <th style={{ padding: '15px' }}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vendas
+                  .slice() // Cria uma cópia pra não estragar o original
+                  .reverse() // Mostra as mais recentes primeiro
+                  .filter(v => {
+                    // 1. Filtro Vendedor
+                    if (filtroVendedor && v.usuario?.nome !== filtroVendedor) return false;
+                    
+                    // 2. Filtro Datas
+                    const dataVenda = new Date(v.data).setHours(0,0,0,0);
+                    if (dataInicio && dataVenda < new Date(dataInicio).setHours(0,0,0,0)) return false;
+                    if (dataFim && dataVenda > new Date(dataFim).setHours(0,0,0,0)) return false;
+
+                    return true;
+                  })
+                  .map(v => (
+                    <tr key={v.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '15px', fontWeight: 'bold' }}>#{v.id}</td>
+                      <td style={{ padding: '15px', color: '#64748b' }}>{new Date(v.data).toLocaleString()}</td>
+                      
+                      {/* MOSTRAR QUEM VENDEU */}
+                      <td style={{ padding: '15px' }}>
+                         <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                           {v.usuario?.nome || 'Sistema'}
+                         </span>
+                      </td>
+
+                      <td style={{ padding: '15px' }}>{v.cliente ? v.cliente.nome : 'Cliente Balcão'}</td>
+                      <td style={{ padding: '15px', fontWeight: 'bold', color: '#059669' }}>R$ {Number(v.total).toFixed(2)}</td>
+                      <td style={{ padding: '15px' }}>
+                        {v.nota_emitida 
+                          ? <span style={{ background: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>✓ NFC-e OK</span>
+                          : <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>SEM NOTA</span>
+                        }
+                      </td>
+                      <td style={{ padding: '15px', display: 'flex', gap: '10px' }}>
+                         {/* Seus botões de Emitir e Cancelar continuam aqui */}
+                         <button onClick={() => abrirEmissao(v)} disabled={v.nota_emitida || v.nota_cancelada} style={{ padding: '6px 12px', background: v.nota_emitida ? '#cbd5e1' : '#dcfce7', color: v.nota_emitida ? 'white' : '#166534', border: '1px solid #86efac', borderRadius: '6px', cursor: v.nota_emitida ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>📄 Emitir NFC-e</button>
+                         <button onClick={() => cancelarNota(v.id)} style={{ padding: '6px 12px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>✖ Cancelar</button>
+                      </td>
+                    </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>  
+    )}
           <div style={{ background: 'white', borderRadius: '15px', padding: '30px' }}>
             <h2 style={{ marginTop: 0, color: '#1e3c72', marginBottom: '25px' }}>
               💰 Histórico de Vendas
@@ -1997,7 +2154,6 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
               </div>
             )}
           </div>
-        )}
 
         {/* ABA: FINANCEIRO */}
         {aba === 'financeiro' && (
@@ -2889,7 +3045,7 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                           color: '#1e3c72',
                           marginBottom: '5px'
                         }}>
-                          {caixa.usuario?.nome || 'Usuário Desconhecido'}
+                          {caixa.usuario?.nome ? `Caixa de ${caixa.usuario.nome}` : `Caixa #${caixa.id}`}
                           {caixa.usuarioId === usuarioLogado.id && (
                             <span style={{ 
                               marginLeft: '10px',
