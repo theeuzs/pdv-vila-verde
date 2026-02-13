@@ -3052,21 +3052,56 @@ export function App() {
 {/* MODAL: PRODUTO */}
       {modalProduto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, overflowY: 'auto', padding: '20px' }}>
-          <div style={{ background: 'white', borderRadius: '15px', padding: '30px', width: '600px', maxWidth: '100%' }}>
+          <div style={{ background: 'white', borderRadius: '15px', padding: '30px', width: '700px', maxWidth: '100%' }}>
             <h2 style={{ marginTop: 0, color: '#1e3c72' }}>{formProduto.id ? '✏️ Editar Produto' : '+ Novo Produto'}</h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nome do Produto *</label><input type="text" value={formProduto.nome || ''} onChange={e => setFormProduto({...formProduto, nome: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Código de Barras</label><input type="text" value={formProduto.codigoBarra || ''} onChange={e => setFormProduto({...formProduto, codigoBarra: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Categoria</label><input type="text" value={formProduto.categoria || ''} onChange={e => setFormProduto({...formProduto, categoria: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Preço de Custo *</label><input type="number" step="0.01" value={formProduto.precoCusto || ''} onChange={e => setFormProduto({...formProduto, precoCusto: Number(e.target.value)})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Preço de Venda *</label><input type="number" step="0.01" value={formProduto.precoVenda || ''} onChange={e => setFormProduto({...formProduto, precoVenda: Number(e.target.value)})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Estoque *</label><input type="number" value={formProduto.estoque || ''} onChange={e => setFormProduto({...formProduto, estoque: Number(e.target.value)})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
-              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Unidade</label>
-                <select value={formProduto.unidade || 'UN'} onChange={e => setFormProduto({...formProduto, unidade: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                  <option value="UN">Unidade</option><option value="KG">Quilograma</option><option value="L">Litro</option><option value="CX">Caixa</option><option value="PCT">Pacote</option>
-                </select>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              
+              {/* SEÇÃO 1: DADOS GERAIS */}
+              <div>
+                <h3 style={{ fontSize: '1rem', color: '#64748b', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', marginBottom: '15px' }}>📦 Dados Gerais</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nome do Produto *</label><input type="text" value={formProduto.nome || ''} onChange={e => setFormProduto({...formProduto, nome: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Código de Barras</label><input type="text" value={formProduto.codigoBarra || ''} onChange={e => setFormProduto({...formProduto, codigoBarra: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Categoria</label><input type="text" value={formProduto.categoria || ''} onChange={e => setFormProduto({...formProduto, categoria: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Preço de Custo *</label><input type="number" step="0.01" value={formProduto.precoCusto || ''} onChange={e => setFormProduto({...formProduto, precoCusto: Number(e.target.value)})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Preço de Venda *</label><input type="number" step="0.01" value={formProduto.precoVenda || ''} onChange={e => setFormProduto({...formProduto, precoVenda: Number(e.target.value)})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Estoque *</label><input type="number" value={formProduto.estoque || ''} onChange={e => setFormProduto({...formProduto, estoque: Number(e.target.value)})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Unidade</label>
+                    <select value={formProduto.unidade || 'UN'} onChange={e => setFormProduto({...formProduto, unidade: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <option value="UN">Unidade</option><option value="KG">Quilograma</option><option value="L">Litro</option><option value="CX">Caixa</option><option value="PCT">Pacote</option>
+                    </select>
+                  </div>
+                </div>
               </div>
+
+              {/* SEÇÃO 2: DADOS FISCAIS */}
+              <div>
+                <h3 style={{ fontSize: '1rem', color: '#64748b', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', marginBottom: '15px' }}>📄 Dados Fiscais (NFC-e)</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
+                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.85rem' }}>NCM</label><input type="text" placeholder="Ex: 25232910" value={formProduto.ncm || ''} onChange={e => setFormProduto({...formProduto, ncm: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.85rem' }}>CEST</label><input type="text" placeholder="Opcional" value={formProduto.cest || ''} onChange={e => setFormProduto({...formProduto, cest: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.85rem' }}>CFOP</label><input type="text" placeholder="Ex: 5102" value={formProduto.cfop || ''} onChange={e => setFormProduto({...formProduto, cfop: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+                  
+                  <div style={{ gridColumn: '1 / span 2' }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.85rem' }}>CSOSN / CST</label>
+                    <select value={formProduto.csosn || '102'} onChange={e => setFormProduto({...formProduto, csosn: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <option value="102">102 - Simples Nacional (Sem crédito)</option>
+                      <option value="500">500 - ICMS Cobrado por Substituição</option>
+                      <option value="103">103 - Isenção do ICMS no Simples</option>
+                      <option value="400">400 - Não tributada pelo Simples</option>
+                    </select>
+                  </div>
+                  
+                  <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.85rem' }}>Origem</label>
+                    <select value={formProduto.origem || '0'} onChange={e => setFormProduto({...formProduto, origem: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <option value="0">0 - Nacional</option>
+                      <option value="1">1 - Estrangeira</option>
+                      <option value="2">2 - Estrangeira (MI)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '25px' }}>
