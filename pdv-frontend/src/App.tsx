@@ -101,8 +101,21 @@ const API_URL = 'https://api-vila-verde.onrender.com'
 export function App() {
   
   // ESTADOS DE AUTENTICAÇÃO
-  const [usuarioLogado, setUsuarioLogado] = useState<any>(null);
+  const [usuarioLogado, setUsuarioLogado] = useState<any>(() => {
+    const salvo = localStorage.getItem('usuario_vila_verde')
+    if (salvo) {
+      return JSON.parse(salvo)
+    }
+    return null
+  })
   
+// Cole isso lá em cima, antes do return do App
+  function handleLoginSucesso(usuario: any) {
+    setUsuarioLogado(usuario);
+    // Salva no cofre do navegador
+    localStorage.setItem('usuario_vila_verde', JSON.stringify(usuario)); 
+  }
+
   // ESTADOS DE NAVEGAÇÃO
   const [aba, setAba] = useState<string>('caixa');
   
@@ -866,8 +879,7 @@ export function App() {
   // ============================================================================
 
   if (!usuarioLogado) {
-    return <TelaLogin onLoginSucesso={setUsuarioLogado} />
-  }
+return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
 
   // ============================================================================
   // RENDERIZAÇÃO - SISTEMA
