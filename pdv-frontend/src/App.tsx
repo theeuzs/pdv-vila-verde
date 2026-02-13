@@ -335,7 +335,7 @@ export function App() {
     setValorPagamento('')
   }
 
-  async function finalizarVenda() {
+  async function finalizarVendaNormal() {
     if (!caixaAberto) {
       alert('⚠️ Caixa fechado! Abra o caixa para continuar.')
       return
@@ -357,10 +357,10 @@ export function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           total: totalCarrinho,
-          clienteId: clienteSelecionado || null,
+          clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
           caixaId: caixaAberto.id,
           entrega,
-          enderecoEntrega: endereco,
+          enderecoEntrega: endereco || null,
           itens: carrinho.map(i => ({
             produtoId: i.produto.id,
             quantidade: i.quantidade,
@@ -371,13 +371,95 @@ export function App() {
       })
 
       if (res.ok) {
-        alert('✅ Venda finalizada com sucesso!')
+        await res.json() // Só para consumir a resposta
+        alert('✅ Venda finalizada com sucesso!\n📄 Recibo simples gerado.')
+        limparCarrinho()
+        setModalPagamento(false)
+        carregarDados()
+      } else {
+        const erro = await res.json()
+        alert('Erro: ' + (erro.erro || 'Não foi possível finalizar a venda'))
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Erro ao finalizar venda')
+    }
+  }
+
+  async function finalizarVendaComNFCe() {
+    if (!caixaAberto) {
+      alert('⚠️ Caixa fechado! Abra o caixa para continuar.')
+      return
+    }
+
+    if (carrinho.length === 0) {
+      alert('⚠️ Carrinho vazio!')
+      return
+    }
+
+    if (faltaPagar > 0.01) {
+      alert('⚠️ Falta pagar R$ ' + faltaPagar.toFixed(2))
+      return
+    }
+
+    try {
+      // 1. Primeiro salva a venda
+      const resVenda = await fetch(`${API_URL}/vendas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          total: totalCarrinho,
+          clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
+          caixaId: caixaAberto.id,
+          entrega,
+          enderecoEntrega: endereco || null,
+          itens: carrinho.map(i => ({
+            produtoId: i.produto.id,
+            quantidade: i.quantidade,
+            precoUnit: i.produto.precoVenda
+          })),
+          pagamentos: listaPagamentos
+        })
+      })
+
+      if (!resVenda.ok) {
+        const erro = await resVenda.json()
+        alert('Erro ao salvar venda: ' + (erro.erro || 'Erro desconhecido'))
+        return
+      }
+
+      const venda = await resVenda.json()
+
+      // 2. Agora emite a NFC-e
+      alert('⏳ Emitindo NFC-e... Aguarde...')
+      
+      const resNota = await fetch(`${API_URL}/emitir-fiscal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vendaId: venda.id })
+      })
+
+      if (resNota.ok) {
+        const dataNota = await resNota.json()
+        alert('✅ Venda finalizada com sucesso!\n📄 NFC-e emitida!')
+        
+        if (dataNota.url) {
+          window.open(dataNota.url, '_blank')
+        }
+        
+        limparCarrinho()
+        setModalPagamento(false)
+        carregarDados()
+      } else {
+        const erroNota = await resNota.json()
+        alert('⚠️ Venda salva, mas erro ao emitir NFC-e:\n' + (erroNota.erro || 'Erro desconhecido'))
         limparCarrinho()
         setModalPagamento(false)
         carregarDados()
       }
     } catch (e) {
-      alert('Erro ao finalizar venda')
+      console.error(e)
+      alert('Erro ao processar venda')
     }
   }
 
@@ -626,10 +708,29 @@ export function App() {
   // RENDERIZAÇÃO - SISTEMA
   // ============================================================================
 
-  const produtosFiltrados = produtos.filter(p => 
-    p.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    p.codigoBarra?.includes(busca)
-  ).slice(0, 30) // Limita a 30 produtos para melhor performance
+  const produtosFiltrados = produtos
+    .filter(p => {
+      const buscaLower = busca.toLowerCase()
+      const nomeLower = p.nome.toLowerCase()
+      const codigoLower = p.codigoBarra?.toLowerCase() || ''
+      
+      // Verifica se começa com o termo buscado (prioridade)
+      return nomeLower.startsWith(buscaLower) || 
+             codigoLower.startsWith(buscaLower) ||
+             nomeLower.includes(buscaLower) ||
+             codigoLower.includes(buscaLower)
+    })
+    .sort((a, b) => {
+      // Ordena: produtos que começam com o termo aparecem primeiro
+      const buscaLower = busca.toLowerCase()
+      const aStarts = a.nome.toLowerCase().startsWith(buscaLower)
+      const bStarts = b.nome.toLowerCase().startsWith(buscaLower)
+      
+      if (aStarts && !bStarts) return -1
+      if (!aStarts && bStarts) return 1
+      return 0
+    })
+    .slice(0, 30) // Limita a 30 produtos para melhor performance
 
   return (
     <div style={{ 
@@ -2295,49 +2396,65 @@ export function App() {
                   />
                 )}
 
-                {/* Checkbox Emitir NFC-e */}
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '20px',
-                  cursor: 'pointer',
-                  padding: '12px',
-                  background: '#f0fdf4',
-                  borderRadius: '8px',
-                  border: '1px solid #86efac'
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={true}
-                    readOnly
-                  />
-                  <span style={{ fontWeight: 'bold', color: '#059669' }}>
-                    📄 Emitir NFC-e (Nota Fiscal)
-                  </span>
-                </label>
+                {/* Botões de Finalização */}
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                  <button
+                    onClick={finalizarVendaNormal}
+                    disabled={faltaPagar > 0.01}
+                    style={{
+                      flex: 1,
+                      padding: '15px',
+                      background: faltaPagar > 0.01 
+                        ? '#e2e8f0' 
+                        : 'linear-gradient(135deg, #60a5fa, #3b82f6)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '1rem',
+                      fontWeight: 'bold',
+                      cursor: faltaPagar > 0.01 ? 'not-allowed' : 'pointer',
+                      boxShadow: faltaPagar <= 0.01 ? '0 4px 15px rgba(59, 130, 246, 0.3)' : 'none'
+                    }}
+                  >
+                    📄 VENDA NORMAL
+                    <div style={{ fontSize: '0.75rem', marginTop: '4px', opacity: 0.9 }}>
+                      (Só recibo)
+                    </div>
+                  </button>
 
-                {/* Botão Finalizar */}
-                <button
-                  onClick={finalizarVenda}
-                  disabled={faltaPagar > 0.01}
-                  style={{
-                    width: '100%',
-                    padding: '15px',
-                    background: faltaPagar > 0.01 
-                      ? '#e2e8f0' 
-                      : 'linear-gradient(135deg, #4ade80, #22c55e)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '1.2rem',
-                    fontWeight: 'bold',
-                    cursor: faltaPagar > 0.01 ? 'not-allowed' : 'pointer',
-                    boxShadow: faltaPagar <= 0.01 ? '0 4px 15px rgba(34, 197, 94, 0.3)' : 'none'
-                  }}
-                >
-                  ✅ CONCLUIR VENDA COM NFC-e
-                </button>
+                  <button
+                    onClick={finalizarVendaComNFCe}
+                    disabled={faltaPagar > 0.01}
+                    style={{
+                      flex: 1,
+                      padding: '15px',
+                      background: faltaPagar > 0.01 
+                        ? '#e2e8f0' 
+                        : 'linear-gradient(135deg, #4ade80, #22c55e)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '1rem',
+                      fontWeight: 'bold',
+                      cursor: faltaPagar > 0.01 ? 'not-allowed' : 'pointer',
+                      boxShadow: faltaPagar <= 0.01 ? '0 4px 15px rgba(34, 197, 94, 0.3)' : 'none'
+                    }}
+                  >
+                    ✅ VENDA COM NFC-e
+                    <div style={{ fontSize: '0.75rem', marginTop: '4px', opacity: 0.9 }}>
+                      (Nota fiscal)
+                    </div>
+                  </button>
+                </div>
+
+                <div style={{ 
+                  textAlign: 'center', 
+                  fontSize: '0.85rem', 
+                  color: '#64748b',
+                  marginTop: '10px'
+                }}>
+                  💡 Escolha venda normal para recibo simples ou com NFC-e para emitir nota fiscal
+                </div>
               </div>
             </div>
           </div>
