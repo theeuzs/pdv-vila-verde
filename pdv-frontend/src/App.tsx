@@ -3049,6 +3049,57 @@ export function App() {
         );
       })()}
 
+{/* MODAL: PRODUTO */}
+      {modalProduto && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, overflowY: 'auto', padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '15px', padding: '30px', width: '600px', maxWidth: '100%' }}>
+            <h2 style={{ marginTop: 0, color: '#1e3c72' }}>{formProduto.id ? '✏️ Editar Produto' : '+ Novo Produto'}</h2>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nome do Produto *</label><input type="text" value={formProduto.nome || ''} onChange={e => setFormProduto({...formProduto, nome: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Código de Barras</label><input type="text" value={formProduto.codigoBarra || ''} onChange={e => setFormProduto({...formProduto, codigoBarra: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Categoria</label><input type="text" value={formProduto.categoria || ''} onChange={e => setFormProduto({...formProduto, categoria: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Preço de Custo *</label><input type="number" step="0.01" value={formProduto.precoCusto || ''} onChange={e => setFormProduto({...formProduto, precoCusto: Number(e.target.value)})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Preço de Venda *</label><input type="number" step="0.01" value={formProduto.precoVenda || ''} onChange={e => setFormProduto({...formProduto, precoVenda: Number(e.target.value)})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Estoque *</label><input type="number" value={formProduto.estoque || ''} onChange={e => setFormProduto({...formProduto, estoque: Number(e.target.value)})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Unidade</label>
+                <select value={formProduto.unidade || 'UN'} onChange={e => setFormProduto({...formProduto, unidade: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <option value="UN">Unidade</option><option value="KG">Quilograma</option><option value="L">Litro</option><option value="CX">Caixa</option><option value="PCT">Pacote</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '25px' }}>
+              <button onClick={salvarProduto} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #4ade80, #22c55e)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✓ Salvar Produto</button>
+              <button onClick={() => { setModalProduto(false); setFormProduto({}); }} style={{ padding: '12px 20px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CLIENTE */}
+      {modalCliente && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'white', borderRadius: '15px', padding: '30px', width: '500px' }}>
+            <h2 style={{ marginTop: 0, color: '#1e3c72' }}>{formCliente.id ? '✏️ Editar Cliente' : '+ Novo Cliente'}</h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nome Completo *</label><input type="text" value={formCliente.nome || ''} onChange={e => setFormCliente({...formCliente, nome: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>CPF/CNPJ</label><input type="text" value={formCliente.cpfCnpj || ''} onChange={e => setFormCliente({...formCliente, cpfCnpj: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Celular</label><input type="tel" value={formCliente.celular || ''} onChange={e => setFormCliente({...formCliente, celular: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} /></div>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📍 Endereço 1 (Principal)</label><input type="text" placeholder="Rua, número, bairro..." value={formCliente.endereco || ''} onChange={e => setFormCliente({...formCliente, endereco: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', boxSizing: 'border-box' }} /></div>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📍 Endereço 2 (Opcional)</label><input type="text" placeholder="Casa de aluguel, trabalho..." value={formCliente.endereco2 || ''} onChange={e => setFormCliente({...formCliente, endereco2: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', boxSizing: 'border-box' }} /></div>
+              <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📍 Endereço 3 (Opcional)</label><input type="text" placeholder="Outro endereço..." value={formCliente.endereco3 || ''} onChange={e => setFormCliente({...formCliente, endereco3: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', boxSizing: 'border-box' }} /></div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '25px' }}>
+              <button onClick={salvarCliente} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #4ade80, #22c55e)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✓ Salvar Cliente</button>
+              <button onClick={() => { setModalCliente(false); setFormCliente({}); }} style={{ padding: '12px 20px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL DE LOADING */}
       {processandoVenda && (
         <div style={{
