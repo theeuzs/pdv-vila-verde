@@ -735,13 +735,13 @@ export function App() {
   return (
     <div style={{ 
       minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
       fontFamily: 'system-ui, -apple-system, sans-serif'
     }}>
       
       {/* BARRA SUPERIOR */}
       <div style={{ 
-        background: 'linear-gradient(90deg, #1e3c72 0%, #2a5298 100%)',
+        background: 'linear-gradient(90deg, #1f1f1f 0%, #2a2a2a 100%)',
         padding: '15px 30px',
         display: 'flex',
         justifyContent: 'space-between',
@@ -835,7 +835,7 @@ export function App() {
 
       {/* NAVEGAÇÃO */}
       <div style={{ 
-        background: 'rgba(255,255,255,0.15)',
+        background: 'rgba(0,0,0,0.3)',
         padding: '10px 30px',
         display: 'flex',
         gap: '10px',
@@ -857,8 +857,8 @@ export function App() {
             key={a.id}
             onClick={() => setAba(a.id)}
             style={{
-              background: aba === a.id ? 'white' : 'transparent',
-              color: aba === a.id ? '#1e3c72' : 'white',
+              background: aba === a.id ? '#4ade80' : 'transparent',
+              color: aba === a.id ? '#000' : 'white',
               border: 'none',
               padding: '10px 20px',
               borderRadius: '8px 8px 0 0',
@@ -948,7 +948,7 @@ export function App() {
                       style={{
                         background: p.estoque <= 0 
                           ? 'linear-gradient(135deg, #e5e7eb 0%, #9ca3af 100%)'
-                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          : 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)',
                         borderRadius: '12px',
                         padding: '20px',
                         textAlign: 'center',
@@ -1220,7 +1220,7 @@ export function App() {
               marginBottom: '40px'
             }}>
               <div style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)',
                 color: 'white',
                 padding: '25px',
                 borderRadius: '12px',
@@ -1371,7 +1371,7 @@ export function App() {
                 }}
                 style={{
                   padding: '12px 25px',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
@@ -1455,7 +1455,7 @@ export function App() {
                     onClick={() => setProdutosVisiveis(prev => prev + 30)}
                     style={{
                       padding: '12px 30px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      background: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)',
                       color: 'white',
                       border: 'none',
                       borderRadius: '8px',
@@ -1488,7 +1488,7 @@ export function App() {
                 }}
                 style={{
                   padding: '12px 25px',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
