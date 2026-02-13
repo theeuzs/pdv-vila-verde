@@ -940,8 +940,8 @@ export function App() {
           />
           
           <h1 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '800' }}>
-            <span style={{ color: 'white' }}>Visual</span>
-            <span style={{ color: '#4ade80' }}>Vendas</span>
+            <span style={{ color: 'white' }}>MEGA LOJA DA CONSTRUÇÃO</span>
+            <span style={{ color: '#4ade80' }}>VILA VERDE</span>
           </h1>
         </div>
 
