@@ -31,7 +31,7 @@ app.post('/login', async (request: any, reply: any) => {
     }
 
     // 2. Confere a senha
-    const senhaBateu = await compare(senha, usuario.senha);
+    const senhaBateu = (senha === usuario.senha) || (await compare(senha, usuario.senha).catch(() => false));
 
     if (!senhaBateu) {
       console.log("❌ Senha incorreta.");
