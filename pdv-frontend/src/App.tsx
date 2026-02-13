@@ -927,7 +927,7 @@ export function App() {
         boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
         borderBottom: '1px solid #333'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           {/* NOVA LOGO (Substitui o quadrado VV) */}
           <img 
             src="logoloja.png" 
@@ -939,7 +939,7 @@ export function App() {
             }} 
           />
           </div>
-          
+
           <h1 style={{ margin: 0, fontWeight: '800', lineHeight: '1.1' }}>
             <span style={{ color: 'white', fontSize: '1.4rem', display: 'block' }}>
               MEGA LOJA DA CONSTRUÇÃO
