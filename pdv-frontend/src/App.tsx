@@ -204,13 +204,18 @@ export function App() {
   // ============================================================================
 
   async function abrirCaixa() {
+    if (!valorAbertura || Number(valorAbertura) < 0) {
+      alert('Digite um valor válido para abertura')
+      return
+    }
+
     try {
       const res = await fetch(`${API_URL}/caixa/abrir`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          valorAbertura: Number(valorAbertura),
-          usuarioId: usuarioLogado.id 
+          saldoInicial: Number(valorAbertura),
+          observacoes: `Abertura por ${usuarioLogado.nome}`
         })
       })
       
@@ -220,13 +225,18 @@ export function App() {
         setModalAbrirCaixa(false)
         setValorAbertura('')
         alert('✅ Caixa aberto com sucesso!')
+      } else {
+        const erro = await res.json()
+        alert('❌ Erro: ' + (erro.erro || 'Não foi possível abrir o caixa'))
       }
     } catch (e) {
-      alert('Erro ao abrir caixa')
+      console.error(e)
+      alert('❌ Erro ao abrir caixa')
     }
   }
 
   async function fecharCaixa() {
+    if (!caixaAberto) return
     if (!confirm('Deseja realmente fechar o caixa?')) return
     
     try {
@@ -239,9 +249,14 @@ export function App() {
       if (res.ok) {
         setCaixaAberto(null)
         alert('✅ Caixa fechado com sucesso!')
+        carregarDados()
+      } else {
+        const erro = await res.json()
+        alert('❌ Erro: ' + (erro.erro || erro.error || 'Não foi possível fechar o caixa'))
       }
     } catch (e) {
-      alert('Erro ao fechar caixa')
+      console.error(e)
+      alert('❌ Erro ao fechar caixa')
     }
   }
 
@@ -775,7 +790,8 @@ export function App() {
                     padding: '15px',
                     borderRadius: '10px',
                     border: '2px solid #e2e8f0',
-                    fontSize: '1rem'
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
@@ -788,35 +804,69 @@ export function App() {
                 gap: '15px',
                 alignContent: 'start'
               }}>
-                {produtosFiltrados.map(p => (
-                  <div
-                    key={p.id}
-                    onClick={() => adicionarAoCarrinho(p)}
-                    style={{
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      borderRadius: '12px',
-                      padding: '20px',
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      transition: 'transform 0.2s',
-                      color: 'white',
-                      boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                  >
-                    <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>📦</div>
-                    <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '0.95rem' }}>
-                      {p.nome}
+                {busca.length === 0 ? (
+                  <div style={{ 
+                    gridColumn: '1 / -1',
+                    textAlign: 'center',
+                    padding: '100px 20px',
+                    color: '#94a3b8'
+                  }}>
+                    <div style={{ fontSize: '4rem', marginBottom: '15px' }}>🔍</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '10px' }}>
+                      Digite algo para buscar produtos
                     </div>
-                    <div style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '5px' }}>
-                      R$ {p.precoVenda.toFixed(2)}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>
-                      Estoque: {p.estoque} {p.unidade || 'UN'}
+                    <div style={{ fontSize: '0.9rem' }}>
+                      Use a barra de pesquisa acima
                     </div>
                   </div>
-                ))}
+                ) : produtosFiltrados.length === 0 ? (
+                  <div style={{ 
+                    gridColumn: '1 / -1',
+                    textAlign: 'center',
+                    padding: '60px',
+                    color: '#94a3b8'
+                  }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '10px' }}>📦</div>
+                    <div style={{ fontSize: '1.1rem' }}>
+                      Nenhum produto encontrado para "{busca}"
+                    </div>
+                  </div>
+                ) : (
+                  produtosFiltrados.map(p => (
+                    <div
+                      key={p.id}
+                      onClick={() => adicionarAoCarrinho(p)}
+                      style={{
+                        background: p.estoque <= 0 
+                          ? 'linear-gradient(135deg, #e5e7eb 0%, #9ca3af 100%)'
+                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        textAlign: 'center',
+                        cursor: p.estoque <= 0 ? 'not-allowed' : 'pointer',
+                        transition: 'transform 0.2s',
+                        color: 'white',
+                        boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                        opacity: p.estoque <= 0 ? 0.6 : 1
+                      }}
+                      onMouseEnter={(e) => {
+                        if (p.estoque > 0) e.currentTarget.style.transform = 'translateY(-5px)'
+                      }}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
+                      <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>📦</div>
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '0.95rem' }}>
+                        {p.nome}
+                      </div>
+                      <div style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '5px' }}>
+                        R$ {p.precoVenda.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>
+                        {p.estoque <= 0 ? 'SEM ESTOQUE' : `Estoque: ${p.estoque} ${p.unidade || 'UN'}`}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
