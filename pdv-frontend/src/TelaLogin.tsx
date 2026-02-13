@@ -9,14 +9,14 @@ const styles = {
   },
   ladoEsquerdo: {
     flex: 1.2,
-    background: '#000000', // PRETO ABSOLUTO PARA O NEON BRILHAR
+    background: 'linear-gradient(135deg, #1f1f1f 0%, #2a2a2a 100%)', 
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     padding: '40px',
     color: 'white',
     flexDirection: 'column' as const,
-    borderRight: '1px solid rgba(255,255,255,0.1)'
+    borderRight: '0px solid rgba(255,255,255,0.1)'
   },
   ladoDireito: {
     flex: 1,
