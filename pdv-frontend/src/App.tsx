@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { TelaLogin } from './TelaLogin';
 import { TelaEquipe } from './TelaEquipe';
 import ModalProdutoPro from './ModalProdutoPro';
@@ -102,6 +102,9 @@ const API_URL = 'https://api-vila-verde.onrender.com'
 // ============================================================================
 
 export function App() {
+
+  const inputBuscaRef = useRef<HTMLInputElement>(null); // 👈 CRIE ISSO
+  // ... seus outros estados (modal, produtos, etc)
   
   // ESTADOS DE AUTENTICAÇÃO
   const [usuarioLogado, setUsuarioLogado] = useState<any>(() => {
@@ -1130,15 +1133,21 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
   // 2. Ouve as teclas
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Se estiver digitando na busca, as setas esquerda/direita movem o cursor do texto
-      // Então só capturamos se for CIMA/BAIXO ou se não estiver no input
-      const isInputFocado = document.activeElement?.tagName === 'INPUT';
+      const isInputFocado = document.activeElement === inputBuscaRef.current;
       
-      if (isInputFocado && e.key !== 'ArrowDown' && e.key !== 'Enter') return;
+      // 1. BARRA DE ESPAÇO: Foca na busca se não estiver digitando
+      if (e.key === ' ' && !isInputFocado) {
+        e.preventDefault(); // Impede de rolar a página pra baixo
+        inputBuscaRef.current?.focus(); // Foca no input!
+        return;
+      }
+
+      // Se estiver digitando, ignora setas (exceto Cima/Baixo/Enter)
+      if (isInputFocado && e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return;
       if (produtosFiltrados.length === 0) return;
 
-      const COLUNAS = 5; // Baseado no seu print (5 cards por linha)
-      
+      const COLUNAS = 5; // Ajuste conforme seu grid médio
+
       switch (e.key) {
         case 'ArrowRight':
           setIndexSelecionado(prev => Math.min(prev + 1, produtosFiltrados.length - 1));
@@ -1147,9 +1156,8 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
           setIndexSelecionado(prev => Math.max(prev - 1, 0));
           break;
         case 'ArrowDown':
-          // Se estiver no input, pula pro primeiro card
           if (isInputFocado) {
-             (document.activeElement as HTMLElement).blur(); // Tira foco do input
+             inputBuscaRef.current?.blur(); // Tira o foco do input
              setIndexSelecionado(0);
           } else {
              setIndexSelecionado(prev => Math.min(prev + COLUNAS, produtosFiltrados.length - 1));
@@ -1159,10 +1167,12 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
           setIndexSelecionado(prev => Math.max(prev - COLUNAS, 0));
           break;
         case 'Enter':
-           // Adiciona o item selecionado ao carrinho
            if (!isInputFocado) {
              e.preventDefault();
-             adicionarAoCarrinho(produtosFiltrados[indexSelecionado]);
+             // Importante: Garanta que a função aqui é a correta (adicionarAoCarrinho)
+             if (produtosFiltrados[indexSelecionado]) {
+                adicionarAoCarrinho(produtosFiltrados[indexSelecionado]);
+             }
            }
            break;
       }
@@ -1171,6 +1181,20 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [produtosFiltrados, indexSelecionado]); // Atualiza quando a lista ou seleção muda
+
+  // --- NOVO: ROLAGEM AUTOMÁTICA ---
+  useEffect(() => {
+    // Tenta encontrar o elemento do card selecionado no HTML
+    const card = document.getElementById(`card-produto-${indexSelecionado}`);
+    
+    // Se achou, rola até ele
+    if (card) {
+      card.scrollIntoView({
+        behavior: 'smooth', // Rolagem suave
+        block: 'nearest',   // Rola o mínimo necessário (não puda a tela toda)
+      });
+    }
+  }, [indexSelecionado]); // Executa sempre que a seleção muda
 
   return (
     <div style={{ 
@@ -1367,21 +1391,22 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
               flexDirection: 'column'
             }}>
               <div style={{ marginBottom: '20px' }}>
-                <input
-                  type="text"
-                  placeholder="🔍 Buscar produto por nome ou código..."
-                  value={busca}
-                  onChange={e => setBusca(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '15px',
-                    borderRadius: '10px',
-                    border: '2px solid #e2e8f0',
-                    fontSize: '1rem',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
+  <input
+    ref={inputBuscaRef} // 👈 O SEGREDO TÁ AQUI (Adicione essa linha)
+    type="text"
+    placeholder="🔍 Buscar produto por nome ou código..."
+    value={busca}
+    onChange={e => setBusca(e.target.value)}
+    style={{
+      width: '100%',
+      padding: '15px',
+      borderRadius: '10px',
+      border: '2px solid #e2e8f0',
+      fontSize: '1rem',
+      boxSizing: 'border-box'
+    }}
+  />
+</div>
 
               <div style={{
   display: 'grid',
@@ -1434,6 +1459,7 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
   return (
     <div
       key={p.id}
+      id={`card-produto-${index}`}
       onClick={() => {
         setIndexSelecionado(index);
         adicionarAoCarrinho(p);
