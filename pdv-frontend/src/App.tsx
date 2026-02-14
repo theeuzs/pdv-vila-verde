@@ -1125,7 +1125,7 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
   // 1. Reseta a seleção quando a busca muda (para não selecionar algo invisível)
   useEffect(() => {
     setIndexSelecionado(0);
-  }, [busca, produtosFiltrados]); // Dependências: quando filtrar, volta pro zero
+  }, [busca]); // Dependências: quando filtrar, volta pro zero
 
   // 2. Ouve as teclas
   useEffect(() => {
