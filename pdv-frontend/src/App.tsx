@@ -276,6 +276,11 @@ const [produtoDetalhes, setProdutoDetalhes] = useState<any>(null);
   const [listaCategorias, setListaCategorias] = useState<string[]>([]);
   const [listaFornecedores, setListaFornecedores] = useState<any[]>([]);
 
+  // --- CONTROLE DE SANGRIA E SUPRIMENTO ---
+  const [modalTipoMovimento, setModalTipoMovimento] = useState<'entrada' | 'sangria' | null>(null);
+  const [valorMovimento, setValorMovimento] = useState('');
+  const [descMovimento, setDescMovimento] = useState('');
+
   // --- 3. CARREGAR DADOS AO ABRIR (USE EFFECT) ---
   useEffect(() => {
     // Carrega categorias únicas
@@ -1223,6 +1228,34 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
       });
     }
   }, [indexSelecionado]); // Executa sempre que a seleção muda
+
+  async function confirmarMovimentacao() {
+    if (!valorMovimento || Number(valorMovimento) <= 0) {
+      alert("Digite um valor válido!");
+      return;
+    }
+
+    const tipo = modalTipoMovimento === 'entrada' ? 'SUPRIMENTO' : 'SANGRIA';
+    const valor = Number(valorMovimento.replace(',', '.')); // Garante formato numérico
+
+    // AQUI VOCÊ CONECTA COM SEU BACKEND DEPOIS
+    console.log(`Salvando ${tipo}: R$ ${valor} - Motivo: ${descMovimento}`);
+
+    // Exemplo de como seria a chamada pro servidor:
+    /*
+    await fetch('https://api-vila-verde.onrender.com/caixa/movimento', {
+        method: 'POST',
+        body: JSON.stringify({ tipo, valor, descricao: descMovimento, usuario: 'Matheus' })
+    });
+    */
+
+    alert(`${tipo} de R$ ${valor} realizada com sucesso!`);
+    
+    // Limpa e fecha
+    setModalTipoMovimento(null);
+    setValorMovimento('');
+    setDescMovimento('');
+  }
 
   return (
     <div style={{ 
@@ -3161,7 +3194,7 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
         });
 
         const totalVendidoAcesso = totDinheiro + totPix + totCartao + totPrazo;
-        const totalGaveta = Number(caixaAberto.saldoInicial) + totDinheiro; // Sangrias entram no futuro
+        const totalGaveta = Number(caixaAberto.saldoInicial) + totDinheiro; // Aqui você pode subtrair sangrias futuramente
         const ticketMedio = vendasDoCaixa.length > 0 ? (totalVendidoAcesso / vendasDoCaixa.length) : 0;
 
         return (
@@ -3215,11 +3248,11 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                   </div>
                 </div>
 
-                {/* COLUNA 2: INFORMATIVOS E BOTÕES */}
+                {/* COLUNA 2: INFORMATIVOS E BOTÕES DE AÇÃO */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   
                   {/* Informativo */}
-                  <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', flex: 1 }}>
+                  <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <h4 style={{ margin: '0 0 10px 0', color: '#475569', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>Informativo</h4>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Qtd de Vendas</span><b>{vendasDoCaixa.length}</b></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Qtd Vendas Canceladas</span><b style={{ color: '#dc2626' }}>{vendasCanceladas.length}</b></div>
@@ -3239,30 +3272,48 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                     </div>
                   </div>
 
-                  {/* 👇 NOVO BOTÃO DE FECHAR CAIXA AQUI 👇 */}
+                  {/* 👇👇 NOVOS BOTÕES: SUPRIMENTO E SANGRIA 👇👇 */}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => setModalTipoMovimento('entrada')}
+                      style={{
+                        flex: 1, backgroundColor: '#15803d', color: 'white', border: 'none', padding: '12px',
+                        borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'
+                      }}
+                    >
+                      ➕ Suprimento
+                    </button>
+                    <button
+                      onClick={() => setModalTipoMovimento('sangria')}
+                      style={{
+                        flex: 1, backgroundColor: '#b91c1c', color: 'white', border: 'none', padding: '12px',
+                        borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'
+                      }}
+                    >
+                      ➖ Sangria
+                    </button>
+                  </div>
+
+                  {/* BOTÃO DE FECHAR CAIXA (Mantido no final) */}
                   <button
                     onClick={() => {
-                      setModalResumoCaixa(false); // Fecha o modal visualmente
-                      fecharCaixa(); // Executa a função de fechar o caixa
+                      setModalResumoCaixa(false);
+                      if (typeof fecharCaixa === 'function') fecharCaixa();
                     }}
                     style={{
+                      marginTop: 'auto', // Empurra pro final se sobrar espaço
                       background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                      color: 'white',
-                      border: 'none',
-                      padding: '15px',
-                      borderRadius: '8px',
-                      fontWeight: 'bold',
-                      fontSize: '1.1rem',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)',
-                      transition: 'transform 0.1s'
+                      color: 'white', border: 'none', padding: '15px', borderRadius: '8px',
+                      fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer',
+                      boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)', transition: 'transform 0.1s'
                     }}
                     onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
                     onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                   >
                     🔒 ENCERRAR CAIXA
                   </button>
-                  {/* 👆 FIM DO NOVO BOTÃO 👆 */}
 
                 </div>
 
@@ -3275,7 +3326,7 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                   
                   <div style={{ flex: 1, overflowY: 'auto', fontFamily: 'monospace', fontSize: '0.85rem', paddingRight: '5px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px dotted #ccc' }}>
-                      <span>{new Date(caixaAberto.dataAbertura).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} ABERTURA/SUPRIMENTO</span>
+                      <span>{new Date(caixaAberto.dataAbertura).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} ABERTURA</span>
                       <span>+ R$ {Number(caixaAberto.saldoInicial).toFixed(2)}</span>
                     </div>
 
@@ -3392,6 +3443,81 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
               100% { transform: rotate(360deg); }
             }
           `}</style>
+        </div>
+      )}
+
+{/* --- MODAL DE MOVIMENTAÇÃO (SANGRIA/ENTRADA) --- */}
+      {modalTipoMovimento && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)', // Fundo bem escuro pra focar
+          zIndex: 1200, // Z-index MAIOR que o do Resumo do Caixa (importante!)
+          display: 'flex', justifyContent: 'center', alignItems: 'center'
+        }}>
+          <div style={{
+            backgroundColor: '#1e293b',
+            padding: '25px',
+            borderRadius: '12px',
+            width: '350px',
+            border: modalTipoMovimento === 'entrada' ? '2px solid #22c55e' : '2px solid #ef4444',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+          }}>
+            <h2 style={{ color: 'white', marginTop: 0, textAlign: 'center' }}>
+              {modalTipoMovimento === 'entrada' ? '🤑 Nova Entrada' : '💸 Nova Sangria'}
+            </h2>
+
+            {/* Input de Valor */}
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ color: '#94a3b8', display: 'block', marginBottom: '5px' }}>Valor (R$)</label>
+              <input 
+                type="number"
+                autoFocus
+                value={valorMovimento}
+                onChange={e => setValorMovimento(e.target.value)}
+                placeholder="0.00"
+                style={{
+                  width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #475569',
+                  backgroundColor: '#0f172a', color: 'white', fontSize: '1.5rem', textAlign: 'center'
+                }}
+              />
+            </div>
+
+            {/* Input de Descrição */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ color: '#94a3b8', display: 'block', marginBottom: '5px' }}>Motivo / Descrição</label>
+              <input 
+                type="text"
+                value={descMovimento}
+                onChange={e => setDescMovimento(e.target.value)}
+                placeholder={modalTipoMovimento === 'entrada' ? "Ex: Troco inicial" : "Ex: Pagamento Fornecedor"}
+                style={{
+                  width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #475569',
+                  backgroundColor: '#0f172a', color: 'white'
+                }}
+              />
+            </div>
+
+            {/* Botões de Ação */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                onClick={() => setModalTipoMovimento(null)}
+                style={{ flex: 1, padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: '#334155', color: 'white' }}
+              >
+                Cancelar
+              </button>
+              
+              <button 
+                onClick={confirmarMovimentacao}
+                style={{ 
+                  flex: 1, padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: 'white',
+                  background: modalTipoMovimento === 'entrada' ? '#16a34a' : '#dc2626'
+                }}
+              >
+                CONFIRMAR
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 
