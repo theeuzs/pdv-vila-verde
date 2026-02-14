@@ -187,270 +187,344 @@ export default function ModalProdutoPro({ onClose, onSave, produto }: ModalProps
     <div style={s.overlay}>
       <div style={s.modal}>
         
-        {/* CABEÇALHO */}
+        {/* 1. CABEÇALHO */}
         <div style={s.header}>
           <div>
             <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.5rem' }}>
               {produto ? '✏️ Editar Produto' : '✨ Novo Produto'}
             </h2>
-            <div style={s.titleId}>ID: {produto?.id || 'Novo'} • Cadastro Completo</div>
+            <div style={s.titleId}>
+               {modoRapido ? '⚡ Cadastro Expresso' : '🛠️ Cadastro Detalhado'}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
-             <button onClick={() => setModoRapido(!modoRapido)} style={{ ...s.btnCancel, fontSize: '0.8rem', padding: '8px 12px' }}>
-                {modoRapido ? '⚡ Modo Rápido' : '📄 Modo Completo'}
+             <button 
+               onClick={() => setModoRapido(!modoRapido)} 
+               style={{ 
+                 ...s.btnCancel, 
+                 backgroundColor: modoRapido ? '#3b82f6' : '#f59e0b', 
+                 color: '#fff',
+                 fontSize: '0.85rem', 
+                 padding: '8px 16px',
+                 display: 'flex', alignItems: 'center', gap: '6px'
+               }}
+             >
+                {modoRapido ? '📝 Mudar para Completo' : '⚡ Mudar para Rápido'}
              </button>
              <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}>&times;</button>
           </div>
         </div>
 
-        {/* ABAS */}
-        <div style={s.tabsContainer}>
-          <div onClick={() => setAbaAtiva('geral')} style={s.tab(abaAtiva === 'geral')}>📝 Geral</div>
-          <div onClick={() => setAbaAtiva('precos')} style={s.tab(abaAtiva === 'precos')}>💲 Preços</div>
-          <div onClick={() => setAbaAtiva('estoque')} style={s.tab(abaAtiva === 'estoque')}>📦 Estoque</div>
-          <div onClick={() => setAbaAtiva('avancado')} style={s.tab(abaAtiva === 'avancado')}>⚙️ Avançado</div>
-        </div>
+        {/* 2. ABAS (Só aparecem se NÃO estiver no modo rápido) */}
+        {!modoRapido && (
+          <div style={s.tabsContainer}>
+            <div onClick={() => setAbaAtiva('geral')} style={s.tab(abaAtiva === 'geral')}>📝 Geral</div>
+            <div onClick={() => setAbaAtiva('precos')} style={s.tab(abaAtiva === 'precos')}>💲 Preços</div>
+            <div onClick={() => setAbaAtiva('estoque')} style={s.tab(abaAtiva === 'estoque')}>📦 Estoque</div>
+            <div onClick={() => setAbaAtiva('avancado')} style={s.tab(abaAtiva === 'avancado')}>⚙️ Avançado</div>
+          </div>
+        )}
 
-        {/* CONTEÚDO */}
+        {/* 3. CONTEÚDO PRINCIPAL */}
         <div style={s.content}>
 
-          {/* === ABA GERAL === */}
-          {abaAtiva === 'geral' && (
-            <div style={s.card}>
-              <div style={s.inputGroup}>
-                <label style={s.label}>Nome do Produto <span style={{color: 'red'}}>*</span></label>
-                <input 
-                  style={{ ...s.input, fontSize: '1.1rem', padding: '12px' }} 
-                  value={nome} onChange={e => setNome(e.target.value)} 
-                  placeholder="Ex: Cimento Votoran CP-II 50kg" 
-                />
-              </div>
-
-              <div style={s.row}>
-                <div style={s.col(2)}>
-                   <label style={s.label}>Código de Barras / EAN</label>
-                   <div style={{ display: 'flex', gap: '8px' }}>
-                     <input style={s.input} value={codigoBarra} onChange={e => setCodigoBarra(e.target.value)} placeholder="789..." />
-                     <button style={{ ...s.btnCancel, padding: '0 15px' }}>📷</button>
-                   </div>
-                </div>
-                <div style={s.col(1)}>
-                   <label style={s.label}>SKU / Ref. Interna</label>
-                   <input style={s.input} value={sku} onChange={e => setSku(e.target.value)} placeholder="CIM-01" />
-                </div>
-              </div>
-
-              <div style={{ ...s.row, marginTop: '16px' }}>
-                <div style={s.col(1)}>
-                  <label style={s.label}>Categoria</label>
-                  <input style={s.input} value={categoria} onChange={e => setCategoria(e.target.value)} list="lstCategorias" />
-                  <datalist id="lstCategorias"><option value="Material Básico"/><option value="Hidráulica"/><option value="Elétrica"/></datalist>
-                </div>
-                <div style={s.col(1)}>
-                  <label style={s.label}>Marca</label>
-                  <input style={s.input} value={marca} onChange={e => setMarca(e.target.value)} placeholder="Ex: Votoran" />
-                </div>
-                <div style={s.col(1)}>
-                  <label style={s.label}>Unidade</label>
-                  <select style={s.input} value={unidade} onChange={e => setUnidade(e.target.value)}>
-                    <option value="UN">UN - Unidade</option>
-                    <option value="KG">KG - Quilo</option>
-                    <option value="SC">SC - Saco</option>
-                    <option value="M">M - Metro</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ marginTop: '20px', display: 'flex', gap: '20px' }}>
-                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={ativo} onChange={e => setAtivo(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
-                    <span style={{ fontWeight: 600, color: ativo ? '#166534' : '#64748b' }}>Produto Ativo</span>
-                 </label>
-                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={permitirDesconto} onChange={e => setPermitirDesconto(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
-                    <span style={{ fontWeight: 600, color: '#334155' }}>Permitir Desconto</span>
-                 </label>
-              </div>
-            </div>
-          )}
-
-          {/* === ABA PREÇOS === */}
-          {abaAtiva === 'precos' && (
-            <>
-              <div style={s.card}>
-                <div style={s.row}>
-                  <div style={s.col(1)}>
-                    <label style={s.label}>Preço de Custo (Nota Fiscal) <span style={{color: 'red'}}>*</span></label>
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '10px', top: '10px', color: '#64748b' }}>R$</span>
-                      <input 
-                        type="number" style={{ ...s.input, paddingLeft: '35px' }} 
-                        value={precoCustoBase} onChange={e => setPrecoCustoBase(Number(e.target.value))} 
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* IMPOSTOS ADICIONAIS */}
-                  <div style={s.col(0.5)}>
-                     <label style={s.label}>+ IPI (%)</label>
-                     <input type="number" style={s.input} value={ipi} onChange={e => setIpi(Number(e.target.value))} />
-                  </div>
-                  <div style={s.col(0.5)}>
-                     <label style={s.label}>+ ICMS/Encargos (%)</label>
-                     <input type="number" style={s.input} value={icms} onChange={e => setIcms(Number(e.target.value))} />
-                  </div>
-
-                  <div style={s.col(1)}>
-                    <label style={{ ...s.label, color: '#dc2626' }}>= Custo Real Final</label>
-                    <div style={{ ...s.input, backgroundColor: '#fef2f2', fontWeight: 'bold', color: '#991b1b', borderColor: '#fecaca' }}>
-                       R$ {custoFinal.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={s.card}>
-                <h3 style={{ margin: '0 0 15px 0', fontSize: '1rem', color: '#334155' }}>Definição de Venda</h3>
-                <div style={s.row}>
-                  <div style={s.col(1)}>
-                    <label style={s.label}>Margem de Lucro (%)</label>
-                    <input 
-                      type="number" style={s.input} 
-                      value={margemLucro} onChange={e => atualizarPorMargem(Number(e.target.value))} 
-                    />
-                  </div>
-                  <div style={s.col(1)}>
-                    <label style={s.label}>Preço de Venda Final (R$)</label>
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '10px', top: '10px', color: '#64748b' }}>R$</span>
-                      <input 
-                        type="number" style={{ ...s.input, paddingLeft: '35px', fontWeight: 'bold', color: '#166534', fontSize: '1.1rem', borderColor: '#10b981' }} 
-                        value={precoVenda} onChange={e => atualizarPorVenda(Number(e.target.value))} 
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* BOX VERDE DE RESULTADOS */}
-                <div style={s.greenBox}>
-                   <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.8rem', color: '#065f46', fontWeight: 600 }}>MARGEM REAL</div>
-                      <div style={s.bigNumber}>{margemLucro.toFixed(1)}%</div>
-                   </div>
-                   <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.8rem', color: '#065f46', fontWeight: 600 }}>LUCRO UNITÁRIO</div>
-                      <div style={s.bigNumber}>R$ {lucroReal.toFixed(2)}</div>
-                   </div>
-                   <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.8rem', color: '#065f46', fontWeight: 600 }}>MARKUP</div>
-                      <div style={{ ...s.bigNumber, color: '#059669' }}>{(precoVenda/custoFinal || 0).toFixed(2)}x</div>
-                   </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* === ABA ESTOQUE === */}
-          {abaAtiva === 'estoque' && (
-            <>
-              <div style={s.card}>
-                <div style={s.row}>
-                   <div style={{ ...s.col(2), borderRight: '1px solid #eee', paddingRight: '20px' }}>
-                      <label style={s.label}>Estoque Atual</label>
-                      <input 
-                        type="number" style={{ ...s.input, fontSize: '1.5rem', fontWeight: 'bold', width: '150px' }} 
-                        value={estoqueAtual} onChange={e => setEstoqueAtual(Number(e.target.value))} 
-                      />
-                      <span style={{ marginLeft: '10px', fontWeight: 600, color: '#64748b' }}>{unidade}</span>
-                   </div>
-                   <div style={s.col(3)}>
-                      <label style={s.label}>Localização Física</label>
-                      <input style={s.input} value={localizacao} onChange={e => setLocalizacao(e.target.value)} placeholder="Ex: Corredor A, Prateleira 4" />
-                      <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '5px' }}>Ajuda a encontrar o produto no depósito.</div>
-                   </div>
-                </div>
-              </div>
-
-              <div style={s.yellowBox}>
-                 <h4 style={{ margin: '0 0 10px 0', color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    ⚠️ Alertas de Estoque
-                 </h4>
-                 <div style={s.row}>
-                    <div style={s.col(1)}>
-                       <label style={s.label}>Estoque Mínimo</label>
-                       <input type="number" style={s.input} value={estoqueMinimo} onChange={e => setEstoqueMinimo(Number(e.target.value))} />
-                       <div style={{ fontSize: '0.75rem', color: '#b45309', marginTop: '4px' }}>Avisa quando baixar disto.</div>
-                    </div>
-                    <div style={s.col(1)}>
-                       <label style={s.label}>Estoque Ideal</label>
-                       <input type="number" style={s.input} value={estoqueIdeal} onChange={e => setEstoqueIdeal(Number(e.target.value))} />
-                       <div style={{ fontSize: '0.75rem', color: '#b45309', marginTop: '4px' }}>Meta para compras.</div>
-                    </div>
-                 </div>
-              </div>
-
-              <div style={{ padding: '0 10px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={venderSemEstoque} onChange={e => setVenderSemEstoque(e.target.checked)} />
-                    <span style={{ color: '#475569' }}>Permitir venda mesmo com estoque negativo</span>
-                </label>
-              </div>
-            </>
-          )}
-
-          {/* === ABA AVANÇADO (FISCAL) === */}
-          {abaAtiva === 'avancado' && (
-            <>
-               <div style={s.card}>
-                  <h3 style={{ margin: '0 0 15px 0', fontSize: '1rem', color: '#334155' }}>🏢 Fornecedor Padrão</h3>
-                  <select style={s.input} value={fornecedorId} onChange={e => setFornecedorId(e.target.value)}>
-                    <option value="">Selecione um fornecedor...</option>
-                    <option value="1">Votorantim S.A.</option>
-                    <option value="2">Tigre Tubos e Conexões</option>
-                  </select>
+          {/* === MODO RÁPIDO (VISUALIGUAL AO PRINT) === */}
+          {modoRapido ? (
+            <div>
+               {/* Aviso Amarelo */}
+               <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', color: '#b45309', padding: '16px', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>⚡</span>
+                  <span style={{ fontWeight: 500 }}><b>Modo Rápido:</b> Cadastre apenas o essencial. O resto (NCM, Fornecedor, Estoque Mínimo) pode ser preenchido depois.</span>
                </div>
 
-               <div style={{ ...s.card, borderLeft: '4px solid #3b82f6' }}>
-                  <h3 style={{ margin: '0 0 15px 0', fontSize: '1rem', color: '#1e3a8a' }}>📄 Dados Fiscais (NF-e/NFC-e)</h3>
-                  
+               {/* Campos Essenciais */}
+               <div style={s.inputGroup}>
+                  <label style={s.label}>Nome do Produto <span style={{color: 'red'}}>*</span></label>
+                  <input 
+                    style={{ ...s.input, fontSize: '1.1rem', padding: '12px' }} 
+                    value={nome} onChange={e => setNome(e.target.value)} 
+                    placeholder="Ex: Cimento Votoran CP-II 50kg" 
+                    autoFocus
+                  />
+               </div>
+
+               <div style={s.row}>
+                  <div style={s.col(1)}>
+                     <label style={s.label}>Código de Barras</label>
+                     <div style={{ display: 'flex', gap: '8px' }}>
+                       <input style={s.input} value={codigoBarra} onChange={e => setCodigoBarra(e.target.value)} placeholder="Escaneie..." />
+                       <button style={{ ...s.btnCancel, padding: '0 15px' }}>📷</button>
+                     </div>
+                  </div>
+                  <div style={s.col(1)}>
+                     <label style={s.label}>Preço de Venda (R$) <span style={{color: 'red'}}>*</span></label>
+                     <input 
+                        type="number" 
+                        style={{ ...s.input, fontWeight: 'bold', color: '#166534', borderColor: '#10b981' }} 
+                        value={precoVenda} onChange={e => atualizarPorVenda(Number(e.target.value))} 
+                      />
+                  </div>
+               </div>
+
+               <div style={{ ...s.row, marginTop: '20px' }}>
+                  <div style={{ ...s.col(1), maxWidth: '200px' }}>
+                     <label style={s.label}>Estoque Atual <span style={{color: 'red'}}>*</span></label>
+                     <input 
+                        type="number" style={s.input} 
+                        value={estoqueAtual} onChange={e => setEstoqueAtual(Number(e.target.value))} 
+                      />
+                  </div>
+                   <div style={s.col(1)}>
+                    <label style={s.label}>Unidade</label>
+                    <select style={s.input} value={unidade} onChange={e => setUnidade(e.target.value)}>
+                      <option value="UN">UN - Unidade</option>
+                      <option value="KG">KG - Quilo</option>
+                      <option value="M">M - Metro</option>
+                    </select>
+                  </div>
+               </div>
+            </div>
+          ) : (
+            
+            /* === MODO COMPLETO (ABAS) === */
+            <>
+              {/* ABA GERAL */}
+              {abaAtiva === 'geral' && (
+                <div style={s.card}>
+                  <div style={s.inputGroup}>
+                    <label style={s.label}>Nome do Produto <span style={{color: 'red'}}>*</span></label>
+                    <input 
+                      style={{ ...s.input, fontSize: '1.1rem', padding: '12px' }} 
+                      value={nome} onChange={e => setNome(e.target.value)} 
+                      placeholder="Ex: Cimento Votoran CP-II 50kg" 
+                    />
+                  </div>
+
                   <div style={s.row}>
-                    <div style={s.col(1)}>
-                       <label style={s.label}>NCM (Obrigatório)</label>
-                       <input style={s.input} value={ncm} onChange={e => setNcm(e.target.value)} placeholder="0000.00.00" />
-                    </div>
                     <div style={s.col(2)}>
-                       <label style={s.label}>Origem da Mercadoria</label>
-                       <select style={s.input} value={origem} onChange={e => setOrigem(e.target.value)}>
-                          <option value="0">0 - Nacional</option>
-                          <option value="1">1 - Estrangeira (Importação direta)</option>
-                          <option value="2">2 - Estrangeira (Adquirida no mercado interno)</option>
-                       </select>
+                      <label style={s.label}>Código de Barras / EAN</label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input style={s.input} value={codigoBarra} onChange={e => setCodigoBarra(e.target.value)} placeholder="789..." />
+                        <button style={{ ...s.btnCancel, padding: '0 15px' }}>📷</button>
+                      </div>
+                    </div>
+                    <div style={s.col(1)}>
+                      <label style={s.label}>SKU / Ref. Interna</label>
+                      <input style={s.input} value={sku} onChange={e => setSku(e.target.value)} placeholder="CIM-01" />
                     </div>
                   </div>
 
                   <div style={{ ...s.row, marginTop: '16px' }}>
                     <div style={s.col(1)}>
-                       <label style={s.label}>CFOP Padrão</label>
-                       <select style={s.input} value={cfop} onChange={e => setCfop(e.target.value)}>
-                          <option value="5102">5102 - Venda de Mercadoria</option>
-                          <option value="5405">5405 - Venda (ST)</option>
-                       </select>
+                      <label style={s.label}>Categoria</label>
+                      <input style={s.input} value={categoria} onChange={e => setCategoria(e.target.value)} list="lstCategorias" />
+                      <datalist id="lstCategorias"><option value="Material Básico"/><option value="Hidráulica"/><option value="Elétrica"/></datalist>
                     </div>
-                    <div style={s.col(2)}>
-                       <label style={s.label}>CSOSN (Simples Nacional)</label>
-                       <select style={s.input} value={csosn} onChange={e => setCsosn(e.target.value)}>
-                          <option value="102">102 - Tributada sem permissão de crédito</option>
-                          <option value="500">500 - ICMS cobrado anteriormente (ST)</option>
-                       </select>
+                    <div style={s.col(1)}>
+                      <label style={s.label}>Marca</label>
+                      <input style={s.input} value={marca} onChange={e => setMarca(e.target.value)} placeholder="Ex: Votoran" />
+                    </div>
+                    <div style={s.col(1)}>
+                      <label style={s.label}>Unidade</label>
+                      <select style={s.input} value={unidade} onChange={e => setUnidade(e.target.value)}>
+                        <option value="UN">UN - Unidade</option>
+                        <option value="KG">KG - Quilo</option>
+                        <option value="SC">SC - Saco</option>
+                        <option value="M">M - Metro</option>
+                      </select>
                     </div>
                   </div>
-               </div>
+
+                  <div style={{ marginTop: '20px', display: 'flex', gap: '20px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={ativo} onChange={e => setAtivo(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
+                        <span style={{ fontWeight: 600, color: ativo ? '#166534' : '#64748b' }}>Produto Ativo</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={permitirDesconto} onChange={e => setPermitirDesconto(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
+                        <span style={{ fontWeight: 600, color: '#334155' }}>Permitir Desconto</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* ABA PREÇOS */}
+              {abaAtiva === 'precos' && (
+                <>
+                  <div style={s.card}>
+                    <div style={s.row}>
+                      <div style={s.col(1)}>
+                        <label style={s.label}>Preço de Custo (Nota Fiscal) <span style={{color: 'red'}}>*</span></label>
+                        <div style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: '10px', top: '10px', color: '#64748b' }}>R$</span>
+                          <input 
+                            type="number" style={{ ...s.input, paddingLeft: '35px' }} 
+                            value={precoCustoBase} onChange={e => setPrecoCustoBase(Number(e.target.value))} 
+                          />
+                        </div>
+                      </div>
+                      
+                      <div style={s.col(0.5)}>
+                        <label style={s.label}>+ IPI (%)</label>
+                        <input type="number" style={s.input} value={ipi} onChange={e => setIpi(Number(e.target.value))} />
+                      </div>
+                      <div style={s.col(0.5)}>
+                        <label style={s.label}>+ ICMS/Encargos (%)</label>
+                        <input type="number" style={s.input} value={icms} onChange={e => setIcms(Number(e.target.value))} />
+                      </div>
+
+                      <div style={s.col(1)}>
+                        <label style={{ ...s.label, color: '#dc2626' }}>= Custo Real Final</label>
+                        <div style={{ ...s.input, backgroundColor: '#fef2f2', fontWeight: 'bold', color: '#991b1b', borderColor: '#fecaca' }}>
+                          R$ {custoFinal.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={s.card}>
+                    <h3 style={{ margin: '0 0 15px 0', fontSize: '1rem', color: '#334155' }}>Definição de Venda</h3>
+                    <div style={s.row}>
+                      <div style={s.col(1)}>
+                        <label style={s.label}>Margem de Lucro (%)</label>
+                        <input 
+                          type="number" style={s.input} 
+                          value={margemLucro} onChange={e => atualizarPorMargem(Number(e.target.value))} 
+                        />
+                      </div>
+                      <div style={s.col(1)}>
+                        <label style={s.label}>Preço de Venda Final (R$)</label>
+                        <div style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: '10px', top: '10px', color: '#64748b' }}>R$</span>
+                          <input 
+                            type="number" style={{ ...s.input, paddingLeft: '35px', fontWeight: 'bold', color: '#166534', fontSize: '1.1rem', borderColor: '#10b981' }} 
+                            value={precoVenda} onChange={e => atualizarPorVenda(Number(e.target.value))} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={s.greenBox}>
+                      <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.8rem', color: '#065f46', fontWeight: 600 }}>MARGEM REAL</div>
+                          <div style={s.bigNumber}>{margemLucro.toFixed(1)}%</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.8rem', color: '#065f46', fontWeight: 600 }}>LUCRO UNITÁRIO</div>
+                          <div style={s.bigNumber}>R$ {lucroReal.toFixed(2)}</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.8rem', color: '#065f46', fontWeight: 600 }}>MARKUP</div>
+                          <div style={{ ...s.bigNumber, color: '#059669' }}>{(precoVenda/custoFinal || 0).toFixed(2)}x</div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ABA ESTOQUE */}
+              {abaAtiva === 'estoque' && (
+                <>
+                  <div style={s.card}>
+                    <div style={s.row}>
+                      <div style={{ ...s.col(2), borderRight: '1px solid #eee', paddingRight: '20px' }}>
+                          <label style={s.label}>Estoque Atual</label>
+                          <input 
+                            type="number" style={{ ...s.input, fontSize: '1.5rem', fontWeight: 'bold', width: '150px' }} 
+                            value={estoqueAtual} onChange={e => setEstoqueAtual(Number(e.target.value))} 
+                          />
+                          <span style={{ marginLeft: '10px', fontWeight: 600, color: '#64748b' }}>{unidade}</span>
+                      </div>
+                      <div style={s.col(3)}>
+                          <label style={s.label}>Localização Física</label>
+                          <input style={s.input} value={localizacao} onChange={e => setLocalizacao(e.target.value)} placeholder="Ex: Corredor A, Prateleira 4" />
+                          <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '5px' }}>Ajuda a encontrar o produto no depósito.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={s.yellowBox}>
+                    <h4 style={{ margin: '0 0 10px 0', color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        ⚠️ Alertas de Estoque
+                    </h4>
+                    <div style={s.row}>
+                        <div style={s.col(1)}>
+                          <label style={s.label}>Estoque Mínimo</label>
+                          <input type="number" style={s.input} value={estoqueMinimo} onChange={e => setEstoqueMinimo(Number(e.target.value))} />
+                          <div style={{ fontSize: '0.75rem', color: '#b45309', marginTop: '4px' }}>Avisa quando baixar disto.</div>
+                        </div>
+                        <div style={s.col(1)}>
+                          <label style={s.label}>Estoque Ideal</label>
+                          <input type="number" style={s.input} value={estoqueIdeal} onChange={e => setEstoqueIdeal(Number(e.target.value))} />
+                          <div style={{ fontSize: '0.75rem', color: '#b45309', marginTop: '4px' }}>Meta para compras.</div>
+                        </div>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '0 10px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={venderSemEstoque} onChange={e => setVenderSemEstoque(e.target.checked)} />
+                        <span style={{ color: '#475569' }}>Permitir venda mesmo com estoque negativo</span>
+                    </label>
+                  </div>
+                </>
+              )}
+
+              {/* ABA AVANÇADO */}
+              {abaAtiva === 'avancado' && (
+                <>
+                  <div style={s.card}>
+                      <h3 style={{ margin: '0 0 15px 0', fontSize: '1rem', color: '#334155' }}>🏢 Fornecedor Padrão</h3>
+                      <select style={s.input} value={fornecedorId} onChange={e => setFornecedorId(e.target.value)}>
+                        <option value="">Selecione um fornecedor...</option>
+                        <option value="1">Votorantim S.A.</option>
+                        <option value="2">Tigre Tubos e Conexões</option>
+                      </select>
+                  </div>
+
+                  <div style={{ ...s.card, borderLeft: '4px solid #3b82f6' }}>
+                      <h3 style={{ margin: '0 0 15px 0', fontSize: '1rem', color: '#1e3a8a' }}>📄 Dados Fiscais (NF-e/NFC-e)</h3>
+                      
+                      <div style={s.row}>
+                        <div style={s.col(1)}>
+                          <label style={s.label}>NCM (Obrigatório)</label>
+                          <input style={s.input} value={ncm} onChange={e => setNcm(e.target.value)} placeholder="0000.00.00" />
+                        </div>
+                        <div style={s.col(2)}>
+                          <label style={s.label}>Origem da Mercadoria</label>
+                          <select style={s.input} value={origem} onChange={e => setOrigem(e.target.value)}>
+                              <option value="0">0 - Nacional</option>
+                              <option value="1">1 - Estrangeira (Importação direta)</option>
+                              <option value="2">2 - Estrangeira (Adquirida no mercado interno)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div style={{ ...s.row, marginTop: '16px' }}>
+                        <div style={s.col(1)}>
+                          <label style={s.label}>CFOP Padrão</label>
+                          <select style={s.input} value={cfop} onChange={e => setCfop(e.target.value)}>
+                              <option value="5102">5102 - Venda de Mercadoria</option>
+                              <option value="5405">5405 - Venda (ST)</option>
+                          </select>
+                        </div>
+                        <div style={s.col(2)}>
+                          <label style={s.label}>CSOSN (Simples Nacional)</label>
+                          <select style={s.input} value={csosn} onChange={e => setCsosn(e.target.value)}>
+                              <option value="102">102 - Tributada sem permissão de crédito</option>
+                              <option value="500">500 - ICMS cobrado anteriormente (ST)</option>
+                          </select>
+                        </div>
+                      </div>
+                  </div>
+                </>
+              )}
             </>
           )}
 
         </div>
 
-        {/* RODAPÉ */}
+        {/* 4. RODAPÉ */}
         <div style={s.footer}>
           <button onClick={onClose} style={s.btnCancel}>Cancelar</button>
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -466,5 +540,4 @@ export default function ModalProdutoPro({ onClose, onSave, produto }: ModalProps
 
       </div>
     </div>
-  );
-}
+  )};
