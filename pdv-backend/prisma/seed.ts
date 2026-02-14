@@ -1,48 +1,112 @@
 import { PrismaClient } from '@prisma/client'
-import { hash } from 'bcryptjs' // Importante para a senha funcionar
+import { hash } from 'bcryptjs'
+import * as path from 'path'
+import * as fs from 'fs'
+
+import _XLSX from 'xlsx'
+const XLSX = _XLSX as any 
 
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Começando a plantação (Seed)...')
+  console.log('🌱 Começando o Seed (Com NCM)...')
 
-  // Criptografar a senha "123" para o banco aceitar
+  // 1. ADMIN
   const senhaCriptografada = await hash('123', 8)
-
-  // 1. Criar Usuário Admin (Corrigido para usar username)
-  const admin = await prisma.user.upsert({
-    where: { username: 'admin' }, // Procura pelo username, não email
+  await prisma.user.upsert({
+    where: { username: 'admin' },
     update: {}, 
     create: {
       nome: 'Admin Vila Verde',
-      username: 'admin',      // OBRIGATÓRIO AGORA
+      username: 'admin',
       senha: senhaCriptografada,
       cargo: 'GERENTE',
       email: 'admin@vilaverde.com'
     },
   })
-  console.log(`👤 Usuário criado/verificado: ${admin.nome}`)
 
-  // 2. Criar Produtos Destaque
-  const produtos = [
-    { nome: 'Cimento Votoran 50kg', precoCusto: 28.00, precoVenda: 35.90, estoque: 100, unidade: 'SC', categoria: 'Cimento', codigoBarra: '7890001' },
-    { nome: 'Areia Média (Metro)', precoCusto: 80.00, precoVenda: 139.90, estoque: 10, unidade: 'M3', categoria: 'Areia', codigoBarra: 'AREIA01' },
-    { nome: 'Cal Hidratada 20kg', precoCusto: 10.00, precoVenda: 15.90, estoque: 50, unidade: 'SC', categoria: 'Cal', codigoBarra: 'CAL01' },
-    { nome: 'Argamassa AC1 Interna', precoCusto: 12.00, precoVenda: 18.90, estoque: 80, unidade: 'SC', categoria: 'Argamassa', codigoBarra: 'ARG01' },
-    { nome: 'Pedra Brita 1 (Metro)', precoCusto: 90.00, precoVenda: 145.00, estoque: 15, unidade: 'M3', categoria: 'Pedra', codigoBarra: 'PEDRA01' },
-    { nome: 'Tijolo Baiano (Milheiro)', precoCusto: 600.00, precoVenda: 850.00, estoque: 5, unidade: 'MIL', categoria: 'Tijolo', codigoBarra: 'TIJ01' },
-    { nome: 'Coca-Cola 2L', precoCusto: 6.00, precoVenda: 9.00, estoque: 48, unidade: 'UN', categoria: 'Bebidas', codigoBarra: '7894900011517' },
-  ]
-
-  for (const p of produtos) {
-    // Verifica se já existe produto com esse nome para não duplicar
-    const existe = await prisma.produto.findFirst({ where: { nome: p.nome } })
-    if (!existe) {
-      await prisma.produto.create({ data: p })
-    }
+  // 2. IMPORTAR EXCEL
+  let caminhoArquivo = path.resolve('produtos.xlsx')
+  if (!fs.existsSync(caminhoArquivo)) {
+      caminhoArquivo = path.resolve('prisma', 'produtos.xlsx')
   }
 
-  console.log('✅ Produtos cadastrados com sucesso!')
+  console.log(`📂 Lendo arquivo: ${caminhoArquivo}`)
+
+  if (fs.existsSync(caminhoArquivo)) {
+    const workbook = XLSX.readFile(caminhoArquivo)
+    const sheet = workbook.Sheets[workbook.SheetNames[0]]
+    
+    // Leitura por colunas (Matriz)
+    const linhas: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+
+    console.log(`📦 Processando ${linhas.length} linhas...`)
+
+    // Remove cabeçalho se necessário
+    const dadosParaImportar = linhas.filter((linha, index) => {
+        if (index === 0 && isNaN(Number(linha[5]))) return false; 
+        return true;
+    });
+
+    const produtosFormatados = dadosParaImportar.map((coluna: any) => {
+      
+      const lerNumero = (val: any) => {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+
+        let str = String(val).replace('R$', '').trim();
+        
+        if (str.includes(',') && str.includes('.')) {
+            str = str.replace(/\./g, '').replace(',', '.');
+        } else if (str.includes(',')) {
+            str = str.replace(',', '.');
+        }
+        return Number(str);
+      }
+
+      // MAPEAMENTO FINAL:
+      // A[0]=Cod | B[1]=Nome | C[2]=Un | D[3]=Estoque | E[4]=Custo | F[5]=Venda | G[6]=NCM
+      
+      let codigo = String(coluna[0] || '').trim();
+      let nome = String(coluna[1] || 'Produto Sem Nome').trim();
+      let unidade = String(coluna[2] || 'UN').toUpperCase().trim();
+      let estoque = Number(coluna[3] || 0);
+      let custo = lerNumero(coluna[4]);
+      let venda = lerNumero(coluna[5]);
+      
+      // 👇 AQUI ESTÁ O NCM (Coluna G)
+      // Removemos pontos se vier formatado (ex: 25.23.10 -> 252310)
+      let ncm = String(coluna[6] || '').replace(/\./g, '').trim(); 
+
+      // Proteção contra números gigantes no preço
+      if (venda > 1000000) venda = 0; 
+
+      return {
+        nome:        nome, 
+        codigoBarra: codigo, 
+        precoCusto:  custo,
+        precoVenda:  venda,
+        ncm:         ncm, // Salva o NCM
+        estoque:     estoque,
+        unidade:     unidade,
+        categoria:   'Geral',
+        ativo:       true
+      }
+    })
+
+    console.log('💾 Salvando no banco...')
+    
+    const validos = produtosFormatados.filter(p => p.nome !== 'Produto Sem Nome' && (p.precoVenda > 0 || p.estoque > 0));
+
+    await prisma.produto.createMany({
+      data: validos,
+      skipDuplicates: true 
+    })
+    console.log(`✅ Sucesso! ${validos.length} produtos importados.`)
+
+  } else {
+    console.error('❌ ARQUIVO NÃO ENCONTRADO!')
+  }
 }
 
 main()

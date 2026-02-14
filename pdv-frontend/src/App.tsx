@@ -119,6 +119,10 @@ export function App() {
 
   // ESTADOS DE NAVEGAÇÃO
   const [aba, setAba] = useState<string>('caixa');
+
+  const [idProdutoEmEdicao, setIdProdutoEmEdicao] = useState<any>(null);
+  const [unidade, setUnidade] = useState('UN');
+  const [ncm, setNcm] = useState('');
   
   // ESTADOS DE DADOS
   const [produtos, setProdutos] = useState<Produto[]>([])
@@ -594,6 +598,35 @@ export function App() {
       setProcessandoVenda(false)
       setMensagemLoading('')
     }
+  }
+
+// --- FUNÇÃO DE PREPARAR EDIÇÃO ---
+  function editarProduto(produto: any) {
+    console.log("Carregando para edição:", produto);
+
+    // 1. Identificação (Para saber que é uma atualização e não criar novo)
+    setIdProdutoEmEdicao(produto.id); 
+    
+    // 2. Preenche os campos do formulário (Estados)
+    setNome(produto.nome || '');
+    setCodigoBarra(produto.codigoBarra || ''); // <--- Isso resolve o código sumindo
+    setCategoria(produto.categoria || '');
+    
+    // 3. Números (Convertendo para string para não dar erro no input)
+    setEstoque(produto.estoque ? String(produto.estoque) : '0');
+    setUnidade(produto.unidade || 'UN');
+    
+    setPrecoCusto(produto.precoCusto ? String(produto.precoCusto) : '0');
+    setPrecoVenda(produto.precoVenda ? String(produto.precoVenda) : '0');
+    
+    // 4. Outros campos
+    setNcm(produto.ncm || '');
+    setFornecedorId(produto.fornecedorId || '');
+
+    // 5. Troca a tela para o formulário
+    // (Ajuste essa linha conforme você troca de tela no seu app: setTela, setAba, etc)
+    setModalProduto(true);
+    // OU se for modal: setMostrarFormulario(true);
   }
 
   async function finalizarVendaComNFCe() {
@@ -1749,10 +1782,7 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                       <td style={{ padding: '15px', color: '#64748b' }}>{p.categoria || '-'}</td>
                       <td style={{ padding: '15px', textAlign: 'center' }}>
                         <button
-                          onClick={() => {
-                            setFormProduto(p)
-                            setModalProduto(true)
-                          }}
+                          onClick={() => editarProduto(p)}
                           style={{
                             padding: '6px 12px',
                             background: '#dbeafe',
