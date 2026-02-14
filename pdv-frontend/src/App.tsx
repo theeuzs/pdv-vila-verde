@@ -147,9 +147,34 @@ export function App() {
   const [endereco, setEndereco] = useState('')
   const [enderecoSelecionado, setEnderecoSelecionado] = useState<number>(1)
   const [desconto, setDesconto] = useState('')
-  const PORCENTAGEM_COMISSAO = 0.03; // 3% de comissão
-  const totalComissao = carrinho.reduce((acc, item) => acc + (Number(item.produto.precoVenda) * item.quantidade * PORCENTAGEM_COMISSAO), 0);
-  
+
+// 👇 1. TABELA DE REGRAS DE COMISSÃO
+  // Aqui você define quanto cada categoria paga
+  const REGRAS_COMISSAO: any = {
+    'bruto': 0.01,         // 1% para areia, cimento, tijolo
+    'tintas': 0.02,        // 2% para tintas
+    'ferramentas': 0.05,   // 5% para ferramentas (margem maior)
+    'padrao': 0.03         // 3% se não tiver categoria ou não achar na lista
+  };
+
+  // 👇 2. FUNÇÃO QUE DESCOBRE A PORCENTAGEM DO ITEM
+  function pegarPorcentagem(produto: any) {
+    if (!produto.categoria) return REGRAS_COMISSAO['padrao'];
+    
+    // Converte pra minúsculo pra "Tintas" bater com "tintas"
+    const cat = produto.categoria.toLowerCase().trim();
+    
+    // Retorna a porcentagem da categoria ou a padrão se não existir
+    return REGRAS_COMISSAO[cat] || REGRAS_COMISSAO['padrao'];
+  }
+
+  // 👇 3. CÁLCULO DO TOTAL (ATUALIZADO)
+  // Agora ele calcula item por item, respeitando a categoria de cada um
+  const totalComissao = carrinho.reduce((acc, item) => {
+    const porcentagem = pegarPorcentagem(item.produto);
+    return acc + (Number(item.produto.precoVenda) * item.quantidade * porcentagem);
+  }, 0);  
+
   // ESTADOS DE LOADING
   const [processandoVenda, setProcessandoVenda] = useState(false)
   const [mensagemLoading, setMensagemLoading] = useState('')
@@ -2574,18 +2599,32 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                 </h3>
                 
                 <div style={{ flex: 1, overflowY: 'auto', marginBottom: '15px' }}>
-                  {carrinho.map((item, index) => (
-                    <div key={index} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '8px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '4px' }}>
-                      <span style={{ color: '#475569', maxWidth: '160px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {/* 👇 CORREÇÃO AQUI TAMBÉM */}
-                        {item.quantidade}x {item.produto.nome}
-                      </span>
-                      <span style={{ color: '#16a34a', fontWeight: 'bold' }}>
-                        {/* 👇 E AQUI NO CÁLCULO */}
-                        + R$ {(Number(item.produto.precoVenda) * item.quantidade * PORCENTAGEM_COMISSAO).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
+                  {carrinho.map((item, index) => {
+                    // 1. Cálculos
+                    const pct = pegarPorcentagem(item.produto);
+                    const valorComissao = Number(item.produto.precoVenda) * item.quantidade * pct;
+
+                    // 👇 O SEGREDO ESTÁ AQUI: TEM QUE TER O 'return' E A DIV 'PAI'
+                    return (
+                      <div key={index} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '8px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '4px' }}>
+                        
+                        {/* Coluna Esquerda (Nome + Categoria) */}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ color: '#475569', fontWeight: 'bold' }}>
+                            {item.quantidade}x {item.produto.nome}
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                            {item.produto.categoria || 'Geral'} ({(pct * 100).toFixed(1)}%)
+                          </span>
+                        </div>
+
+                        {/* Coluna Direita (Valor) */}
+                        <span style={{ color: '#16a34a', fontWeight: 'bold', alignSelf: 'center' }}>
+                          + R$ {valorComissao.toFixed(2)}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
 
                 <div style={{ background: '#dcfce7', padding: '15px', borderRadius: '8px', textAlign: 'center', border: '1px solid #86efac' }}>
