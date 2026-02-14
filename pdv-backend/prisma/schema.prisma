@@ -69,7 +69,8 @@ model Produto {
   ativo          Boolean         @default(true)
   
   // 👇 CAMPOS NOVOS ADICIONADOS AQUI 👇
-  fornecedor     String?
+  fornecedorId Int?
+  fornecedor   Fornecedor? @relation(fields: [fornecedorId], references: [id])
   localizacao    String?
   ncm            String?
   cest           String?
@@ -200,4 +201,12 @@ model MovimentacaoCaixa {
   caixa     Caixa    @relation(fields: [caixaId], references: [id])
 
   @@map("movimentacoes_caixa")
+}
+
+// Cole isso no final do arquivo schema.prisma
+model Fornecedor {
+  id        Int       @id @default(autoincrement())
+  nome      String
+  contato   String?
+  produtos  Produto[] // Isso avisa que um fornecedor tem vários produtos
 }

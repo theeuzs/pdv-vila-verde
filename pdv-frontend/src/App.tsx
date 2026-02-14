@@ -175,6 +175,26 @@ export function App() {
     return acc + (Number(item.produto.precoVenda) * item.quantidade * porcentagem);
   }, 0);  
 
+  // Carrega as listas ao abrir a tela
+  useEffect(() => {
+    fetch(`${API_URL}/categorias`).then(r => r.json()).then(setListaCategorias);
+    fetch(`${API_URL}/fornecedores`).then(r => r.json()).then(setListaFornecedores);
+  }, []);
+
+  // Função para criar fornecedor rápido
+  async function cadastrarFornecedor() {
+    if(!novoFornecedor) return;
+    const res = await fetch(`${API_URL}/fornecedores`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ nome: novoFornecedor })
+    });
+    const criado = await res.json();
+    setListaFornecedores([...listaFornecedores, criado]);
+    setFornecedorId(criado.id); // Já seleciona o novo
+    setNovoFornecedor(''); // Limpa o campo
+    alert('Fornecedor cadastrado!');
+  }
+
   // ESTADOS DE LOADING
   const [processandoVenda, setProcessandoVenda] = useState(false)
   const [mensagemLoading, setMensagemLoading] = useState('')
@@ -222,6 +242,36 @@ export function App() {
   useEffect(() => {
     setProdutosVisiveis(30)
   }, [aba])
+
+// --- 1. ESTADOS DO PRODUTO (Se já tiver algum, apague o antigo e use estes) ---
+  const [nome, setNome] = useState('');
+  const [categoria, setCategoria] = useState('');
+  const [codigoBarra, setCodigoBarra] = useState('');
+  const [estoque, setEstoque] = useState('');
+  const [precoCusto, setPrecoCusto] = useState('');
+  const [margemLucro, setMargemLucro] = useState('');
+  const [precoVenda, setPrecoVenda] = useState('');
+
+  // --- 2. ESTADOS NOVOS PARA FORNECEDOR E CATEGORIA ---
+  const [fornecedorId, setFornecedorId] = useState<any>('');
+  const [novoFornecedor, setNovoFornecedor] = useState('');
+  const [listaCategorias, setListaCategorias] = useState<string[]>([]);
+  const [listaFornecedores, setListaFornecedores] = useState<any[]>([]);
+
+  // --- 3. CARREGAR DADOS AO ABRIR (USE EFFECT) ---
+  useEffect(() => {
+    // Carrega categorias únicas
+    fetch(`${API_URL}/categorias`)
+      .then(r => r.json())
+      .then(data => setListaCategorias(data || []))
+      .catch(err => console.log("Erro categorias", err));
+
+    // Carrega fornecedores
+    fetch(`${API_URL}/fornecedores`)
+      .then(r => r.json())
+      .then(data => setListaFornecedores(data || []))
+      .catch(err => console.log("Erro fornecedores", err));
+  }, []);
 
   // ============================================================================
   // FUNÇÕES DE CARREGAMENTO
@@ -2981,25 +3031,82 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                <button onClick={() => { setModalProduto(false); setFormProduto({}); }} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>✕</button>
             </div>
 
-            {/* SEÇÃO 1: DADOS GERAIS */}
-            <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-              <h3 style={{ fontSize: '1.1rem', color: '#1e3c72', marginTop: 0, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>📦 Dados Principais</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '15px' }}>
-                <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem', color: '#475569' }}>Nome do Produto *</label><input type="text" value={formProduto.nome || ''} onChange={e => setFormProduto({...formProduto, nome: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-                <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem', color: '#475569' }}>Código de Barras</label><input type="text" value={formProduto.codigoBarra || ''} onChange={e => setFormProduto({...formProduto, codigoBarra: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-                <div><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem', color: '#475569' }}>Categoria</label><input type="text" value={formProduto.categoria || ''} onChange={e => setFormProduto({...formProduto, categoria: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-                <div>
-                   <div style={{ display: 'flex', gap: '10px' }}>
-                     <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem', color: '#475569' }}>Estoque *</label><input type="number" value={formProduto.estoque || ''} onChange={e => setFormProduto({...formProduto, estoque: Number(e.target.value)})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-                     <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem', color: '#475569' }}>Unidade</label>
-                        <select value={formProduto.unidade || 'UN'} onChange={e => setFormProduto({...formProduto, unidade: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                          <option value="UN">UN</option><option value="KG">KG</option><option value="M2">M²</option><option value="M3">M³</option><option value="CX">CX</option><option value="PCT">PCT</option>
-                        </select>
-                     </div>
-                   </div>
-                </div>
+            {/* SEÇÃO 1: DADOS PRINCIPAIS + FORNECEDOR */}
+          <div style={{ background: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
+            <h3 style={{ marginTop: 0, color: '#1e3c72', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📦 Dados Principais
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '5px' }}>Nome do Produto *</label>
+                <input 
+                  value={nome} onChange={e => setNome(e.target.value)} 
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} 
+                />
+              </div>
+              
+              {/* 👇 A MÁGICA DA CATEGORIA AQUI 👇 */}
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '5px' }}>Categoria</label>
+                <input 
+                  list="sugestoes-categorias" // Conecta com a lista abaixo
+                  value={categoria} 
+                  onChange={e => setCategoria(e.target.value)}
+                  placeholder="Selecione ou digite..."
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} 
+                />
+                {/* Lista Invisível que o input usa para sugerir */}
+                <datalist id="sugestoes-categorias">
+                  {listaCategorias.map((cat, i) => (
+                    <option key={i} value={cat} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '5px' }}>Código Barras</label>
+                <input 
+                  value={codigoBarra} onChange={e => setCodigoBarra(e.target.value)} 
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} 
+                />
               </div>
             </div>
+
+            {/* 👇 LINHA DO FORNECEDOR 👇 */}
+            <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '5px' }}>🚚 Fornecedor</label>
+                <select 
+                  value={fornecedorId} 
+                  onChange={e => setFornecedorId(Number(e.target.value))}
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                >
+                  <option value="">Sem fornecedor definido</option>
+                  {listaFornecedores.map(f => (
+                    <option key={f.id} value={f.id}>{f.nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Botãozinho para adicionar fornecedor na hora se não existir */}
+              <div style={{ display: 'flex', gap: '5px', flex: 1 }}>
+                <input 
+                  placeholder="Novo Fornecedor..." 
+                  value={novoFornecedor}
+                  onChange={e => setNovoFornecedor(e.target.value)}
+                  style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                />
+                <button 
+                  onClick={cadastrarFornecedor}
+                  disabled={!novoFornecedor}
+                  style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', padding: '0 15px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
 
             {/* DIVISÃO INFERIOR (ESQUERDA: CÁLCULO / DIREITA: FISCAL) */}
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
