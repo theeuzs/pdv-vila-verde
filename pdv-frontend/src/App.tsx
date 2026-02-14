@@ -1119,6 +1119,59 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
     })
     .slice(0, 30) // Limita a 30 produtos para melhor performance
 
+    // --- CONTROLE DE NAVEGAÇÃO POR TECLADO ---
+  const [indexSelecionado, setIndexSelecionado] = useState(0);
+
+  // 1. Reseta a seleção quando a busca muda (para não selecionar algo invisível)
+  useEffect(() => {
+    setIndexSelecionado(0);
+  }, [busca, produtosFiltrados]); // Dependências: quando filtrar, volta pro zero
+
+  // 2. Ouve as teclas
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Se estiver digitando na busca, as setas esquerda/direita movem o cursor do texto
+      // Então só capturamos se for CIMA/BAIXO ou se não estiver no input
+      const isInputFocado = document.activeElement?.tagName === 'INPUT';
+      
+      if (isInputFocado && e.key !== 'ArrowDown' && e.key !== 'Enter') return;
+      if (produtosFiltrados.length === 0) return;
+
+      const COLUNAS = 5; // Baseado no seu print (5 cards por linha)
+      
+      switch (e.key) {
+        case 'ArrowRight':
+          setIndexSelecionado(prev => Math.min(prev + 1, produtosFiltrados.length - 1));
+          break;
+        case 'ArrowLeft':
+          setIndexSelecionado(prev => Math.max(prev - 1, 0));
+          break;
+        case 'ArrowDown':
+          // Se estiver no input, pula pro primeiro card
+          if (isInputFocado) {
+             (document.activeElement as HTMLElement).blur(); // Tira foco do input
+             setIndexSelecionado(0);
+          } else {
+             setIndexSelecionado(prev => Math.min(prev + COLUNAS, produtosFiltrados.length - 1));
+          }
+          break;
+        case 'ArrowUp':
+          setIndexSelecionado(prev => Math.max(prev - COLUNAS, 0));
+          break;
+        case 'Enter':
+           // Adiciona o item selecionado ao carrinho
+           if (!isInputFocado) {
+             e.preventDefault();
+             adicionarAoCarrinho(produtosFiltrados[indexSelecionado]);
+           }
+           break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [produtosFiltrados, indexSelecionado]); // Atualiza quando a lista ou seleção muda
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -1369,77 +1422,83 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
           ) : (
             // BLOCO: LISTA DE PRODUTOS (Mapeamento)
             // Tirei a chave '{' que estava aqui antes do map causando erro
-            produtosFiltrados.map((p) => (
+            // BLOCO: LISTA DE PRODUTOS
+            produtosFiltrados.map((p, index) => {
+              
+              // LÓGICA DO CARD GIGANTE (Exemplo: Se o nome tem "ARAME", fica grande)
+              // Você pode mudar essa condição para: p.destaque === true
+              const isCardGrande = p.nome.toUpperCase().includes('ARAME') && index === 0; // Teste: Só o primeiro Arame fica grande
+
+              const isSelecionado = index === indexSelecionado;
+
+              return (
               <div
                 key={p.id}
-                onClick={() => adicionarAoCarrinho(p)} // VOLTEI PARA adicionarItemVenda (que é o nome correto no seu app)
+                onClick={() => {
+                  setIndexSelecionado(index); // Clicar também seleciona
+                  adicionarAoCarrinho(p);
+                }}
                 style={{
+                  // LÓGICA DO VISUAL (Fundo)
                   background: p.estoque <= 0
                     ? 'linear-gradient(135deg, #e5e7eb 0%, #9ca3af 100%)'
                     : 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)',
+                  
                   borderRadius: '12px',
                   padding: '15px',
                   textAlign: 'center',
                   cursor: p.estoque <= 0 ? 'not-allowed' : 'pointer',
-                  transition: 'transform 0.2s',
+                  transition: 'all 0.2s', // Animação suave
                   color: 'white',
                   boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
                   opacity: p.estoque <= 0 ? 0.6 : 1,
                   position: 'relative',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', minHeight: '160px'
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between',
+                  
+                  // 👇 AQUI A MÁGICA DA ALTURA (SPAN VERTICAL)
+                  gridRow: isCardGrande ? 'span 2' : 'span 1',
+                  minHeight: isCardGrande ? '340px' : '160px', // Dobro da altura + gap
+
+                  // 👇 BORDA DE SELEÇÃO (NAV TECLADO)
+                  border: isSelecionado ? '3px solid #fbbf24' : '1px solid transparent', // Amarelo Ouro
+                  transform: isSelecionado ? 'scale(1.03)' : 'scale(1)',
+                  zIndex: isSelecionado ? 10 : 1
                 }}
-                onMouseEnter={(e) => {
-                  if (p.estoque > 0) e.currentTarget.style.transform = 'translateY(-5px)'
-                }}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
               >
 
                 {/* BOTÕES DE AÇÃO (TOPO DIREITO) */}
                 <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                  
-                  {/* Botão Ver Detalhes */}
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      verDetalhes(p);
-                    }}
-                    title="Ver Detalhes"
+                    onClick={(e) => { e.stopPropagation(); verDetalhes(p); }}
+                    tabIndex={-1} // Tira do tab para não atrapalhar setas
                     style={{
                       background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '4px',
                       width: '28px', height: '28px', cursor: 'pointer', color: '#fff',
                       display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(2px)'
                     }}
-                  >
-                    👁️
-                  </button>
+                  >👁️</button>
 
-                  {/* Botão Editar */}
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (typeof editarProduto === 'function') {
-                        editarProduto(p);
-                      }
-                    }}
-                    title="Editar Produto"
+                    onClick={(e) => { e.stopPropagation(); if (typeof editarProduto === 'function') editarProduto(p); }}
+                    tabIndex={-1}
                     style={{
                       background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '4px',
                       width: '28px', height: '28px', cursor: 'pointer', color: '#fbbf24',
                       display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(2px)'
                     }}
-                  >
-                    ✏️
-                  </button>
+                  >✏️</button>
                 </div>
 
-                {/* CONTEÚDO DO CARD */}
-                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>📦</div>
+                {/* CONTEÚDO */}
+                <div style={{ fontSize: isCardGrande ? '4rem' : '2.5rem', marginBottom: '10px' }}>
+                   {isCardGrande ? '🔥' : '📦'} 
+                </div>
 
-                <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '0.95rem', lineHeight: '1.2' }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: isCardGrande ? '1.2rem' : '0.95rem', lineHeight: '1.2' }}>
                   {p.nome}
                 </div>
 
-                <div style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '5px', color: '#4ade80' }}>
+                <div style={{ fontSize: isCardGrande ? '1.8rem' : '1.3rem', fontWeight: 'bold', marginBottom: '5px', color: '#4ade80' }}>
                   R$ {Number(p.precoVenda).toFixed(2)}
                 </div>
 
@@ -1447,10 +1506,12 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                   {p.estoque <= 0 ? 'SEM ESTOQUE' : `Estoque: ${p.estoque} ${p.unidade || 'UN'}`}
                 </div>
 
+                {/* Seleção Visual Extra (Opcional) */}
+                {isSelecionado && <div style={{ fontSize: '0.7rem', color: '#fbbf24', marginTop: '5px' }}>[ENTER para adicionar]</div>}
+
               </div>
-            ))
-          )}
-              </div>
+            )})
+          )} </div>
             </div>
 
             {/* CARRINHO */}
