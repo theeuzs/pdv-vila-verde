@@ -199,6 +199,7 @@ model MovimentacaoCaixa {
   descricao String?
   caixaId   Int
   caixa     Caixa    @relation(fields: [caixaId], references: [id])
+  formaPagamento String?
 
   @@map("movimentacoes_caixa")
 }

@@ -148,39 +148,34 @@ app.put('/produtos/:id', async (request, reply) => {
   });
 
 // ROTA DE NOVA VENDA (CORRIGIDA)
+// ROTA DE CRIAR VENDA (VERSÃO FINAL E CORRIGIDA)
   app.post('/vendas', async (request, reply) => {
-    // 1. Pega os dados que vieram do Frontend
     const dados = request.body as any;
 
     try {
-      // 2. SALVA A VENDA NO BANCO
+      console.log("🚀 INICIANDO NOVA VENDA...");
+
+      // ====================================================
+      // 1. SALVA A VENDA, OS ITENS E OS PAGAMENTOS
+      // ====================================================
       const venda = await prisma.venda.create({
         data: {
-          total: Number(dados.total), // Usa o total que veio da tela
-          
+          total: Number(dados.total),
           clienteId: dados.clienteId ? Number(dados.clienteId) : null,
           entrega: dados.entrega || false,
           enderecoEntrega: dados.enderecoEntrega || '',
-          // REMOVIDO: statusEntrega (causava o erro 500)
           
           // Cria os itens
           itens: { 
             create: dados.itens.map((item: any) => {
-              // 🛡️ REDE DE SEGURANÇA: Tenta achar o ID de qualquer jeito
-              const idProdutoSeguro = Number(item.produtoId || item.id || item.produto?.id);
-              
-              // Se mesmo assim for inválido, avisa no console (pra gente saber)
-              if (!idProdutoSeguro || isNaN(idProdutoSeguro)) {
-                console.error("❌ ERRO GRAVE: Produto sem ID neste item:", item);
-                throw new Error(`Produto inválido na venda (ID faltando).`);
-              }
+              // 🛡️ SEGURANÇA DE ID: Garante que pega o ID certo
+              const idProd = Number(item.produtoId || item.id || item.produto?.id);
+              if (!idProd) throw new Error(`Item sem ID de produto: ${item.nome}`);
 
               return {
-                // Conecta usando o ID seguro que encontramos
-                produto: { connect: { id: idProdutoSeguro } },
-                
+                produto: { connect: { id: idProd } },
                 quantidade: Number(item.quantidade),
-                precoUnit: Number(item.precoUnit || item.preco || 0) // Segurança pro preço também
+                precoUnit: Number(item.precoUnit || item.preco || 0)
               };
             })
           },
@@ -196,80 +191,64 @@ app.put('/produtos/:id', async (request, reply) => {
         include: { itens: { include: { produto: true } }, cliente: true, pagamentos: true }
       });
 
-// ... aqui em cima estava o código do prisma.venda.create ...
-      // }); <--- Procure onde fecha a venda
+      console.log(`✅ Venda #${venda.id} criada com sucesso.`);
 
-      // 👇👇👇 COLE O ESPIÃO AQUI (LOGO DEPOIS DE CRIAR A VENDA) 👇👇👇
-      
-      console.log("---------------------------------------------------");
-      console.log("🕵️ ESPIÃO DO SALDO EM AÇÃO:");
-      console.log("👉 ID DO CAIXA QUE CHEGOU:", dados.caixaId);
-      console.log("👉 VALOR PARA SOMAR:", dados.total);
 
-      if (dados.caixaId) {
-        console.log("⏳ Tentando atualizar o banco de dados agora...");
-        
-        try {
-          await prisma.caixa.update({
-            where: { id: Number(dados.caixaId) },
-            data: { 
-              saldoAtual: { increment: Number(dados.total) } 
-            }
-          });
-          console.log("✅ SUCESSO! O saldo foi atualizado no banco.");
-        } catch (err) {
-          console.log("❌ ERRO AO ATUALIZAR CAIXA:", err);
-        }
-      } else {
-        console.log("⚠️ ALERTA: O 'caixaId' veio vazio ou nulo! Não vou atualizar nada.");
-      }
-      
-      console.log("---------------------------------------------------");
-
-      // 👆👆👆 FIM DO ESPIÃO 👆👆👆
-
-// ... (código que atualiza o caixa) ...
-      // } else {
-      //   console.log("⚠️ AVISO: ... ");
-      // }
-
-      // 👇👇👇 4. BAIXA DE ESTOQUE (NOVO CÓDIGO) 👇👇👇
-      console.log("📦 ATUALIZANDO ESTOQUE DOS PRODUTOS...");
-      
+      // ====================================================
+      // 2. BAIXA O ESTOQUE DOS PRODUTOS
+      // ====================================================
+      console.log("📦 Atualizando estoque...");
       for (const item of dados.itens) {
-        // Pega o ID seguro do produto
         const idProd = Number(item.produtoId || item.id || item.produto?.id);
-        
         if (idProd) {
           await prisma.produto.update({
             where: { id: idProd },
-            data: { 
-              estoque: { decrement: Number(item.quantidade) } // Tira a quantidade vendida
-            }
+            data: { estoque: { decrement: Number(item.quantidade) } }
           });
         }
       }
-      console.log("✅ ESTOQUE ATUALIZADO!");
-      // 👆👆👆 FIM DA BAIXA DE ESTOQUE 👆👆👆
 
-      return venda; // <--- O return tem que ficar DEPOIS do espião
 
-      // 3. ATUALIZA O SALDO DO CAIXA (Se tiver caixa aberto)
-      if (dados.caixaId) { 
+      // ====================================================
+      // 3. ATUALIZA O CAIXA (SALDO + EXTRATO)
+      // ====================================================
+      if (dados.caixaId) {
+        console.log(`💰 Atualizando Caixa ID: ${dados.caixaId} | Valor: R$ ${dados.total}`);
+
+        // A) Cria o registro no extrato (Movimentação)
+        // Isso é essencial para aparecer na lista de movimentações!
+        await prisma.movimentacaoCaixa.create({
+          data: {
+            caixaId: Number(dados.caixaId),
+            tipo: 'ENTRADA',
+            valor: Number(dados.total),
+            descricao: `Venda #${venda.id}`,
+            formaPagamento: dados.pagamentos[0]?.forma || 'Misto' // Pega a 1ª forma ou põe Misto
+          }
+        });
+
+        // B) Soma o valor no Saldo Atual do caixa
         await prisma.caixa.update({
           where: { id: Number(dados.caixaId) },
           data: { 
             saldoAtual: { increment: Number(dados.total) } 
           }
         });
+        
+        console.log("✅ Caixa atualizado com sucesso!");
+      } else {
+        console.log("⚠️ AVISO: Venda sem Caixa ID. O saldo não foi alterado.");
       }
 
-      // 4. Retorna sucesso
-      return venda;
+
+      // ====================================================
+      // 4. FINALIZA
+      // ====================================================
+      return reply.status(201).send(venda);
 
     } catch (error) {
-      console.error(error); // Isso mostra o erro real no terminal preto
-      return reply.status(500).send({ error: "Erro ao salvar venda" });
+      console.error("❌ ERRO AO SALVAR VENDA:", error);
+      return reply.status(500).send({ error: "Erro interno ao processar venda." });
     }
   });
 
