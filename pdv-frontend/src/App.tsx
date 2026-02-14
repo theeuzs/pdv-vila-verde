@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { TelaLogin } from './TelaLogin';
 import { TelaEquipe } from './TelaEquipe';
 import ModalProdutoPro from './ModalProdutoPro';
+import ModalDetalhesProduto from './ModalDetalhesProduto';
 
 // ============================================================================
 // TIPAGENS
@@ -111,6 +112,11 @@ export function App() {
     return null
   })
   
+function verDetalhes(produto: any) {
+    setProdutoDetalhes(produto);
+    setModalDetalhesAberto(true);
+}
+
 // Cole isso lá em cima, antes do return do App
   function handleLoginSucesso(usuario: any) {
     setUsuarioLogado(usuario);
@@ -215,6 +221,10 @@ export function App() {
   const [modalProduto, setModalProduto] = useState(false)
   const [modalCliente, setModalCliente] = useState(false)
   const [modalOrcamento, setModalOrcamento] = useState(false)
+
+  // Estado para o Modal de Detalhes (Visualização)
+const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false);
+const [produtoDetalhes, setProdutoDetalhes] = useState<any>(null);
   
   // FORMULÁRIOS
   const [formProduto, setFormProduto] = useState<any>({})
@@ -1344,53 +1354,102 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                     </div>
                   </div>
                 ) : produtosFiltrados.length === 0 ? (
-                  <div style={{ 
-                    gridColumn: '1 / -1',
-                    textAlign: 'center',
-                    padding: '60px',
-                    color: '#94a3b8'
-                  }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '10px' }}>📦</div>
-                    <div style={{ fontSize: '1.1rem' }}>
-                      Nenhum produto encontrado para "{busca}"
-                    </div>
-                  </div>
-                ) : (
-                  produtosFiltrados.map(p => (
-                    <div
-                      key={p.id}
-                      onClick={() => adicionarAoCarrinho(p)}
-                      style={{
-                        background: p.estoque <= 0 
-                          ? 'linear-gradient(135deg, #e5e7eb 0%, #9ca3af 100%)'
-                          : 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)',
-                        borderRadius: '12px',
-                        padding: '20px',
-                        textAlign: 'center',
-                        cursor: p.estoque <= 0 ? 'not-allowed' : 'pointer',
-                        transition: 'transform 0.2s',
-                        color: 'white',
-                        boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
-                        opacity: p.estoque <= 0 ? 0.6 : 1
-                      }}
-                      onMouseEnter={(e) => {
-                        if (p.estoque > 0) e.currentTarget.style.transform = 'translateY(-5px)'
-                      }}
-                      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                    >
-                      <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>📦</div>
-                      <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '0.95rem' }}>
-                        {p.nome}
-                      </div>
-                      <div style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '5px' }}>
-                        R$ {Number(p.precoVenda).toFixed(2)}
-                      </div>
-                      <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>
-                        {p.estoque <= 0 ? 'SEM ESTOQUE' : `Estoque: ${p.estoque} ${p.unidade || 'UN'}`}
-                      </div>
-                    </div>
-                  ))
-                )}
+            // BLOCO: SE NÃO TEM PRODUTOS (BUSCA VAZIA)
+            <div style={{
+              gridColumn: '1 / -1',
+              textAlign: 'center',
+              padding: '60px',
+              color: '#94a3b8'
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '10px' }}>📦</div>
+              <div style={{ fontSize: '1.1rem' }}>
+                Nenhum produto encontrado para "{busca}"
+              </div>
+            </div>
+          ) : (
+            // BLOCO: LISTA DE PRODUTOS (Mapeamento)
+            // Tirei a chave '{' que estava aqui antes do map causando erro
+            produtosFiltrados.map((p) => (
+              <div
+                key={p.id}
+                onClick={() => adicionarAoCarrinho(p)} // VOLTEI PARA adicionarItemVenda (que é o nome correto no seu app)
+                style={{
+                  background: p.estoque <= 0
+                    ? 'linear-gradient(135deg, #e5e7eb 0%, #9ca3af 100%)'
+                    : 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)',
+                  borderRadius: '12px',
+                  padding: '15px',
+                  textAlign: 'center',
+                  cursor: p.estoque <= 0 ? 'not-allowed' : 'pointer',
+                  transition: 'transform 0.2s',
+                  color: 'white',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                  opacity: p.estoque <= 0 ? 0.6 : 1,
+                  position: 'relative',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', minHeight: '160px'
+                }}
+                onMouseEnter={(e) => {
+                  if (p.estoque > 0) e.currentTarget.style.transform = 'translateY(-5px)'
+                }}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+
+                {/* BOTÕES DE AÇÃO (TOPO DIREITO) */}
+                <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '5px', zIndex: 10 }}>
+                  
+                  {/* Botão Ver Detalhes */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      verDetalhes(p);
+                    }}
+                    title="Ver Detalhes"
+                    style={{
+                      background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '4px',
+                      width: '28px', height: '28px', cursor: 'pointer', color: '#fff',
+                      display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(2px)'
+                    }}
+                  >
+                    👁️
+                  </button>
+
+                  {/* Botão Editar */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (typeof editarProduto === 'function') {
+                        editarProduto(p);
+                      }
+                    }}
+                    title="Editar Produto"
+                    style={{
+                      background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '4px',
+                      width: '28px', height: '28px', cursor: 'pointer', color: '#fbbf24',
+                      display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(2px)'
+                    }}
+                  >
+                    ✏️
+                  </button>
+                </div>
+
+                {/* CONTEÚDO DO CARD */}
+                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>📦</div>
+
+                <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '0.95rem', lineHeight: '1.2' }}>
+                  {p.nome}
+                </div>
+
+                <div style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '5px', color: '#4ade80' }}>
+                  R$ {Number(p.precoVenda).toFixed(2)}
+                </div>
+
+                <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>
+                  {p.estoque <= 0 ? 'SEM ESTOQUE' : `Estoque: ${p.estoque} ${p.unidade || 'UN'}`}
+                </div>
+
+              </div>
+            ))
+          )}
               </div>
             </div>
 
@@ -3111,6 +3170,14 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
     }}
     
     produto={idProdutoEmEdicao ? produtos.find(p => p.id === idProdutoEmEdicao) : null}
+  />
+)}
+
+{/* MODAL DE DETALHES (LEITURA) */}
+{modalDetalhesAberto && (
+  <ModalDetalhesProduto 
+    produto={produtoDetalhes}
+    onClose={() => setModalDetalhesAberto(false)}
   />
 )}
 
