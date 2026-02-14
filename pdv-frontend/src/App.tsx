@@ -3031,81 +3031,138 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                <button onClick={() => { setModalProduto(false); setFormProduto({}); }} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>✕</button>
             </div>
 
-            {/* SEÇÃO 1: DADOS PRINCIPAIS + FORNECEDOR */}
+            {/* SEÇÃO 1: DADOS PRINCIPAIS (CORRIGIDO E TURBINADO) */}
           <div style={{ background: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ marginTop: 0, color: '#1e3c72', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              📦 Dados Principais
+            <h3 style={{ marginTop: 0, color: '#1e3c72', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+              📦 Dados do Produto
             </h3>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-              <div>
-                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '5px' }}>Nome do Produto *</label>
-                <input 
-                  value={nome} onChange={e => setNome(e.target.value)} 
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} 
-                />
-              </div>
+            {/* LINHA 1: NOME (Full Width) */}
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>Nome do Produto *</label>
+              <input 
+                value={nome} onChange={e => setNome(e.target.value)} 
+                placeholder="Ex: Cimento Votoran 50kg"
+                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '1rem' }} 
+              />
+            </div>
+
+            {/* LINHA 2: 4 COLUNAS (Categoria | Fornecedor | Estoque | Unidade) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 1fr 0.8fr', gap: '15px', marginBottom: '20px' }}>
               
-              {/* 👇 A MÁGICA DA CATEGORIA AQUI 👇 */}
+              {/* Categoria (Com sugestão) */}
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '5px' }}>Categoria</label>
+                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>Categoria</label>
                 <input 
-                  list="sugestoes-categorias" // Conecta com a lista abaixo
+                  list="sugestoes-categorias"
                   value={categoria} 
                   onChange={e => setCategoria(e.target.value)}
-                  placeholder="Selecione ou digite..."
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} 
+                  placeholder="Ex: Alvenaria"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
                 />
-                {/* Lista Invisível que o input usa para sugerir */}
                 <datalist id="sugestoes-categorias">
-                  {listaCategorias.map((cat, i) => (
-                    <option key={i} value={cat} />
-                  ))}
+                  {listaCategorias.map((cat, i) => <option key={i} value={cat} />)}
                 </datalist>
               </div>
 
+              {/* Fornecedor (Com botão + discreto) */}
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '5px' }}>Código Barras</label>
+                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>Fornecedor</label>
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  {/* Se estiver digitando novo, mostra input, senão mostra select */}
+                  {novoFornecedor ? (
+                     <div style={{ display: 'flex', flex: 1, gap: '5px' }}>
+                        <input 
+                          autoFocus
+                          placeholder="Nome do novo..."
+                          value={novoFornecedor}
+                          onChange={e => setNovoFornecedor(e.target.value)}
+                          style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '2px solid #3b82f6' }}
+                        />
+                        <button onClick={cadastrarFornecedor} style={{ background: '#22c55e', color: 'white', border: 'none', borderRadius: '6px', padding: '0 10px', cursor: 'pointer' }}>✔</button>
+                        <button onClick={() => setNovoFornecedor('')} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '0 10px', cursor: 'pointer' }}>✕</button>
+                     </div>
+                  ) : (
+                    <>
+                      <select 
+                        value={fornecedorId} 
+                        onChange={e => setFornecedorId(Number(e.target.value))}
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white' }}
+                      >
+                        <option value="">Selecione...</option>
+                        {listaFornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                      </select>
+                      <button 
+                        onClick={() => setNovoFornecedor(' ')} // Espaço ativa o modo edição
+                        title="Novo Fornecedor"
+                        style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', width: '42px', cursor: 'pointer', fontSize: '1.2rem' }}
+                      >
+                        +
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Estoque (VOLTOU!) */}
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>Estoque *</label>
                 <input 
-                  value={codigoBarra} onChange={e => setCodigoBarra(e.target.value)} 
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} 
+                  type="number"
+                  value={estoque} onChange={e => setEstoque(e.target.value)} 
+                  placeholder="0.00"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
                 />
+              </div>
+
+              {/* Unidade (VOLTOU!) */}
+              <div>
+                 <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>Unidade</label>
+                 <select 
+                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white' }}
+                 >
+                   <option>UN</option>
+                   <option>KG</option>
+                   <option>MT</option>
+                   <option>M²</option>
+                   <option>M³</option>
+                   <option>CX</option>
+                   <option>LT</option>
+                 </select>
               </div>
             </div>
 
-            {/* 👇 LINHA DO FORNECEDOR 👇 */}
-            <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '5px' }}>🚚 Fornecedor</label>
-                <select 
-                  value={fornecedorId} 
-                  onChange={e => setFornecedorId(Number(e.target.value))}
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                >
-                  <option value="">Sem fornecedor definido</option>
-                  {listaFornecedores.map(f => (
-                    <option key={f.id} value={f.id}>{f.nome}</option>
-                  ))}
-                </select>
+            {/* LINHA 3: CÓDIGO DE BARRAS COM MINI ABA DE GRADES */}
+            <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+              
+              {/* Mini Abas */}
+              <div style={{ display: 'flex', gap: '15px', marginBottom: '10px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#3b82f6', borderBottom: '2px solid #3b82f6', cursor: 'pointer', paddingBottom: '5px' }}>
+                  🏷️ Código Único
+                </span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#94a3b8', cursor: 'pointer', paddingBottom: '5px' }}>
+                  🔢 Grade / Variações (P, M, G...)
+                </span>
               </div>
 
-              {/* Botãozinho para adicionar fornecedor na hora se não existir */}
-              <div style={{ display: 'flex', gap: '5px', flex: 1 }}>
-                <input 
-                  placeholder="Novo Fornecedor..." 
-                  value={novoFornecedor}
-                  onChange={e => setNovoFornecedor(e.target.value)}
-                  style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                />
-                <button 
-                  onClick={cadastrarFornecedor}
-                  disabled={!novoFornecedor}
-                  style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', padding: '0 15px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  +
-                </button>
+              {/* Input do Código */}
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>
+                  Código de Barras / EAN
+                </label>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input 
+                    value={codigoBarra} onChange={e => setCodigoBarra(e.target.value)} 
+                    placeholder="Escaneie ou digite..."
+                    style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontFamily: 'monospace', letterSpacing: '1px' }} 
+                  />
+                  <button style={{ background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 15px', cursor: 'pointer', color: '#64748b' }}>
+                    📷
+                  </button>
+                </div>
               </div>
             </div>
+
           </div>
 
             {/* DIVISÃO INFERIOR (ESQUERDA: CÁLCULO / DIREITA: FISCAL) */}
