@@ -127,6 +127,9 @@ export function App() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([])
   const [contasReceber, setContasReceber] = useState<any[]>([])
   const [entregas, setEntregas] = useState<Venda[]>([])
+  const [vendedorSelecionadoId, setVendedorSelecionadoId] = useState<any>(''); // Para escolher o vendedor
+  const [mostrarComissao, setMostrarComissao] = useState(false); // Para abrir/fechar a aba secreta
+  
   
   // ESTADOS DO CAIXA
   const [caixaAberto, setCaixaAberto] = useState<Caixa | null>(null)
@@ -144,6 +147,8 @@ export function App() {
   const [endereco, setEndereco] = useState('')
   const [enderecoSelecionado, setEnderecoSelecionado] = useState<number>(1)
   const [desconto, setDesconto] = useState('')
+  const PORCENTAGEM_COMISSAO = 0.03; // 3% de comissão
+  const totalComissao = carrinho.reduce((acc, item) => acc + (Number(item.produto.precoVenda) * item.quantidade * PORCENTAGEM_COMISSAO), 0);
   
   // ESTADOS DE LOADING
   const [processandoVenda, setProcessandoVenda] = useState(false)
@@ -1410,7 +1415,12 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                 </button>
 
                 <button
-                  onClick={() => setModalPagamento(true)}
+            // 👇 SUBSTITUA A LINHA DO ONCLICK POR ESTE BLOCO:
+            onClick={() => {
+              setModalPagamento(true); // Abre o seu modal normal
+              setVendedorSelecionadoId(usuarioLogado?.id); // Já seleciona quem tá logado
+              setMostrarComissao(false); // Garante que a aba secreta comece fechada
+            }}
                   disabled={carrinho.length === 0}
                   style={{
                     flex: 1,
@@ -2380,459 +2390,220 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
       {/* MODAL: PAGAMENTO */}
       {modalPagamento && (
         <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', // Escureci um pouco mais pro neon brilhar
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, padding: '20px',
+          backdropFilter: 'blur(5px)' // Efeito de desfoque no fundo
         }}>
-          <div style={{
-            background: 'white',
-            borderRadius: '15px',
-            width: '1000px',
-            maxWidth: '95vw',
-            height: '700px',
-            maxHeight: '90vh',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            
-            {/* Cabeçalho */}
+          
+          {/* WRAPPER PARA SEGURAR MODAL + PAINEL LATERAL */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '15px', maxHeight: '95vh' }}>
+
+            {/* --- O SEU MODAL ORIGINAL (CAIXA BRANCA) --- */}
             <div style={{
-              padding: '20px 30px',
-              borderBottom: '1px solid #e2e8f0',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              background: '#f8fafc'
+              background: 'white', borderRadius: '15px', width: '1000px', maxWidth: '90vw',
+              height: '700px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
             }}>
-              <h2 style={{ margin: 0, color: '#1e3c72' }}>💸 Finalizar Venda</h2>
-              <button
-                onClick={() => setModalPagamento(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  color: '#64748b'
-                }}
-              >
-                ✕
-              </button>
+              
+              {/* Cabeçalho */}
+              <div style={{ padding: '20px 30px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+                <h2 style={{ margin: 0, color: '#1e3c72' }}>💸 Finalizar Venda</h2>
+                <button onClick={() => setModalPagamento(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>✕</button>
+              </div>
+
+              {/* Conteúdo */}
+              <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                
+                {/* COLUNA ESQUERDA: Resumo + Vendedor */}
+                <div style={{ width: '40%', padding: '20px', background: '#f8fafc', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+                  
+                  <h3 style={{ marginTop: 0, marginBottom: '10px', color: '#64748b', fontSize: '1rem' }}>Resumo do Pedido</h3>
+                  
+                  {/* 👇 NOVO: SELETOR DE VENDEDOR 👇 */}
+                  <div style={{ marginBottom: '15px' }}>
+                    <select
+                      value={vendedorSelecionadoId}
+                      onChange={(e) => setVendedorSelecionadoId(Number(e.target.value))}
+                      style={{ 
+                        width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #4ade80', 
+                        background: 'white', color: '#1e3c72', fontWeight: 'bold' 
+                      }}
+                    >
+                      <option value={usuarioLogado.id}>Vendedor: {usuarioLogado.nome} (Você)</option>
+                      {/* Se tiver a lista de usuarios carregada, faça o map aqui */}
+                      {/* usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>) */}
+                    </select>
+                  </div>
+
+                  {/* ÁREA COM SCROLL - LISTA DE ITENS */}
+                  <div style={{ flex: 1, overflowY: 'auto', marginBottom: '15px' }}>
+                    {carrinho.map((item, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '10px', color: '#1e3c72', padding: '8px', background: 'white', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                        <span>{item.quantidade}x {item.produto.nome}</span>
+                        <span style={{ fontWeight: 'bold' }}>R$ {(Number(item.quantidade) * Number(item.produto.precoVenda)).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* TOTAL FIXO NO FINAL */}
+                  <div style={{ paddingTop: '15px', borderTop: '2px solid #cbd5e1' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: '#64748b', marginBottom: '5px' }}>
+                      <span>Subtotal:</span>
+                      <span>R$ {Number(totalCarrinho).toFixed(2)}</span>
+                    </div>
+                    {valorDesconto > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: '#dc2626', marginBottom: '5px' }}>
+                        <span>Desconto:</span>
+                        <span>- R$ {valorDesconto.toFixed(2)}</span>
+                      </div>
+                    )}
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.9rem', color: '#64748b' }}>Total a Pagar:</span>
+                        <span style={{ fontSize: '1.6rem', fontWeight: 'bold', color: '#1e3c72' }}>R$ {Number(totalComDesconto).toFixed(2)}</span>
+                      </div>
+                      
+                      {/* 👇 NOVO: BOTÃO DO OLHO MÁGICO (COMISSÃO) 👇 */}
+                      <button
+                        onClick={() => setMostrarComissao(!mostrarComissao)}
+                        title="Ver Comissão"
+                        style={{
+                          background: mostrarComissao ? '#4ade80' : '#e2e8f0',
+                          color: mostrarComissao ? '#064e3b' : '#64748b',
+                          border: 'none', borderRadius: '50%', width: '45px', height: '45px',
+                          fontSize: '1.2rem', cursor: 'pointer', transition: 'all 0.2s',
+                          boxShadow: mostrarComissao ? '0 0 15px #4ade80' : 'none'
+                        }}
+                      >
+                        {mostrarComissao ? '👁️' : '💰'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* COLUNA DIREITA: Pagamento, Cliente, Entrega (SEU CÓDIGO ORIGINAL) */}
+                <div style={{ flex: 1, padding: '30px', overflowY: 'auto' }}>
+                  
+                  {/* Cliente */}
+                  <div style={{ marginBottom: '25px' }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#1e3c72' }}>👤 Cliente (Opcional)</label>
+                    <select value={clienteSelecionado} onChange={e => setClienteSelecionado(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem' }}>
+                      <option value="">Sem cliente</option>
+                      {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    </select>
+                  </div>
+                  
+                  {/* Desconto */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#1e3c72' }}>🏷️ Desconto (R$) Opcional</label>
+                    <input type="number" value={desconto} onChange={e => setDesconto(e.target.value)} placeholder="0.00" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem' }} />
+                  </div>
+
+                  {/* Forma de Pagamento */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '10px', color: '#1e3c72' }}>💳 Forma de Pagamento</label>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                      <input type="number" value={valorPagamento} onChange={e => setValorPagamento(e.target.value)} placeholder={`R$ ${Math.max(0, faltaPagar).toFixed(2)}`} style={{ width: '120px', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                      <select value={formaPagamento} onChange={e => setFormaPagamento(e.target.value)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                        <option value="Dinheiro">💵 Dinheiro</option>
+                        <option value="Pix">💠 Pix</option>
+                        <option value="Cartão Crédito">💳 Crédito</option>
+                        <option value="Cartão Débito">💳 Débito</option>
+                        <option value="A Prazo">📅 A Prazo</option>
+                        <option value="Haver">🤝 Haver</option>
+                      </select>
+                      <button onClick={adicionarPagamento} disabled={faltaPagar <= 0.01} style={{ padding: '0 20px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: faltaPagar <= 0.01 ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: faltaPagar <= 0.01 ? 0.5 : 1 }}>+</button>
+                    </div>
+
+                    {/* Lista de Pagamentos */}
+                    <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
+                      {listaPagamentos.length === 0 ? (
+                        <div style={{ textAlign: 'center', color: '#94a3b8', padding: '10px' }}>Nenhum pagamento adicionado</div>
+                      ) : (
+                        listaPagamentos.map((p, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < listaPagamentos.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
+                            <span>{p.forma}: R$ {Number(p.valor).toFixed(2)}</span>
+                            <button onClick={() => setListaPagamentos(listaPagamentos.filter((_, idx) => idx !== i))} style={{ color: '#dc2626', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✖</button>
+                          </div>
+                        ))
+                      )}
+                      <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '2px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                        <span style={{ color: faltaPagar > 0 ? '#dc2626' : '#059669' }}>Falta: R$ {Number(Math.max(0, faltaPagar)).toFixed(2)}</span>
+                        {troco > 0 && <span style={{ color: '#059669' }}>Troco: R$ {Number(troco).toFixed(2)}</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Entrega (MANTIDO SEU CÓDIGO) */}
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={entrega} onChange={e => { setEntrega(e.target.checked); if (e.target.checked && clienteSelecionado) { const cliente = clientes.find(c => c.id === Number(clienteSelecionado)); if (cliente?.endereco) { setEndereco(cliente.endereco); setEnderecoSelecionado(1); } } }} />
+                    🚛 É para entregar?
+                  </label>
+
+                  {entrega && (
+                     <div style={{ marginBottom: '20px' }}>
+                       <input type="text" placeholder="Digite o endereço de entrega..." value={endereco} onChange={e => setEndereco(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                     </div>
+                  )}
+
+                  {/* Botões de Finalização */}
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                    <button onClick={finalizarVendaNormal} disabled={faltaPagar > 0.01 || processandoVenda} style={{ flex: 1, padding: '15px', background: (faltaPagar > 0.01 || processandoVenda) ? '#e2e8f0' : 'linear-gradient(135deg, #60a5fa, #3b82f6)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', cursor: (faltaPagar > 0.01 || processandoVenda) ? 'not-allowed' : 'pointer', opacity: processandoVenda ? 0.6 : 1 }}>
+                      📄 VENDA NORMAL <div style={{ fontSize: '0.75rem', marginTop: '4px', opacity: 0.9 }}>(Só recibo)</div>
+                    </button>
+                    <button onClick={finalizarVendaComNFCe} disabled={faltaPagar > 0.01 || processandoVenda} style={{ flex: 1, padding: '15px', background: (faltaPagar > 0.01 || processandoVenda) ? '#e2e8f0' : 'linear-gradient(135deg, #4ade80, #22c55e)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', cursor: (faltaPagar > 0.01 || processandoVenda) ? 'not-allowed' : 'pointer', opacity: processandoVenda ? 0.6 : 1 }}>
+                      ✅ VENDA COM NFC-e <div style={{ fontSize: '0.75rem', marginTop: '4px', opacity: 0.9 }}>(Nota fiscal)</div>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Conteúdo */}
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-              
-              {/* Resumo */}
+            {/* --- PAINEL LATERAL DE COMISSÃO (APARECE QUANDO CLICA NO OLHO) --- */}
+            {mostrarComissao && (
               <div style={{
-                width: '40%',
-                padding: '20px',
-                background: '#f8fafc',
-                borderRight: '1px solid #e2e8f0',
-                display: 'flex',
-                flexDirection: 'column'
+                width: '300px', background: 'white', borderRadius: '15px', padding: '20px',
+                animation: 'slideIn 0.3s ease-out', boxShadow: '0 0 30px rgba(74, 222, 128, 0.4)',
+                border: '4px solid #4ade80', alignSelf: 'stretch', display: 'flex', flexDirection: 'column'
               }}>
-                <h3 style={{ marginTop: 0, marginBottom: '15px', color: '#64748b', fontSize: '1rem' }}>
-                  Resumo do Pedido
+                <h3 style={{ margin: '0 0 15px 0', color: '#064e3b', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem' }}>
+                  🤑 Previsão de Ganho
                 </h3>
                 
-                {/* ÁREA COM SCROLL - SÓ A LISTA DE ITENS */}
-                <div style={{ 
-                  flex: 1, 
-                  overflowY: 'auto',
-                  marginBottom: '15px'
-                }}>
-                  {carrinho.map((item, i) => (
-                    <div key={i} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontSize: '0.9rem',
-                      marginBottom: '10px',
-                      color: '#1e3c72',
-                      padding: '8px',
-                      background: 'white',
-                      borderRadius: '6px'
-                    }}>
-                      <span>{item.quantidade}x {item.produto.nome}</span>
-                      <span style={{ fontWeight: 'bold' }}>
-                        R$ {(Number(item.quantidade) * Number(item.produto.precoVenda)).toFixed(2)}
+                <div style={{ flex: 1, overflowY: 'auto', marginBottom: '15px' }}>
+                  {carrinho.map((item, index) => (
+                    <div key={index} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '8px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '4px' }}>
+                      <span style={{ color: '#475569', maxWidth: '160px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {/* 👇 CORREÇÃO AQUI TAMBÉM */}
+                        {item.quantidade}x {item.produto.nome}
+                      </span>
+                      <span style={{ color: '#16a34a', fontWeight: 'bold' }}>
+                        {/* 👇 E AQUI NO CÁLCULO */}
+                        + R$ {(Number(item.produto.precoVenda) * item.quantidade * PORCENTAGEM_COMISSAO).toFixed(2)}
                       </span>
                     </div>
                   ))}
                 </div>
 
-                {/* TOTAL FIXO NO FINAL */}
-                <div style={{ paddingTop: '15px', borderTop: '2px solid #cbd5e1' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: '#64748b', marginBottom: '5px' }}>
-                    <span>Subtotal:</span>
-                    <span>R$ {Number(totalCarrinho).toFixed(2)}</span>
-                  </div>
-                  {valorDesconto > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: '#dc2626', marginBottom: '5px' }}>
-                      <span>Desconto:</span>
-                      <span>- R$ {valorDesconto.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.5rem', fontWeight: 'bold', color: '#1e3c72' }}>
-                    <span>Total a Pagar:</span>
-                    <span>R$ {Number(totalComDesconto).toFixed(2)}</span>
+                <div style={{ background: '#dcfce7', padding: '15px', borderRadius: '8px', textAlign: 'center', border: '1px solid #86efac' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#166534', fontWeight: 'bold', textTransform: 'uppercase' }}>Comissão Total</div>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', color: '#15803d' }}>
+                    R$ {totalComissao.toFixed(2)}
                   </div>
                 </div>
-                </div>
-
-              {/* Pagamento */}
-              <div style={{
-                flex: 1,
-                padding: '30px',
-                overflowY: 'auto'
-              }}>
                 
-                {/* Cliente */}
-                <div style={{ marginBottom: '25px' }}>
-                  <label style={{ 
-                    display: 'block', 
-                    fontWeight: 'bold', 
-                    marginBottom: '8px',
-                    color: '#1e3c72'
-                  }}>
-                    👤 Cliente (Opcional)
-                  </label>
-                  <select
-                    value={clienteSelecionado}
-                    onChange={e => setClienteSelecionado(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid #e2e8f0',
-                      fontSize: '1rem'
-                    }}
-                  >
-                    <option value="">Sem cliente</option>
-                    {clientes.map(c => (
-                      <option key={c.id} value={c.id}>{c.nome}</option>
-                    ))}
-                  </select>
-                  {/* Desconto */}
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#1e3c72' }}>
-                    🏷️ Desconto (R$) Opcional
-                  </label>
-                  <input
-                    type="number"
-                    value={desconto}
-                    onChange={e => setDesconto(e.target.value)}
-                    placeholder="0.00"
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem' }}
-                  />
-                </div>
-                </div>
-
-                {/* Forma de Pagamento */}
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ 
-                    display: 'block', 
-                    fontWeight: 'bold', 
-                    marginBottom: '10px',
-                    color: '#1e3c72'
-                  }}>
-                    💳 Forma de Pagamento
-                  </label>
-
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                    <input
-                      type="number"
-                      value={valorPagamento}
-                      onChange={e => setValorPagamento(e.target.value)}
-                      placeholder={`R$ ${Math.max(0, faltaPagar).toFixed(2)}`} // AQUI ESTÁ O TRUQUE!
-                      style={{
-                        width: '120px',
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0'
-                      }}
-                    />
-                    <select
-                      value={formaPagamento}
-                      onChange={e => setFormaPagamento(e.target.value)}
-                      style={{
-                        flex: 1,
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0'
-                      }}
-                    >
-                      <option value="Dinheiro">💵 Dinheiro</option>
-                      <option value="Pix">💠 Pix</option>
-                      <option value="Cartão Crédito">💳 Crédito</option>
-                      <option value="Cartão Débito">💳 Débito</option>
-                      <option value="A Prazo">📅 A Prazo</option>
-                      <option value="Haver">🤝 Haver</option>
-                    </select>
-                    <button
-                      onClick={adicionarPagamento}
-                      disabled={faltaPagar <= 0.01}
-                      style={{
-                        padding: '0 20px',
-                        background: '#3b82f6',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: faltaPagar <= 0.01 ? 'not-allowed' : 'pointer',
-                        fontWeight: 'bold',
-                        opacity: faltaPagar <= 0.01 ? 0.5 : 1
-                      }}
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  {/* Lista de Pagamentos */}
-                  <div style={{ 
-                    background: '#f8fafc', 
-                    padding: '15px', 
-                    borderRadius: '8px',
-                    marginBottom: '15px'
-                  }}>
-                    {listaPagamentos.length === 0 ? (
-                      <div style={{ textAlign: 'center', color: '#94a3b8', padding: '10px' }}>
-                        Nenhum pagamento adicionado
-                      </div>
-                    ) : (
-                      listaPagamentos.map((p, i) => (
-                        <div key={i} style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          padding: '8px 0',
-                          borderBottom: i < listaPagamentos.length - 1 ? '1px dashed #e2e8f0' : 'none'
-                        }}>
-                          <span>{p.forma}: R$ {Number(p.valor).toFixed(2)}</span>
-                          <button
-                            onClick={() => setListaPagamentos(listaPagamentos.filter((_, idx) => idx !== i))}
-                            style={{
-                              color: '#dc2626',
-                              border: 'none',
-                              background: 'none',
-                              cursor: 'pointer',
-                              fontWeight: 'bold'
-                            }}
-                          >
-                            ✖
-                          </button>
-                        </div>
-                      ))
-                    )}
-                    
-                    <div style={{
-                      marginTop: '15px',
-                      paddingTop: '15px',
-                      borderTop: '2px solid #e2e8f0',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontWeight: 'bold'
-                    }}>
-                      <span style={{ color: faltaPagar > 0 ? '#dc2626' : '#059669' }}>
-                        Falta: R$ {Number(Math.max(0, faltaPagar)).toFixed(2)}
-                      </span>
-                      {troco > 0 && (
-                        <span style={{ color: '#059669' }}>
-                          Troco: R$ {Number(troco).toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Entrega */}
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '15px',
-                  cursor: 'pointer'
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={entrega}
-                    onChange={e => {
-                      setEntrega(e.target.checked)
-                      // Se marcar entrega e tiver cliente, carrega endereço automaticamente
-                      if (e.target.checked && clienteSelecionado) {
-                        const cliente = clientes.find(c => c.id === Number(clienteSelecionado))
-                        if (cliente?.endereco) {
-                          setEndereco(cliente.endereco)
-                          setEnderecoSelecionado(1)
-                        }
-                      }
-                    }}
-                  />
-                  🚛 É para entregar?
-                </label>
-
-                {entrega && (
-                  <div style={{ marginBottom: '20px' }}>
-                    {clienteSelecionado && (() => {
-                      const cliente = clientes.find(c => c.id === Number(clienteSelecionado))
-                      const enderecos = [
-                        cliente?.endereco,
-                        cliente?.endereco2,
-                        cliente?.endereco3
-                      ].filter(e => e && e.trim())
-                      
-                      if (enderecos.length > 0) {
-                        return (
-                          <>
-                            <label style={{
-                              display: 'block',
-                              fontSize: '0.9rem',
-                              fontWeight: 'bold',
-                              marginBottom: '8px',
-                              color: '#1e3c72'
-                            }}>
-                              Selecione o endereço:
-                            </label>
-                            <select
-                              value={enderecoSelecionado}
-                              onChange={e => {
-                                const idx = Number(e.target.value)
-                                setEnderecoSelecionado(idx)
-                                setEndereco(enderecos[idx - 1] || '')
-                              }}
-                              style={{
-                                width: '100%',
-                                padding: '12px',
-                                borderRadius: '8px',
-                                border: '1px solid #e2e8f0',
-                                marginBottom: '10px',
-                                fontSize: '1rem'
-                              }}
-                            >
-                              {enderecos.map((end, i) => (
-                                <option key={i} value={i + 1}>
-                                  📍 Endereço {i + 1}: {end}
-                                </option>
-                              ))}
-                            </select>
-                            <input
-                              type="text"
-                              placeholder="Ou digite outro endereço..."
-                              value={endereco}
-                              onChange={e => setEndereco(e.target.value)}
-                              style={{
-                                width: '100%',
-                                padding: '12px',
-                                borderRadius: '8px',
-                                border: '1px solid #e2e8f0',
-                                fontSize: '0.9rem'
-                              }}
-                            />
-                          </>
-                        )
-                      } else {
-                        return (
-                          <input
-                            type="text"
-                            placeholder="Digite o endereço de entrega..."
-                            value={endereco}
-                            onChange={e => setEndereco(e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '12px',
-                              borderRadius: '8px',
-                              border: '1px solid #e2e8f0'
-                            }}
-                          />
-                        )
-                      }
-                    })() || (
-                      <input
-                        type="text"
-                        placeholder="Digite o endereço de entrega..."
-                        value={endereco}
-                        onChange={e => setEndereco(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: '8px',
-                          border: '1px solid #e2e8f0'
-                        }}
-                      />
-                    )}
-                  </div>
-                )}
-
-                {/* Botões de Finalização */}
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                  <button
-                    onClick={finalizarVendaNormal}
-                    disabled={faltaPagar > 0.01 || processandoVenda}
-                    style={{
-                      flex: 1,
-                      padding: '15px',
-                      background: (faltaPagar > 0.01 || processandoVenda)
-                        ? '#e2e8f0' 
-                        : 'linear-gradient(135deg, #60a5fa, #3b82f6)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '1rem',
-                      fontWeight: 'bold',
-                      cursor: (faltaPagar > 0.01 || processandoVenda) ? 'not-allowed' : 'pointer',
-                      boxShadow: (faltaPagar <= 0.01 && !processandoVenda) ? '0 4px 15px rgba(59, 130, 246, 0.3)' : 'none',
-                      opacity: processandoVenda ? 0.6 : 1
-                    }}
-                  >
-                    📄 VENDA NORMAL
-                    <div style={{ fontSize: '0.75rem', marginTop: '4px', opacity: 0.9 }}>
-                      (Só recibo)
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={finalizarVendaComNFCe}
-                    disabled={faltaPagar > 0.01 || processandoVenda}
-                    style={{
-                      flex: 1,
-                      padding: '15px',
-                      background: (faltaPagar > 0.01 || processandoVenda)
-                        ? '#e2e8f0' 
-                        : 'linear-gradient(135deg, #4ade80, #22c55e)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '1rem',
-                      fontWeight: 'bold',
-                      cursor: (faltaPagar > 0.01 || processandoVenda) ? 'not-allowed' : 'pointer',
-                      boxShadow: (faltaPagar <= 0.01 && !processandoVenda) ? '0 4px 15px rgba(34, 197, 94, 0.3)' : 'none',
-                      opacity: processandoVenda ? 0.6 : 1
-                    }}
-                  >
-                    ✅ VENDA COM NFC-e
-                    <div style={{ fontSize: '0.75rem', marginTop: '4px', opacity: 0.9 }}>
-                      (Nota fiscal)
-                    </div>
-                  </button>
-                </div>
-
-                <div style={{ 
-                  textAlign: 'center', 
-                  fontSize: '0.85rem', 
-                  color: '#64748b',
-                  marginTop: '10px'
-                }}>
-                  💡 Escolha venda normal para recibo simples ou com NFC-e para emitir nota fiscal
+                <div style={{ marginTop: '10px', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center' }}>
+                  * Vendedor: {vendedorSelecionadoId === usuarioLogado.id ? 'Você' : 'Outro Usuário'}
                 </div>
               </div>
-            </div>
+            )}
+            
           </div>
+          {/* CSS para animação do painel */}
+          <style>{`@keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }`}</style>
         </div>
       )}
 
