@@ -407,16 +407,6 @@ app.post('/fornecedores', async (req: any) => {
   return await prisma.fornecedor.create({ data: { nome } })
 })
 
-// ROTA: Listar Categorias Únicas (Para o Auto-Complete)
-app.get('/categorias', async () => {
-  const produtos = await prisma.produto.findMany({
-    select: { categoria: true },
-    distinct: ['categoria'] // Mágica do Prisma: traz só uma de cada
-  });
-  // Retorna array simples: ["Tintas", "Ferramentas", "Bruto"]
-  return produtos.map((p: any) => p.categoria).filter((c: any) => c !== null);
-})
-
 // --- ORÇAMENTOS ---
 app.post('/orcamentos', async (request, reply) => {
   const dados = request.body as any
