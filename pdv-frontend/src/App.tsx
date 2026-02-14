@@ -814,25 +814,72 @@ export function App() {
 
   async function salvarProduto() {
     try {
-      const metodo = formProduto.id ? 'PUT' : 'POST'
-      const url = formProduto.id 
-        ? `${API_URL}/produtos/${formProduto.id}`
-        : `${API_URL}/produtos`
+      // 1. Prepara os dados (Converte R$ e Texto para Número)
+      const corpoRequisicao = {
+        nome: nome,
+        categoria: categoria,
+        unidade: unidade,
+        codigoBarra: codigoBarra,
+        ncm: ncm,
+        fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+        
+        // Limpeza de números (Troca virgula por ponto e garante que é numero)
+        estoque: Number(String(estoque).replace(',', '.')),
+        precoCusto: Number(String(precoCusto).replace('R$', '').replace(',', '.')),
+        precoVenda: Number(String(precoVenda).replace('R$', '').replace(',', '.')),
+      };
 
-      const res = await fetch(url, {
+      console.log("Enviando pro servidor:", corpoRequisicao); // Pra gente conferir
+
+      let url = 'https://api-vila-verde.onrender.com/produtos';
+      let metodo = 'POST';
+
+      // 2. Decide se é CRIAÇÃO ou ATUALIZAÇÃO
+      if (idProdutoEmEdicao) {
+        url = `https://api-vila-verde.onrender.com/produtos/${idProdutoEmEdicao}`;
+        metodo = 'PUT'; // Ou 'PATCH', dependendo do seu backend
+      }
+
+      const resposta = await fetch(url, {
         method: metodo,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formProduto)
-      })
+        body: JSON.stringify(corpoRequisicao)
+      });
 
-      if (res.ok) {
-        alert('✅ Produto salvo com sucesso!')
-        setModalProduto(false)
-        setFormProduto({})
-        carregarDados()
+      if (!resposta.ok) {
+        const erro = await resposta.json();
+        alert("Erro ao salvar: " + (erro.error || "Erro desconhecido"));
+        return;
       }
-    } catch (e) {
-      alert('Erro ao salvar produto')
+
+      // 3. Sucesso! Limpa e fecha
+      alert("Produto salvo com sucesso! ✅");
+      setModalProduto(false);
+      carregarProdutos(); // Atualiza a lista no fundo
+      
+      // Limpa os campos
+      setIdProdutoEmEdicao(null);
+      setNome('');
+      setCodigoBarra('');
+      setPrecoVenda('0');
+      // ... limpe os outros se quiser
+
+    } catch (error) {
+      console.error(error);
+      alert("Erro de conexão com o servidor.");
+    }
+  }
+
+  // FUNÇÃO PARA BUSCAR/ATUALIZAR OS PRODUTOS
+  async function carregarProdutos() {
+    try {
+      const response = await fetch('https://api-vila-verde.onrender.com/produtos');
+      if (response.ok) {
+        const dados = await response.json();
+        setProdutos(dados); // Atualiza a variável que desenha a tabela
+      }
+    } catch (error) {
+      console.error("Erro ao buscar produtos:", error);
     }
   }
 
@@ -3049,226 +3096,159 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
         );
       })()}
 
-{/* MODAL: PRODUTO (COM CALCULADORA ERP) */}
-      {modalProduto && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, overflowY: 'auto', padding: '20px' }}>
-          
-          <div style={{ background: 'white', borderRadius: '15px', padding: '30px', width: '900px', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            
-            {/* CABEÇALHO DO MODAL */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: '15px' }}>
-               <h2 style={{ margin: 0, color: '#1e3c72' }}>{formProduto.id ? '✏️ Editar Produto' : '+ Novo Produto'}</h2>
-               <button onClick={() => { setModalProduto(false); setFormProduto({}); }} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>✕</button>
-            </div>
+{modalProduto && (
+  <div style={{
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000,
+    display: 'flex', justifyContent: 'center', alignItems: 'center'
+  }}>
+    <div style={{
+      backgroundColor: '#fff', 
+      width: '900px', // Mais largo!
+      maxWidth: '95%',
+      padding: '20px', 
+      borderRadius: '8px',
+      display: 'flex', flexDirection: 'column', gap: '15px',
+      maxHeight: '90vh', overflowY: 'auto' // Barra de rolagem só se precisar muito
+    }}>
+      
+      {/* CABEÇALHO */}
+      <h2 style={{ margin: 0, borderBottom: '1px solid #ddd', paddingBottom: '10px' }}>
+        {idProdutoEmEdicao ? '✏️ Editar Produto' : '✨ Novo Produto'}
+      </h2>
 
-            {/* SEÇÃO 1: DADOS PRINCIPAIS (CORRIGIDO E TURBINADO) */}
-          <div style={{ background: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ marginTop: 0, color: '#1e3c72', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-              📦 Dados do Produto
-            </h3>
-
-            {/* LINHA 1: NOME (Full Width) */}
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>Nome do Produto *</label>
-              <input 
-                value={nome} onChange={e => setNome(e.target.value)} 
-                placeholder="Ex: Cimento Votoran 50kg"
-                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '1rem' }} 
-              />
-            </div>
-
-            {/* LINHA 2: 4 COLUNAS (Categoria | Fornecedor | Estoque | Unidade) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 1fr 0.8fr', gap: '15px', marginBottom: '20px' }}>
-              
-              {/* Categoria (Com sugestão) */}
-              <div>
-                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>Categoria</label>
-                <input 
-                  list="sugestoes-categorias"
-                  value={categoria} 
-                  onChange={e => setCategoria(e.target.value)}
-                  placeholder="Ex: Alvenaria"
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
-                />
-                <datalist id="sugestoes-categorias">
-                  {listaCategorias.map((cat, i) => <option key={i} value={cat} />)}
-                </datalist>
-              </div>
-
-              {/* Fornecedor (Com botão + discreto) */}
-              <div>
-                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>Fornecedor</label>
-                <div style={{ display: 'flex', gap: '5px' }}>
-                  {/* Se estiver digitando novo, mostra input, senão mostra select */}
-                  {novoFornecedor ? (
-                     <div style={{ display: 'flex', flex: 1, gap: '5px' }}>
-                        <input 
-                          autoFocus
-                          placeholder="Nome do novo..."
-                          value={novoFornecedor}
-                          onChange={e => setNovoFornecedor(e.target.value)}
-                          style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '2px solid #3b82f6' }}
-                        />
-                        <button onClick={cadastrarFornecedor} style={{ background: '#22c55e', color: 'white', border: 'none', borderRadius: '6px', padding: '0 10px', cursor: 'pointer' }}>✔</button>
-                        <button onClick={() => setNovoFornecedor('')} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '0 10px', cursor: 'pointer' }}>✕</button>
-                     </div>
-                  ) : (
-                    <>
-                      <select 
-                        value={fornecedorId} 
-                        onChange={e => setFornecedorId(Number(e.target.value))}
-                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white' }}
-                      >
-                        <option value="">Selecione...</option>
-                        {listaFornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                      </select>
-                      <button 
-                        onClick={() => setNovoFornecedor(' ')} // Espaço ativa o modo edição
-                        title="Novo Fornecedor"
-                        style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', width: '42px', cursor: 'pointer', fontSize: '1.2rem' }}
-                      >
-                        +
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Estoque (VOLTOU!) */}
-              <div>
-                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>Estoque *</label>
-                <input 
-                  type="number"
-                  value={estoque} onChange={e => setEstoque(e.target.value)} 
-                  placeholder="0.00"
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
-                />
-              </div>
-
-              {/* Unidade (VOLTOU!) */}
-              <div>
-                 <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>Unidade</label>
-                 <select 
-                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white' }}
-                 >
-                   <option>UN</option>
-                   <option>KG</option>
-                   <option>MT</option>
-                   <option>M²</option>
-                   <option>M³</option>
-                   <option>CX</option>
-                   <option>LT</option>
-                 </select>
-              </div>
-            </div>
-
-            {/* LINHA 3: CÓDIGO DE BARRAS COM MINI ABA DE GRADES */}
-            <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
-              
-              {/* Mini Abas */}
-              <div style={{ display: 'flex', gap: '15px', marginBottom: '10px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#3b82f6', borderBottom: '2px solid #3b82f6', cursor: 'pointer', paddingBottom: '5px' }}>
-                  🏷️ Código Único
-                </span>
-                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#94a3b8', cursor: 'pointer', paddingBottom: '5px' }}>
-                  🔢 Grade / Variações (P, M, G...)
-                </span>
-              </div>
-
-              {/* Input do Código */}
-              <div>
-                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', color: '#475569', marginBottom: '5px' }}>
-                  Código de Barras / EAN
-                </label>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <input 
-                    value={codigoBarra} onChange={e => setCodigoBarra(e.target.value)} 
-                    placeholder="Escaneie ou digite..."
-                    style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontFamily: 'monospace', letterSpacing: '1px' }} 
-                  />
-                  <button style={{ background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 15px', cursor: 'pointer', color: '#64748b' }}>
-                    📷
-                  </button>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-            {/* DIVISÃO INFERIOR (ESQUERDA: CÁLCULO / DIREITA: FISCAL) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
-                
-                {/* SEÇÃO 2: FORMAÇÃO DE PREÇO (Calculadora) */}
-                <div style={{ background: '#f0fdf4', padding: '20px', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
-                  <h3 style={{ fontSize: '1.1rem', color: '#166534', marginTop: 0, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>🧮 Cálculo de Preço</h3>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '15px' }}>
-                    <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#166534', marginBottom: '3px' }}>Preço de Compra Bruto (R$)</label>
-                      <input type="number" step="0.01" value={formProduto.precoCompra || ''} onChange={e => handleCalcProduto('precoCompra', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac' }} />
-                    </div>
-                    <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#15803d', marginBottom: '3px' }}>+ IPI (%)</label><input type="number" value={formProduto.ipi || ''} onChange={e => handleCalcProduto('ipi', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac' }} /></div>
-                    <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#15803d', marginBottom: '3px' }}>+ Frete (%)</label><input type="number" value={formProduto.fretePerc || ''} onChange={e => handleCalcProduto('fretePerc', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac' }} /></div>
-                    <div><label style={{ display: 'block', fontSize: '0.8rem', color: '#15803d', marginBottom: '3px' }}>+ Encargos (%)</label><input type="number" value={formProduto.encargosPerc || ''} onChange={e => handleCalcProduto('encargosPerc', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac' }} /></div>
-                  </div>
-
-                  <div style={{ background: '#dcfce7', padding: '10px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                     <span style={{ fontWeight: 'bold', color: '#166534' }}>CUSTO LÍQUIDO =</span>
-                     <input type="number" step="0.01" value={formProduto.precoCusto || ''} onChange={e => handleCalcProduto('precoCusto', e.target.value)} style={{ width: '120px', padding: '8px', borderRadius: '6px', border: '1px solid #4ade80', fontWeight: 'bold', color: '#166534', textAlign: 'right' }} />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
-                    <div><label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#166534', marginBottom: '3px' }}>% Margem de Lucro</label>
-                      <input type="number" step="0.01" value={formProduto.margemLucro || ''} onChange={e => handleCalcProduto('margemLucro', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac', background: '#fef9c3' }} />
-                    </div>
-                    <div><label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', color: '#166534', marginBottom: '3px' }}>Lucro Real (R$)</label>
-                      <input type="text" readOnly value={Math.max(0, ((Number(formProduto.precoVenda) || 0) - (Number(formProduto.precoCusto) || 0))).toFixed(2)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #86efac', background: '#e2e8f0', color: '#475569' }} />
-                    </div>
-                  </div>
-
-                  <div style={{ background: '#22c55e', padding: '12px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                     <span style={{ fontWeight: 'bold', color: 'white', fontSize: '1.2rem' }}>PREÇO VENDA =</span>
-                     <input type="number" step="0.01" value={formProduto.precoVenda || ''} onChange={e => handleCalcProduto('precoVenda', e.target.value)} style={{ width: '130px', padding: '8px', borderRadius: '6px', border: 'none', fontWeight: 'bold', color: '#166534', textAlign: 'right', fontSize: '1.2rem' }} />
-                  </div>
-                </div>
-
-                {/* SEÇÃO 3: DADOS FISCAIS */}
-                <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                  <h3 style={{ fontSize: '1.1rem', color: '#1e3c72', marginTop: 0, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>📄 Dados Fiscais</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                       <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '3px', fontWeight: 'bold', fontSize: '0.8rem', color: '#475569' }}>NCM</label><input type="text" placeholder="Ex: 25232910" value={formProduto.ncm || ''} onChange={e => setFormProduto({...formProduto, ncm: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-                       <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '3px', fontWeight: 'bold', fontSize: '0.8rem', color: '#475569' }}>CEST</label><input type="text" value={formProduto.cest || ''} onChange={e => setFormProduto({...formProduto, cest: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                       <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '3px', fontWeight: 'bold', fontSize: '0.8rem', color: '#475569' }}>CFOP Padrão</label><input type="text" placeholder="Ex: 5102" value={formProduto.cfop || ''} onChange={e => setFormProduto({...formProduto, cfop: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} /></div>
-                       <div style={{ flex: 1 }}><label style={{ display: 'block', marginBottom: '3px', fontWeight: 'bold', fontSize: '0.8rem', color: '#475569' }}>Origem</label>
-                          <select value={formProduto.origem || '0'} onChange={e => setFormProduto({...formProduto, origem: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                            <option value="0">0 - Nacional</option><option value="1">1 - Estrangeira</option><option value="2">2 - Estrang. MI</option>
-                          </select>
-                       </div>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '3px', fontWeight: 'bold', fontSize: '0.8rem', color: '#475569' }}>Situação Tributária (CSOSN / CST)</label>
-                      <select value={formProduto.csosn || '102'} onChange={e => setFormProduto({...formProduto, csosn: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                        <option value="102">102 - Simples Nacional (Sem crédito)</option>
-                        <option value="500">500 - ICMS Cobrado por Substituição</option>
-                        <option value="103">103 - Isenção do ICMS no Simples</option>
-                        <option value="400">400 - Não tributada pelo Simples</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-            </div>
-
-            {/* BOTÕES DE AÇÃO */}
-            <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-              <button onClick={salvarProduto} style={{ flex: 1, padding: '15px', background: 'linear-gradient(135deg, #4ade80, #22c55e)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(34, 197, 94, 0.3)' }}>✓ SALVAR PRODUTO</button>
-              <button onClick={() => { setModalProduto(false); setFormProduto({}); }} style={{ padding: '15px 30px', background: 'white', color: '#64748b', border: '2px solid #e2e8f0', borderRadius: '8px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer' }}>Cancelar</button>
-            </div>
-
+      {/* LINHA 1: NOME E CÓDIGO (Lado a Lado) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px' }}>
+        <div>
+          <label>Nome do Produto *</label>
+          <input 
+            value={nome} onChange={e => setNome(e.target.value)}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+            placeholder="Ex: Cimento CP II"
+          />
+        </div>
+        <div>
+          <label>Código de Barras / EAN</label>
+          <div style={{ display: 'flex', gap: '5px', marginTop: '5px' }}>
+             <input 
+              value={codigoBarra} onChange={e => setCodigoBarra(e.target.value)}
+              style={{ width: '100%', padding: '8px' }}
+              placeholder="Escaneie..."
+            />
+            <button>📷</button>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* LINHA 2: CATEGORIA, FORNECEDOR, ESTOQUE, UNIDADE (4 Colunas) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 0.5fr', gap: '15px' }}>
+        <div>
+          <label>Categoria</label>
+          <input 
+            value={categoria} onChange={e => setCategoria(e.target.value)}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }} 
+          />
+        </div>
+        <div>
+           <label>Fornecedor</label>
+           <select 
+             value={fornecedorId} onChange={e => setFornecedorId(e.target.value)}
+             style={{ width: '100%', padding: '9px', marginTop: '5px' }}
+           >
+             <option value="">Geral</option>
+             {/* Seus fornecedores aqui */}
+           </select>
+        </div>
+        <div>
+          <label>Estoque Atual</label>
+          <input 
+            type="number"
+            value={estoque} onChange={e => setEstoque(e.target.value)}
+            style={{ width: '100%', padding: '8px', marginTop: '5px', fontWeight: 'bold' }} 
+          />
+        </div>
+        <div>
+          <label>Unid.</label>
+          <select 
+            value={unidade} onChange={e => setUnidade(e.target.value)}
+            style={{ width: '100%', padding: '9px', marginTop: '5px' }}
+          >
+            <option value="UN">UN</option>
+            <option value="KG">KG</option>
+            <option value="M">M</option>
+            <option value="M2">M²</option>
+            <option value="SC">SC</option>
+          </select>
+        </div>
+      </div>
+
+      {/* LINHA 3: DIVISÃO FINANCEIRO E FISCAL (Duas Caixas Grandes) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '10px' }}>
+        
+        {/* ESQUERDA: FINANCEIRO (Verde) */}
+        <div style={{ background: '#f0fdf4', padding: '15px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+           <h4 style={{ margin: '0 0 10px 0', color: '#166534' }}>💲 Preços</h4>
+           
+           <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.9em' }}>Preço de Custo (R$)</label>
+                <input 
+                  value={precoCusto} onChange={e => setPrecoCusto(e.target.value)}
+                  style={{ width: '100%', padding: '8px', marginTop: '5px' }} 
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.9em', fontWeight: 'bold' }}>Preço de Venda (R$)</label>
+                <input 
+                  value={precoVenda} onChange={e => setPrecoVenda(e.target.value)}
+                  style={{ width: '100%', padding: '8px', marginTop: '5px', border: '2px solid #22c55e', fontSize: '1.1em' }} 
+                />
+              </div>
+           </div>
+        </div>
+
+        {/* DIREITA: FISCAL (Azul) */}
+        <div style={{ background: '#eff6ff', padding: '15px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+           <h4 style={{ margin: '0 0 10px 0', color: '#1e40af' }}>📄 Fiscal (Opcional)</h4>
+           <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ flex: 1 }}>
+                 <label style={{ fontSize: '0.9em' }}>NCM</label>
+                 <input 
+                   value={ncm} onChange={e => setNcm(e.target.value)}
+                   placeholder="Ex: 730890"
+                   style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                 />
+              </div>
+              <div style={{ flex: 1 }}>
+                 <label style={{ fontSize: '0.9em' }}>Origem</label>
+                 <select style={{ width: '100%', padding: '9px', marginTop: '5px' }}>
+                    <option value="0">0 - Nacional</option>
+                 </select>
+              </div>
+           </div>
+        </div>
+
+      </div>
+
+      {/* RODAPÉ: BOTÕES */}
+      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+        <button 
+          onClick={() => setModalProduto(false)}
+          style={{ padding: '10px 20px', background: '#ccc', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+        >
+          Cancelar
+        </button>
+        <button 
+          onClick={salvarProduto}
+          style={{ padding: '10px 30px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px' }}
+        >
+          💾 SALVAR PRODUTO
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
 
       {/* MODAL: CLIENTE */}
       {modalCliente && (
