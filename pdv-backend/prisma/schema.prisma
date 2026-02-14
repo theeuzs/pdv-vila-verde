@@ -67,11 +67,23 @@ model Produto {
   unidade        String          @default("UN")
   categoria      String?
   ativo          Boolean         @default(true)
+
+// Controle de Estoque
+  estoqueMinimo Decimal?  @default(5)  // Avisar quando baixar disso
+  estoqueIdeal  Decimal?               // Meta de compra
+  localizacao   String?                // "Prateleira A1"
+  controlarEstoque Boolean @default(true) // Se false, ignora baixa
+
+// Precificação Inteligente
+  margemLucro   Decimal?  @default(0) @db.Decimal(10, 2) // %
+
+  // Identificação Extra
+  sku           String?   // Código interno curto
+  marca         String?   // Ex: Amanco, Tigre
   
   // 👇 CAMPOS NOVOS ADICIONADOS AQUI 👇
   fornecedorId Int?
   fornecedor   Fornecedor? @relation(fields: [fornecedorId], references: [id])
-  localizacao    String?
   ncm            String?
   cest           String?
   cfop           String?         @default("5102")

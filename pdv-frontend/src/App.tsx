@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { TelaLogin } from './TelaLogin';
 import { TelaEquipe } from './TelaEquipe';
+import ModalProdutoPro from './ModalProdutoPro';
 
 // ============================================================================
 // TIPAGENS
@@ -3097,157 +3098,14 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
       })()}
 
 {modalProduto && (
-  <div style={{
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000,
-    display: 'flex', justifyContent: 'center', alignItems: 'center'
-  }}>
-    <div style={{
-      backgroundColor: '#fff', 
-      width: '900px', // Mais largo!
-      maxWidth: '95%',
-      padding: '20px', 
-      borderRadius: '8px',
-      display: 'flex', flexDirection: 'column', gap: '15px',
-      maxHeight: '90vh', overflowY: 'auto' // Barra de rolagem só se precisar muito
-    }}>
-      
-      {/* CABEÇALHO */}
-      <h2 style={{ margin: 0, borderBottom: '1px solid #ddd', paddingBottom: '10px' }}>
-        {idProdutoEmEdicao ? '✏️ Editar Produto' : '✨ Novo Produto'}
-      </h2>
-
-      {/* LINHA 1: NOME E CÓDIGO (Lado a Lado) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px' }}>
-        <div>
-          <label>Nome do Produto *</label>
-          <input 
-            value={nome} onChange={e => setNome(e.target.value)}
-            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-            placeholder="Ex: Cimento CP II"
-          />
-        </div>
-        <div>
-          <label>Código de Barras / EAN</label>
-          <div style={{ display: 'flex', gap: '5px', marginTop: '5px' }}>
-             <input 
-              value={codigoBarra} onChange={e => setCodigoBarra(e.target.value)}
-              style={{ width: '100%', padding: '8px' }}
-              placeholder="Escaneie..."
-            />
-            <button>📷</button>
-          </div>
-        </div>
-      </div>
-
-      {/* LINHA 2: CATEGORIA, FORNECEDOR, ESTOQUE, UNIDADE (4 Colunas) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 0.5fr', gap: '15px' }}>
-        <div>
-          <label>Categoria</label>
-          <input 
-            value={categoria} onChange={e => setCategoria(e.target.value)}
-            style={{ width: '100%', padding: '8px', marginTop: '5px' }} 
-          />
-        </div>
-        <div>
-           <label>Fornecedor</label>
-           <select 
-             value={fornecedorId} onChange={e => setFornecedorId(e.target.value)}
-             style={{ width: '100%', padding: '9px', marginTop: '5px' }}
-           >
-             <option value="">Geral</option>
-             {/* Seus fornecedores aqui */}
-           </select>
-        </div>
-        <div>
-          <label>Estoque Atual</label>
-          <input 
-            type="number"
-            value={estoque} onChange={e => setEstoque(e.target.value)}
-            style={{ width: '100%', padding: '8px', marginTop: '5px', fontWeight: 'bold' }} 
-          />
-        </div>
-        <div>
-          <label>Unid.</label>
-          <select 
-            value={unidade} onChange={e => setUnidade(e.target.value)}
-            style={{ width: '100%', padding: '9px', marginTop: '5px' }}
-          >
-            <option value="UN">UN</option>
-            <option value="KG">KG</option>
-            <option value="M">M</option>
-            <option value="M2">M²</option>
-            <option value="SC">SC</option>
-          </select>
-        </div>
-      </div>
-
-      {/* LINHA 3: DIVISÃO FINANCEIRO E FISCAL (Duas Caixas Grandes) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '10px' }}>
-        
-        {/* ESQUERDA: FINANCEIRO (Verde) */}
-        <div style={{ background: '#f0fdf4', padding: '15px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-           <h4 style={{ margin: '0 0 10px 0', color: '#166534' }}>💲 Preços</h4>
-           
-           <div style={{ display: 'flex', gap: '10px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '0.9em' }}>Preço de Custo (R$)</label>
-                <input 
-                  value={precoCusto} onChange={e => setPrecoCusto(e.target.value)}
-                  style={{ width: '100%', padding: '8px', marginTop: '5px' }} 
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '0.9em', fontWeight: 'bold' }}>Preço de Venda (R$)</label>
-                <input 
-                  value={precoVenda} onChange={e => setPrecoVenda(e.target.value)}
-                  style={{ width: '100%', padding: '8px', marginTop: '5px', border: '2px solid #22c55e', fontSize: '1.1em' }} 
-                />
-              </div>
-           </div>
-        </div>
-
-        {/* DIREITA: FISCAL (Azul) */}
-        <div style={{ background: '#eff6ff', padding: '15px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-           <h4 style={{ margin: '0 0 10px 0', color: '#1e40af' }}>📄 Fiscal (Opcional)</h4>
-           <div style={{ display: 'flex', gap: '10px' }}>
-              <div style={{ flex: 1 }}>
-                 <label style={{ fontSize: '0.9em' }}>NCM</label>
-                 <input 
-                   value={ncm} onChange={e => setNcm(e.target.value)}
-                   placeholder="Ex: 730890"
-                   style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-                 />
-              </div>
-              <div style={{ flex: 1 }}>
-                 <label style={{ fontSize: '0.9em' }}>Origem</label>
-                 <select style={{ width: '100%', padding: '9px', marginTop: '5px' }}>
-                    <option value="0">0 - Nacional</option>
-                 </select>
-              </div>
-           </div>
-        </div>
-
-      </div>
-
-      {/* RODAPÉ: BOTÕES */}
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-        <button 
-          onClick={() => setModalProduto(false)}
-          style={{ padding: '10px 20px', background: '#ccc', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
-        >
-          Cancelar
-        </button>
-        <button 
-          onClick={salvarProduto}
-          style={{ padding: '10px 30px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px' }}
-        >
-          💾 SALVAR PRODUTO
-        </button>
-      </div>
-
-    </div>
-  </div>
+  <ModalProdutoPro 
+    onClose={() => setModalProduto(false)}
+    onSave={(dados) => {
+        console.log("Salvando:", dados);
+        salvarProduto(); // Chame sua função original aqui adaptando os dados
+    }}
+    produto={idProdutoEmEdicao ? produtos.find(p => p.id === idProdutoEmEdicao) : null}
+  />
 )}
 
       {/* MODAL: CLIENTE */}
