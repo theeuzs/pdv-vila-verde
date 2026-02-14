@@ -314,16 +314,49 @@ export default function ModalProdutoPro({ onClose, onSave, produto }: ModalProps
                     </div>
                   </div>
 
-                  <div style={{ ...s.row, marginTop: '16px' }}>
+                 <div style={{ ...s.row, marginTop: '16px' }}>
+                    
+                    {/* CATEGORIA - AGORA É SELECT */}
                     <div style={s.col(1)}>
                       <label style={s.label}>Categoria</label>
-                      <input style={s.input} value={categoria} onChange={e => setCategoria(e.target.value)} list="lstCategorias" />
-                      <datalist id="lstCategorias"><option value="Material Básico"/><option value="Hidráulica"/><option value="Elétrica"/></datalist>
+                      <select 
+                        style={s.input} 
+                        value={categoria} 
+                        onChange={e => setCategoria(e.target.value)}
+                      >
+                        <option value="">Selecione...</option>
+                        <option value="Geral">Geral</option>
+                        <option value="Material Básico">Material Básico</option>
+                        <option value="Hidráulica">Hidráulica</option>
+                        <option value="Elétrica">Elétrica</option>
+                        <option value="Ferragens">Ferragens</option>
+                        <option value="Tintas">Tintas</option>
+                        <option value="Ferramentas">Ferramentas</option>
+                        <option value="Acabamentos">Acabamentos</option>
+                      </select>
                     </div>
+
+                    {/* MARCA - AGORA É SELECT */}
                     <div style={s.col(1)}>
                       <label style={s.label}>Marca</label>
-                      <input style={s.input} value={marca} onChange={e => setMarca(e.target.value)} placeholder="Ex: Votoran" />
+                      <select 
+                        style={s.input} 
+                        value={marca} 
+                        onChange={e => setMarca(e.target.value)}
+                      >
+                        <option value="">Selecione...</option>
+                        <option value="Geral">Geral / Diversos</option>
+                        <option value="Votoran">Votoran</option>
+                        <option value="Tigre">Tigre</option>
+                        <option value="Amanco">Amanco</option>
+                        <option value="Suvinil">Suvinil</option>
+                        <option value="Tramontina">Tramontina</option>
+                        <option value="Gerdau">Gerdau</option>
+                        <option value="Quartzolit">Quartzolit</option>
+                      </select>
                     </div>
+
+                    {/* UNIDADE (MANTIDA IGUAL) */}
                     <div style={s.col(1)}>
                       <label style={s.label}>Unidade</label>
                       <select style={s.input} value={unidade} onChange={e => setUnidade(e.target.value)}>
@@ -331,6 +364,8 @@ export default function ModalProdutoPro({ onClose, onSave, produto }: ModalProps
                         <option value="KG">KG - Quilo</option>
                         <option value="SC">SC - Saco</option>
                         <option value="M">M - Metro</option>
+                        <option value="CX">CX - Caixa</option>
+                        <option value="L">L - Litro</option>
                       </select>
                     </div>
                   </div>
