@@ -46,6 +46,9 @@ export default function ModalProdutoPro({ onClose, onSave, produto }: ModalProps
   const [csosn, setCsosn] = useState('102');
   const [cfop, setCfop] = useState('5102');
 
+  const [listaCategorias, setListaCategorias] = useState<any[]>([]);
+  const [listaMarcas, setListaMarcas] = useState<any[]>([]);
+
   // --- INICIALIZAÇÃO ---
   useEffect(() => {
     if (produto) {
@@ -73,6 +76,51 @@ export default function ModalProdutoPro({ onClose, onSave, produto }: ModalProps
       }
     }
   }, [produto]);
+
+  // Carregar as listas quando abrir o modal
+  useEffect(() => {
+    // Busca Categorias
+    fetch('https://api-vila-verde.onrender.com/categorias')
+      .then(r => r.json())
+      .then(dados => setListaCategorias(dados))
+      .catch(e => console.log("Erro categorias", e));
+
+    // Busca Marcas
+    fetch('https://api-vila-verde.onrender.com/marcas')
+      .then(r => r.json())
+      .then(dados => setListaMarcas(dados))
+      .catch(e => console.log("Erro marcas", e));
+  }, []);
+
+  // Função para CRIAR RÁPIDO (Sem sair da tela)
+  const adicionarRapido = async (tipo: 'marca' | 'categoria') => {
+    const nome = prompt(`Digite o nome da nova ${tipo}:`);
+    if (!nome) return;
+
+    const url = tipo === 'marca' ? 'https://api-vila-verde.onrender.com/marcas' : 'https://api-vila-verde.onrender.com/categorias';
+    
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ nome })
+      });
+      
+      if (res.ok) {
+        const novoItem = await res.json();
+        // Atualiza a lista na hora
+        if (tipo === 'marca') {
+            setListaMarcas([...listaMarcas, novoItem]);
+            setMarca(novoItem.nome); // Já seleciona o que você criou
+        } else {
+            setListaCategorias([...listaCategorias, novoItem]);
+            setCategoria(novoItem.nome);
+        }
+      } else {
+        alert("Erro: Talvez já exista.");
+      }
+    } catch (e) { console.error(e); }
+  }
 
   // --- CÁLCULOS FINANCEIROS ---
 
@@ -316,47 +364,55 @@ export default function ModalProdutoPro({ onClose, onSave, produto }: ModalProps
 
                  <div style={{ ...s.row, marginTop: '16px' }}>
                     
-                    {/* CATEGORIA - AGORA É SELECT */}
+                    {/* CATEGORIA COM BOTÃO + */}
                     <div style={s.col(1)}>
                       <label style={s.label}>Categoria</label>
-                      <select 
-                        style={s.input} 
-                        value={categoria} 
-                        onChange={e => setCategoria(e.target.value)}
-                      >
-                        <option value="">Selecione...</option>
-                        <option value="Geral">Geral</option>
-                        <option value="Material Básico">Material Básico</option>
-                        <option value="Hidráulica">Hidráulica</option>
-                        <option value="Elétrica">Elétrica</option>
-                        <option value="Ferragens">Ferragens</option>
-                        <option value="Tintas">Tintas</option>
-                        <option value="Ferramentas">Ferramentas</option>
-                        <option value="Acabamentos">Acabamentos</option>
-                      </select>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        <select 
+                          style={s.input} 
+                          value={categoria} 
+                          onChange={e => setCategoria(e.target.value)}
+                        >
+                          <option value="">Selecione...</option>
+                          {listaCategorias.map((c: any) => (
+                            <option key={c.id} value={c.nome}>{c.nome}</option>
+                          ))}
+                        </select>
+                        <button 
+                          onClick={() => adicionarRapido('categoria')}
+                          style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', width: '40px', cursor: 'pointer', fontSize: '1.2rem' }}
+                          title="Nova Categoria"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
 
-                    {/* MARCA - AGORA É SELECT */}
+                    {/* MARCA COM BOTÃO + */}
                     <div style={s.col(1)}>
                       <label style={s.label}>Marca</label>
-                      <select 
-                        style={s.input} 
-                        value={marca} 
-                        onChange={e => setMarca(e.target.value)}
-                      >
-                        <option value="">Selecione...</option>
-                        <option value="Geral">Geral / Diversos</option>
-                        <option value="Votoran">Votoran</option>
-                        <option value="Tigre">Tigre</option>
-                        <option value="Amanco">Amanco</option>
-                        <option value="Suvinil">Suvinil</option>
-                        <option value="Tramontina">Tramontina</option>
-                        <option value="Gerdau">Gerdau</option>
-                        <option value="Quartzolit">Quartzolit</option>
-                      </select>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                         <select 
+                          style={s.input} 
+                          value={marca} 
+                          onChange={e => setMarca(e.target.value)}
+                        >
+                          <option value="">Selecione...</option>
+                          {listaMarcas.map((m: any) => (
+                            <option key={m.id} value={m.nome}>{m.nome}</option>
+                          ))}
+                        </select>
+                         <button 
+                          onClick={() => adicionarRapido('marca')}
+                          style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', width: '40px', cursor: 'pointer', fontSize: '1.2rem' }}
+                          title="Nova Marca"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
 
-                    {/* UNIDADE (MANTIDA IGUAL) */}
+                    {/* UNIDADE (MANTIDA) */}
                     <div style={s.col(1)}>
                       <label style={s.label}>Unidade</label>
                       <select style={s.input} value={unidade} onChange={e => setUnidade(e.target.value)}>

@@ -223,3 +223,13 @@ model Fornecedor {
   contato   String?
   produtos  Produto[] // Isso avisa que um fornecedor tem vários produtos
 }
+
+model Categoria {
+  id    Int    @id @default(autoincrement())
+  nome  String @unique
+}
+
+model Marca {
+  id    Int    @id @default(autoincrement())
+  nome  String @unique
+}

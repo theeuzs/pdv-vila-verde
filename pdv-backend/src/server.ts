@@ -1372,6 +1372,41 @@ app.post('/finalizar-venda', async (request: any, reply: any) => {
   }
 });
 
+// --- ROTAS DE CATEGORIAS ---
+  app.get('/categorias', async (request, reply) => {
+    const categorias = await prisma.categoria.findMany({ orderBy: { nome: 'asc' } });
+    return categorias; // No Fastify, basta retornar o objeto
+  });
+
+  app.post('/categorias', async (request, reply) => {
+    // Avisamos ao TypeScript que o corpo tem um campo 'nome'
+    const { nome } = request.body as { nome: string };
+    
+    try {
+      const nova = await prisma.categoria.create({ data: { nome } });
+      return nova;
+    } catch (e) {
+      return reply.status(400).send({ error: "Categoria já existe" });
+    }
+  });
+
+  // --- ROTAS DE MARCAS ---
+  app.get('/marcas', async (request, reply) => {
+    const marcas = await prisma.marca.findMany({ orderBy: { nome: 'asc' } });
+    return marcas;
+  });
+
+  app.post('/marcas', async (request, reply) => {
+    const { nome } = request.body as { nome: string };
+    
+    try {
+      const nova = await prisma.marca.create({ data: { nome } });
+      return nova;
+    } catch (e) {
+      return reply.status(400).send({ error: "Marca já existe" });
+    }
+  });
+
 // --- INICIALIZAÇÃO ---
 const start = async () => {
   try {
