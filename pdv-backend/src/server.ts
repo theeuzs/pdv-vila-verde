@@ -541,6 +541,11 @@ app.post('/clientes/:id/haver', async (request, reply) => {
   return reply.send(cliente)
 })
 
+// ROTA DE SAÚDE (Para manter o Render acordado)
+app.get('/health', async () => {
+  return { status: 'ok', message: 'Estou vivo! 🤖' }
+})
+
 // ============================================================================
 // ROTAS DE CAIXA - CORRIGIDAS PARA FASTIFY
 // ============================================================================
