@@ -813,38 +813,42 @@ export function App() {
   // FUNÇÕES DE PRODUTOS
   // ============================================================================
 
-  async function salvarProduto() {
+  // Agora a função aceita um parâmetro opcional (dadosDoModal)
+  async function salvarProduto(dadosDoModal?: any) {
     try {
-      // 1. Prepara os dados (Converte R$ e Texto para Número)
-      const corpoRequisicao = {
-        nome: nome,
-        categoria: categoria,
-        unidade: unidade,
-        codigoBarra: codigoBarra,
-        ncm: ncm,
-        fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+      // 1. Prioridade: Se vier dados do modal, usa eles. Se não, usa as variáveis do estado.
+      const payload = {
+        nome: dadosDoModal?.nome || nome,
+        categoria: dadosDoModal?.categoria || categoria,
+        unidade: dadosDoModal?.unidade || unidade,
+        codigoBarra: dadosDoModal?.codigoBarra || codigoBarra,
+        sku: dadosDoModal?.sku || '', // Novo campo
+        marca: dadosDoModal?.marca || '', // Novo campo
         
-        // Limpeza de números (Troca virgula por ponto e garante que é numero)
-        estoque: Number(String(estoque).replace(',', '.')),
-        precoCusto: Number(String(precoCusto).replace('R$', '').replace(',', '.')),
-        precoVenda: Number(String(precoVenda).replace('R$', '').replace(',', '.')),
+        // Converte números garantindo que não quebre
+        estoque: Number(dadosDoModal?.estoque ?? estoque),
+        precoCusto: Number(dadosDoModal?.precoCusto ?? precoCusto),
+        precoVenda: Number(dadosDoModal?.precoVenda ?? precoVenda),
+        
+        ncm: dadosDoModal?.ncm || ncm,
+        fornecedorId: (dadosDoModal?.fornecedorId || fornecedorId) ? Number(dadosDoModal?.fornecedorId || fornecedorId) : null,
       };
 
-      console.log("Enviando pro servidor:", corpoRequisicao); // Pra gente conferir
+      console.log("📤 Enviando pro servidor:", payload);
 
       let url = 'https://api-vila-verde.onrender.com/produtos';
       let metodo = 'POST';
 
-      // 2. Decide se é CRIAÇÃO ou ATUALIZAÇÃO
+      // Se tiver ID, é edição (PUT)
       if (idProdutoEmEdicao) {
         url = `https://api-vila-verde.onrender.com/produtos/${idProdutoEmEdicao}`;
-        metodo = 'PUT'; // Ou 'PATCH', dependendo do seu backend
+        metodo = 'PUT';
       }
 
       const resposta = await fetch(url, {
         method: metodo,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(corpoRequisicao)
+        body: JSON.stringify(payload)
       });
 
       if (!resposta.ok) {
@@ -853,17 +857,16 @@ export function App() {
         return;
       }
 
-      // 3. Sucesso! Limpa e fecha
-      alert("Produto salvo com sucesso! ✅");
-      setModalProduto(false);
-      carregarProdutos(); // Atualiza a lista no fundo
+      // SUCESSO!
+      alert("✅ Produto salvo com sucesso!");
+      setModalProduto(false); // Fecha o modal
+      carregarProdutos(); // Atualiza a lista atrás
       
-      // Limpa os campos
+      // Limpa tudo
       setIdProdutoEmEdicao(null);
       setNome('');
       setCodigoBarra('');
       setPrecoVenda('0');
-      // ... limpe os outros se quiser
 
     } catch (error) {
       console.error(error);
@@ -3100,10 +3103,13 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
 {modalProduto && (
   <ModalProdutoPro 
     onClose={() => setModalProduto(false)}
-    onSave={(dados) => {
-        console.log("Salvando:", dados);
-        salvarProduto(); // Chame sua função original aqui adaptando os dados
+    
+    // 👇 AQUI A MUDANÇA: Passamos os dados direto pra função!
+    onSave={(dadosDoModal) => {
+        console.log("Dados recebidos do modal:", dadosDoModal);
+        salvarProduto(dadosDoModal); 
     }}
+    
     produto={idProdutoEmEdicao ? produtos.find(p => p.id === idProdutoEmEdicao) : null}
   />
 )}
