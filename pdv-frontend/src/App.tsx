@@ -1383,14 +1383,17 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                 />
               </div>
 
-              <div style={{ 
-                flex: 1,
-                overflowY: 'auto',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                gap: '15px',
-                alignContent: 'start'
-              }}>
+              <div style={{
+  display: 'grid',
+  // ANTES ERA: repeat(5, 1fr)
+  // AGORA É: "Preencha automático, com cards de no mínimo 190px"
+  gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', 
+  gap: '15px',
+  padding: '10px',
+  maxHeight: 'calc(100vh - 220px)', 
+  overflowY: 'auto',
+  alignContent: 'start' // Isso ajuda os cards a não esticarem se forem poucos
+}}>
                 {busca.length === 0 ? (
                   <div style={{ 
                     gridColumn: '1 / -1',
@@ -1424,94 +1427,111 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
             // Tirei a chave '{' que estava aqui antes do map causando erro
             // BLOCO: LISTA DE PRODUTOS
             produtosFiltrados.map((p, index) => {
-              
-              // LÓGICA DO CARD GIGANTE (Exemplo: Se o nome tem "ARAME", fica grande)
-              // Você pode mudar essa condição para: p.destaque === true
-              const isCardGrande = p.nome.toUpperCase().includes('ARAME') && index === 0; // Teste: Só o primeiro Arame fica grande
+  // Lógica do Destaque (Se o nome tiver "ARAME" e for o primeiro, fica grande)
+  const isCardGrande = p.nome.toUpperCase().includes('ARAME') && index === 0;
+  const isSelecionado = index === indexSelecionado;
 
-              const isSelecionado = index === indexSelecionado;
+  return (
+    <div
+      key={p.id}
+      onClick={() => {
+        setIndexSelecionado(index);
+        adicionarAoCarrinho(p);
+      }}
+      style={{
+        background: p.estoque <= 0
+          ? 'linear-gradient(135deg, #e5e7eb 0%, #9ca3af 100%)'
+          : 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)',
+        
+        borderRadius: '12px',
+        padding: '12px',
+        textAlign: 'center',
+        cursor: p.estoque <= 0 ? 'not-allowed' : 'pointer',
+        transition: 'all 0.2s',
+        color: 'white',
+        boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+        opacity: p.estoque <= 0 ? 0.6 : 1,
+        position: 'relative',
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        
+        // 👇 AQUI A SOLUÇÃO DA ALTURA
+        gridRow: isCardGrande ? 'span 2' : 'span 1',
+        minHeight: isCardGrande ? '450px' : '220px', 
 
-              return (
-              <div
-                key={p.id}
-                onClick={() => {
-                  setIndexSelecionado(index); // Clicar também seleciona
-                  adicionarAoCarrinho(p);
-                }}
-                style={{
-                  // LÓGICA DO VISUAL (Fundo)
-                  background: p.estoque <= 0
-                    ? 'linear-gradient(135deg, #e5e7eb 0%, #9ca3af 100%)'
-                    : 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)',
-                  
-                  borderRadius: '12px',
-                  padding: '15px',
-                  textAlign: 'center',
-                  cursor: p.estoque <= 0 ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s', // Animação suave
-                  color: 'white',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
-                  opacity: p.estoque <= 0 ? 0.6 : 1,
-                  position: 'relative',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between',
-                  
-                  // 👇 AQUI A MÁGICA DA ALTURA (SPAN VERTICAL)
-                  gridRow: isCardGrande ? 'span 2' : 'span 1',
-                  minHeight: isCardGrande ? '340px' : '160px', // Dobro da altura + gap
+        border: isSelecionado ? '3px solid #fbbf24' : '1px solid transparent',
+        transform: isSelecionado ? 'scale(1.03)' : 'scale(1)',
+        zIndex: isSelecionado ? 10 : 1
+      }}
+    >
 
-                  // 👇 BORDA DE SELEÇÃO (NAV TECLADO)
-                  border: isSelecionado ? '3px solid #fbbf24' : '1px solid transparent', // Amarelo Ouro
-                  transform: isSelecionado ? 'scale(1.03)' : 'scale(1)',
-                  zIndex: isSelecionado ? 10 : 1
-                }}
-              >
+      {/* BOTÕES DE AÇÃO */}
+      <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '5px', zIndex: 10 }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); verDetalhes(p); }}
+          tabIndex={-1}
+          style={{
+            background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '4px',
+            width: '26px', height: '26px', cursor: 'pointer', color: '#fff',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(2px)'
+          }}
+        >👁️</button>
 
-                {/* BOTÕES DE AÇÃO (TOPO DIREITO) */}
-                <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); verDetalhes(p); }}
-                    tabIndex={-1} // Tira do tab para não atrapalhar setas
-                    style={{
-                      background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '4px',
-                      width: '28px', height: '28px', cursor: 'pointer', color: '#fff',
-                      display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(2px)'
-                    }}
-                  >👁️</button>
+        <button
+          onClick={(e) => { e.stopPropagation(); if (typeof editarProduto === 'function') editarProduto(p); }}
+          tabIndex={-1}
+          style={{
+            background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '4px',
+            width: '26px', height: '26px', cursor: 'pointer', color: '#fbbf24',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(2px)'
+          }}
+        >✏️</button>
+      </div>
 
-                  <button
-                    onClick={(e) => { e.stopPropagation(); if (typeof editarProduto === 'function') editarProduto(p); }}
-                    tabIndex={-1}
-                    style={{
-                      background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '4px',
-                      width: '28px', height: '28px', cursor: 'pointer', color: '#fbbf24',
-                      display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(2px)'
-                    }}
-                  >✏️</button>
-                </div>
+      {/* ÍCONE */}
+      <div style={{ fontSize: isCardGrande ? '4rem' : '2rem', marginTop: '10px', marginBottom: '5px' }}>
+          {isCardGrande ? '🔥' : '📦'} 
+      </div>
 
-                {/* CONTEÚDO */}
-                <div style={{ fontSize: isCardGrande ? '4rem' : '2.5rem', marginBottom: '10px' }}>
-                   {isCardGrande ? '🔥' : '📦'} 
-                </div>
+      {/* NOME DO PRODUTO */}
+      <div 
+        title={p.nome}
+        style={{ 
+          fontWeight: 'bold', 
+          marginBottom: '5px', 
+          fontSize: isCardGrande ? '1.2rem' : '0.9rem', 
+          lineHeight: '1.2',
+          height: isCardGrande ? 'auto' : '3.6em',
+          display: '-webkit-box',
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
+        }}
+      >
+        {p.nome}
+      </div>
 
-                <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: isCardGrande ? '1.2rem' : '0.95rem', lineHeight: '1.2' }}>
-                  {p.nome}
-                </div>
+      {/* PREÇO E ESTOQUE */}
+      <div style={{ width: '100%' }}>
+        <div style={{ fontSize: isCardGrande ? '1.8rem' : '1.3rem', fontWeight: 'bold', marginBottom: '2px', color: '#4ade80' }}>
+          R$ {Number(p.precoVenda).toFixed(2)}
+        </div>
 
-                <div style={{ fontSize: isCardGrande ? '1.8rem' : '1.3rem', fontWeight: 'bold', marginBottom: '5px', color: '#4ade80' }}>
-                  R$ {Number(p.precoVenda).toFixed(2)}
-                </div>
+        <div style={{ fontSize: '0.8rem', opacity: 0.8, paddingBottom: '5px' }}>
+          {p.estoque <= 0 ? 'SEM ESTOQUE' : `Estoque: ${p.estoque} ${p.unidade || 'UN'}`}
+        </div>
+      </div>
 
-                <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>
-                  {p.estoque <= 0 ? 'SEM ESTOQUE' : `Estoque: ${p.estoque} ${p.unidade || 'UN'}`}
-                </div>
+      {/* Dica de Teclado */}
+      {isSelecionado && <div style={{ fontSize: '0.65rem', color: '#fbbf24', position: 'absolute', bottom: '2px' }}>[ENTER]</div>}
 
-                {/* Seleção Visual Extra (Opcional) */}
-                {isSelecionado && <div style={{ fontSize: '0.7rem', color: '#fbbf24', marginTop: '5px' }}>[ENTER para adicionar]</div>}
-
-              </div>
-            )})
-          )} </div>
+    </div>
+  )
+})
+         )}</div>
             </div>
 
             {/* CARRINHO */}
