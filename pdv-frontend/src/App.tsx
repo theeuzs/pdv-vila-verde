@@ -1142,11 +1142,39 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
         return;
       }
 
+// 👇👇 2. TECLA X: ABRE O RESUMO DE CAIXA (NOVO) 👇👇
+      if (e.key.toLowerCase() === 'x' && !isInputFocado) {
+        e.preventDefault();
+        // ⚠️ ATENÇÃO: Verifique se o nome do seu estado é esse mesmo.
+        // Deve ser o mesmo set que você usa no botão verde lá em cima "Clique para Resumo"
+        setModalResumoCaixa(true); 
+        return;
+      }
+      // 👆👆 FIM DO BLOCO NOVO 👆👆
+
       // Se estiver digitando, ignora setas (exceto Cima/Baixo/Enter)
       if (isInputFocado && e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return;
       if (produtosFiltrados.length === 0) return;
 
-      const COLUNAS = 5; // Ajuste conforme seu grid médio
+      // --- CÁLCULO AUTOMÁTICO DE COLUNAS ---
+      // Começamos chutando 1 coluna
+      let COLUNAS = 1; 
+      
+      const card0 = document.getElementById('card-produto-0');
+      
+      // Se o primeiro card existe, vamos ver quantos cards cabem na mesma linha (mesmo topo/offsetTop)
+      if (card0) {
+         let i = 1;
+         // Enquanto o card 'i' estiver na mesma altura do card '0', continua contando
+         while (document.getElementById(`card-produto-${i}`)?.offsetTop === card0.offsetTop) {
+           i++;
+           // Proteção para não travar se tiver mil produtos (para no máximo em 10 colunas)
+           if (i > 10) break; 
+         }
+         // O loop parou no primeiro card da linha de baixo. Então 'i' é o total de colunas!
+         COLUNAS = i;
+      }
+      // -------------------------------------
 
       switch (e.key) {
         case 'ArrowRight':
