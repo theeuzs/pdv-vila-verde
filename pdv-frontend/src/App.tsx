@@ -279,6 +279,7 @@ function verDetalhes(produto: any) {
   const [modalProduto, setModalProduto] = useState(false)
   const [modalCliente, setModalCliente] = useState(false)
   const [modalOrcamento, setModalOrcamento] = useState(false)
+  const [clienteOrcamento, setClienteOrcamento] = useState('');
 
   // Estado para o Modal de Detalhes (Visualização)
 const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false);
@@ -539,6 +540,72 @@ imprimirComprovante(
     }
   }
 
+const imprimirOrcamentoTermico = () => {
+    const janela = window.open('', '', 'width=300,height=600');
+    if (!janela) return;
+
+    // 👇 ADICIONEI ": any" AQUI PARA PARAR O ERRO
+    const total = carrinho.reduce((acc, item: any) => acc + (Number(item.precoVenda || item.preco || 0) * 1), 0);
+    const dataHoje = new Date().toLocaleString('pt-BR');
+
+    // 👇 ADICIONEI ": any" AQUI TAMBÉM
+    const itensHtml = carrinho.map((item: any) => `
+      <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+        <span style="font-size: 11px;">1x ${item.nome ? item.nome.substring(0, 18) : 'Item sem nome'}</span>
+        <span style="font-weight: bold;">R$ ${Number(item.precoVenda || item.preco || 0).toFixed(2)}</span>
+      </div>
+    `).join('');
+
+    const html = `
+      <html>
+      <head>
+        <style>
+          body { font-family: 'Courier New', monospace; font-size: 12px; margin: 0; padding: 5px; width: 280px; }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .line { border-top: 1px dashed #000; margin: 5px 0; }
+          .big { font-size: 16px; }
+        </style>
+      </head>
+      <body>
+        <div class="center bold big">VILA VERDE</div>
+        <div class="center">ORÇAMENTO / PRÉ-VENDA</div>
+        <div class="center" style="font-size: 10px;">NÃO É DOCUMENTO FISCAL</div>
+        <div class="line"></div>
+        
+        <div><span class="bold">CLIENTE:</span> ${clienteOrcamento || 'Consumidor'}</div>
+        <div><span class="bold">DATA:</span> ${dataHoje}</div>
+        
+        <div class="line"></div>
+        <div style="margin-bottom: 5px; font-weight: bold;">ITENS:</div>
+        ${itensHtml}
+        
+        <div class="line"></div>
+        
+        <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold;">
+          <span>TOTAL:</span>
+          <span>R$ ${total.toFixed(2)}</span>
+        </div>
+        
+        <br/>
+        <div class="center" style="font-size: 10px;">Validade: 7 dias</div>
+        <div class="center">.</div>
+      </body>
+      </html>
+    `;
+
+    janela.document.write(html);
+    janela.document.close();
+    
+    setTimeout(() => {
+      janela.print();
+      janela.close();
+    }, 500);
+
+    setModalOrcamento(false);
+    setClienteOrcamento('');
+  };
+  
   // ============================================================================
   // FUNÇÕES DO CARRINHO
   // ============================================================================
@@ -1196,16 +1263,20 @@ async function abrirEmissao(venda: Venda) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isInputFocado = document.activeElement === inputBuscaRef.current;
+
+      // 👇 NOVO: Verifica se o usuário está digitando em QUALQUER input (Modal, Sangria, etc)
+      const tagAtual = document.activeElement?.tagName;
+      const estouDigitando = tagAtual === 'INPUT' || tagAtual === 'TEXTAREA';
       
       // 1. BARRA DE ESPAÇO: Foca na busca se não estiver digitando
-      if (e.key === ' ' && !isInputFocado) {
+      if (e.key === ' ' && !estouDigitando) {
         e.preventDefault(); // Impede de rolar a página pra baixo
         inputBuscaRef.current?.focus(); // Foca no input!
         return;
       }
 
 // 👇👇 2. TECLA X: ABRE O RESUMO DE CAIXA (NOVO) 👇👇
-      if (e.key.toLowerCase() === 'x' && !isInputFocado) {
+      if (e.key.toLowerCase() === 'x' && !estouDigitando) {
         e.preventDefault();
         // ⚠️ ATENÇÃO: Verifique se o nome do seu estado é esse mesmo.
         // Deve ser o mesmo set que você usa no botão verde lá em cima "Clique para Resumo"
@@ -1216,6 +1287,7 @@ async function abrirEmissao(venda: Venda) {
 
       // Se estiver digitando, ignora setas (exceto Cima/Baixo/Enter)
       if (isInputFocado && e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return;
+      if (estouDigitando && !isInputFocado) return;
       if (produtosFiltrados.length === 0) return;
 
       // --- CÁLCULO AUTOMÁTICO DE COLUNAS ---
@@ -1841,23 +1913,25 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
 
               {/* BOTÕES */}
               <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                <button
-                  onClick={() => setModalOrcamento(true)}
-                  disabled={carrinho.length === 0}
-                  style={{
-                    flex: 1,
-                    padding: '15px',
-                    borderRadius: '10px',
-                    border: '2px solid #3b82f6',
-                    background: 'white',
-                    color: '#3b82f6',
-                    fontWeight: 'bold',
-                    cursor: carrinho.length === 0 ? 'not-allowed' : 'pointer',
-                    opacity: carrinho.length === 0 ? 0.5 : 1
-                  }}
-                >
-                  📋 ORÇAMENTO
-                </button>
+                <button 
+            onClick={() => {
+              if (carrinho.length === 0) return alert("O carrinho está vazio!");
+              setModalOrcamento(true);
+            }}
+            style={{
+              flex: 1,
+              padding: '15px',
+              borderRadius: '8px',
+              border: '2px solid #cbd5e1',
+              background: 'transparent',
+              color: '#64748b',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'
+            }}
+          >
+            📄 ORÇAMENTO
+          </button>
 
                 <button
             // 👇 SUBSTITUA A LINHA DO ONCLICK POR ESTE BLOCO:
@@ -3403,6 +3477,61 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
           </div>
         );
       })()}
+
+      {/* MODAL DE ORÇAMENTO */}
+      {modalOrcamento && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            background: '#1e293b', padding: '30px', borderRadius: '12px',
+            width: '400px', border: '1px solid #475569', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+          }}>
+            <h2 style={{ color: 'white', marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+              📄 Gerar Orçamento
+            </h2>
+            
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+              Isso vai gerar um comprovante impresso com os {carrinho.length} itens do carrinho, sem alterar o estoque.
+            </p>
+
+            <div style={{ margin: '20px 0' }}>
+              <label style={{ color: 'white', display: 'block', marginBottom: '5px' }}>Nome do Cliente (Opcional)</label>
+              <input 
+                type="text" 
+                autoFocus
+                placeholder="Ex: Sr. João da Silva"
+                value={clienteOrcamento}
+                onChange={e => setClienteOrcamento(e.target.value)}
+                style={{
+                  width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #475569',
+                  background: '#0f172a', color: 'white', fontSize: '1rem'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '30px' }}>
+              <button 
+                onClick={() => setModalOrcamento(false)}
+                style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#334155', color: 'white' }}
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={imprimirOrcamentoTermico}
+                style={{ 
+                  flex: 1, padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', 
+                  background: '#eab308', color: '#422006', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                }}
+              >
+                🖨️ IMPRIMIR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 {modalProduto && (
   <ModalProdutoPro 
