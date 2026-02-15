@@ -201,6 +201,8 @@ function verDetalhes(produto: any) {
   // --- ADICIONE JUNTO COM OS OUTROS STATES ---
   const [sku, setSku] = useState('');
   const [marca, setMarca] = useState('');
+  // --- SUGESTÕES DE PESQUISA NO CADASTRO ---
+  const [sugestoesNome, setSugestoesNome] = useState<any[]>([]);
   
   
   // ESTADOS DO CAIXA
@@ -3717,6 +3719,8 @@ setPrecoVenda('');
     }}
     
     produto={idProdutoEmEdicao ? produtos.find(p => p.id === idProdutoEmEdicao) : null}
+    todosOsProdutos={produtos}
+    onSelecionarProduto={editarProduto}
   />
 )}
 

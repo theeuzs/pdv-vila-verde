@@ -7,10 +7,13 @@ interface ModalProps {
   produto?: any;
 }
 
-export default function ModalProdutoPro({ onClose, onSave, produto }: ModalProps) {
+export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdutos, onSelecionarProduto }: any) {
   // --- NAVEGAÇÃO ---
   const [abaAtiva, setAbaAtiva] = useState<'geral' | 'precos' | 'estoque' | 'avancado'>('geral');
   const [modoRapido, setModoRapido] = useState(false);
+
+  // Estado para a listinha de sugestões
+  const [sugestoesNome, setSugestoesNome] = useState<any[]>([]);
 
   // --- DADOS GERAIS ---
   const [nome, setNome] = useState('');
@@ -286,15 +289,69 @@ export default function ModalProdutoPro({ onClose, onSave, produto }: ModalProps
                </div>
 
                {/* Campos Essenciais */}
-               <div style={s.inputGroup}>
-                  <label style={s.label}>Nome do Produto <span style={{color: 'red'}}>*</span></label>
-                  <input 
-                    style={{ ...s.input, fontSize: '1.1rem', padding: '12px' }} 
-                    value={nome} onChange={e => setNome(e.target.value)} 
-                    placeholder="Ex: Cimento Votoran CP-II 50kg" 
-                    autoFocus
-                  />
-               </div>
+               {/* --- CAMPO DE NOME COM BUSCA AUTOMÁTICA --- */}
+            <div style={{ marginBottom: '15px', position: 'relative' }}> 
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#334155' }}>
+                Nome do Produto <span style={{ color: 'red' }}>*</span>
+              </label>
+              
+              <input 
+                type="text" 
+                placeholder="Ex: Cimento Votoran CP-II 50kg (Ou digite para buscar...)"
+                value={nome}
+                autoComplete="off"
+                onChange={(e) => {
+                  const texto = e.target.value;
+                  setNome(texto);
+
+                  // Usa a lista que veio do App.tsx (todosOsProdutos)
+                  if (texto.length > 2 && todosOsProdutos) {
+                    const encontrados = todosOsProdutos.filter((p: any) => 
+                      p.nome.toLowerCase().includes(texto.toLowerCase())
+                    );
+                    setSugestoesNome(encontrados);
+                  } else {
+                    setSugestoesNome([]);
+                  }
+                }}
+                style={{
+                  width: '100%', padding: '10px', borderRadius: '6px', 
+                  border: '1px solid #cbd5e1', fontSize: '1rem'
+                }}
+              />
+
+              {/* LISTINHA DE SUGESTÕES */}
+              {sugestoesNome.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0,
+                  background: 'white', border: '1px solid #cbd5e1',
+                  borderRadius: '0 0 8px 8px', zIndex: 100,
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto'
+                }}>
+                  {sugestoesNome.map((prod) => (
+                    <div 
+                      key={prod.id}
+                      onClick={() => {
+                        // Chama a função do App.tsx para carregar os dados
+                        onSelecionarProduto(prod); 
+                        setSugestoesNome([]); 
+                      }}
+                      style={{
+                        padding: '10px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                    >
+                      <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{prod.nome}</span>
+                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                         (Estoque: {prod.estoque})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
                <div style={s.row}>
                   <div style={s.col(1)}>
