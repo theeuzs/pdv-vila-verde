@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 
-// Tipagem das props
+// Tipagem das props (opcional, mas bom manter)
 interface ModalProps {
   onClose: () => void;
   onSave: (dados: any) => void;
   produto?: any;
 }
 
+// 👇 Recebendo as novas props aqui: todosOsProdutos e onSelecionarProduto
 export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdutos, onSelecionarProduto }: any) {
+  
   // --- NAVEGAÇÃO ---
   const [abaAtiva, setAbaAtiva] = useState<'geral' | 'precos' | 'estoque' | 'avancado'>('geral');
   const [modoRapido, setModoRapido] = useState(false);
 
-  // Estado para a listinha de sugestões
+  // Estado para a listinha de sugestões (Busca Inteligente)
   const [sugestoesNome, setSugestoesNome] = useState<any[]>([]);
 
   // --- DADOS GERAIS ---
@@ -28,7 +30,7 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
   // --- FINANCEIRO (COM IMPOSTOS) ---
   const [precoCustoBase, setPrecoCustoBase] = useState(0); // Preço na Nota
   const [ipi, setIpi] = useState(0); // %
-  const [icms, setIcms] = useState(0); // % (Ou ICMS ST se preferir somar direto)
+  const [icms, setIcms] = useState(0); // %
   const [custoFinal, setCustoFinal] = useState(0); // Custo + Impostos
   
   const [margemLucro, setMargemLucro] = useState(0);
@@ -52,7 +54,7 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
   const [listaCategorias, setListaCategorias] = useState<any[]>([]);
   const [listaMarcas, setListaMarcas] = useState<any[]>([]);
 
-  // --- INICIALIZAÇÃO ---
+  // --- INICIALIZAÇÃO (Quando clica em Editar) ---
   useEffect(() => {
     if (produto) {
       setNome(produto.nome);
@@ -70,7 +72,6 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
       setPrecoVenda(venda);
       
       // Recalcula o resto baseados nos valores carregados
-      // (Assume IPI/ICMS zerados na edição se não tiver salvo no banco ainda)
       setCustoFinal(custo); 
       if(custo > 0) {
         const margem = ((venda - custo) / custo) * 100;
@@ -80,7 +81,7 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
     }
   }, [produto]);
 
-  // Carregar as listas quando abrir o modal
+  // Carregar as listas (Categorias/Marcas) quando abrir o modal
   useEffect(() => {
     // Busca Categorias
     fetch('https://api-vila-verde.onrender.com/categorias')
@@ -97,8 +98,8 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
 
   // Função para CRIAR RÁPIDO (Sem sair da tela)
   const adicionarRapido = async (tipo: 'marca' | 'categoria') => {
-    const nome = prompt(`Digite o nome da nova ${tipo}:`);
-    if (!nome) return;
+    const nomeInput = prompt(`Digite o nome da nova ${tipo}:`);
+    if (!nomeInput) return;
 
     const url = tipo === 'marca' ? 'https://api-vila-verde.onrender.com/marcas' : 'https://api-vila-verde.onrender.com/categorias';
     
@@ -106,7 +107,7 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
       const res = await fetch(url, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ nome })
+        body: JSON.stringify({ nome: nomeInput })
       });
       
       if (res.ok) {
@@ -130,7 +131,7 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
   // 1. Atualiza o Custo Final sempre que mudar Base ou Impostos
   useEffect(() => {
     const valorIpi = precoCustoBase * (ipi / 100);
-    const valorIcms = precoCustoBase * (icms / 100); // Aqui assumindo que o ICMS soma ao custo (ST) ou Encargo
+    const valorIcms = precoCustoBase * (icms / 100);
     const total = precoCustoBase + valorIpi + valorIcms;
     
     setCustoFinal(Number(total.toFixed(2)));
@@ -192,7 +193,7 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
       display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
     }),
     content: {
-      flex: 1, overflowY: 'auto' as 'auto', padding: '30px', backgroundColor: '#f8fafc' // Fundo cinza bem clarinho
+      flex: 1, overflowY: 'auto' as 'auto', padding: '30px', backgroundColor: '#f8fafc'
     },
     card: {
       backgroundColor: '#fff', borderRadius: '12px', padding: '24px', 
@@ -205,7 +206,7 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
       width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1',
       fontSize: '0.95rem', color: '#0f172a', transition: 'border-color 0.2s', outline: 'none'
     },
-    inputFocus: { borderColor: '#10b981', boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.1)' }, // Pseudo-classe simulada
+    inputFocus: { borderColor: '#10b981', boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.1)' },
     row: { display: 'flex', gap: '20px', alignItems: 'flex-start' },
     col: (flex = 1) => ({ flex: flex }),
     
@@ -279,7 +280,7 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
         {/* 3. CONTEÚDO PRINCIPAL */}
         <div style={s.content}>
 
-          {/* === MODO RÁPIDO (VISUALIGUAL AO PRINT) === */}
+          {/* === MODO RÁPIDO === */}
           {modoRapido ? (
             <div>
                {/* Aviso Amarelo */}
@@ -288,70 +289,68 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
                   <span style={{ fontWeight: 500 }}><b>Modo Rápido:</b> Cadastre apenas o essencial. O resto (NCM, Fornecedor, Estoque Mínimo) pode ser preenchido depois.</span>
                </div>
 
-               {/* Campos Essenciais */}
-               {/* --- CAMPO DE NOME COM BUSCA AUTOMÁTICA --- */}
-            <div style={{ marginBottom: '15px', position: 'relative' }}> 
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#334155' }}>
-                Nome do Produto <span style={{ color: 'red' }}>*</span>
-              </label>
-              
-              <input 
-                type="text" 
-                placeholder="Ex: Cimento Votoran CP-II 50kg (Ou digite para buscar...)"
-                value={nome}
-                autoComplete="off"
-                onChange={(e) => {
-                  const texto = e.target.value;
-                  setNome(texto);
+               {/* --- CAMPO DE NOME COM BUSCA AUTOMÁTICA (MODO RÁPIDO) --- */}
+               <div style={{ marginBottom: '15px', position: 'relative' }}> 
+                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#334155' }}>
+                   Nome do Produto <span style={{ color: 'red' }}>*</span>
+                 </label>
+                 
+                 <input 
+                   type="text" 
+                   placeholder="Ex: Cimento Votoran CP-II 50kg (Ou digite para buscar...)"
+                   value={nome}
+                   autoComplete="off"
+                   onChange={(e) => {
+                     const texto = e.target.value;
+                     setNome(texto);
 
-                  // Usa a lista que veio do App.tsx (todosOsProdutos)
-                  if (texto.length > 2 && todosOsProdutos) {
-                    const encontrados = todosOsProdutos.filter((p: any) => 
-                      p.nome.toLowerCase().includes(texto.toLowerCase())
-                    );
-                    setSugestoesNome(encontrados);
-                  } else {
-                    setSugestoesNome([]);
-                  }
-                }}
-                style={{
-                  width: '100%', padding: '10px', borderRadius: '6px', 
-                  border: '1px solid #cbd5e1', fontSize: '1rem'
-                }}
-              />
+                     // 👇 AQUI A MÁGICA: Usa a lista 'todosOsProdutos' do App.tsx
+                     if (texto.length > 2 && todosOsProdutos) {
+                       const encontrados = todosOsProdutos.filter((p: any) => 
+                         p.nome.toLowerCase().includes(texto.toLowerCase())
+                       );
+                       setSugestoesNome(encontrados);
+                     } else {
+                       setSugestoesNome([]);
+                     }
+                   }}
+                   style={{
+                     width: '100%', padding: '10px', borderRadius: '6px', 
+                     border: '1px solid #cbd5e1', fontSize: '1rem'
+                   }}
+                 />
 
-              {/* LISTINHA DE SUGESTÕES */}
-              {sugestoesNome.length > 0 && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0,
-                  background: 'white', border: '1px solid #cbd5e1',
-                  borderRadius: '0 0 8px 8px', zIndex: 100,
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto'
-                }}>
-                  {sugestoesNome.map((prod) => (
-                    <div 
-                      key={prod.id}
-                      onClick={() => {
-                        // Chama a função do App.tsx para carregar os dados
-                        onSelecionarProduto(prod); 
-                        setSugestoesNome([]); 
-                      }}
-                      style={{
-                        padding: '10px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                    >
-                      <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{prod.nome}</span>
-                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                         (Estoque: {prod.estoque})
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                 {/* LISTINHA DE SUGESTÕES */}
+                 {sugestoesNome.length > 0 && (
+                   <div style={{
+                     position: 'absolute', top: '100%', left: 0, right: 0,
+                     background: 'white', border: '1px solid #cbd5e1',
+                     borderRadius: '0 0 8px 8px', zIndex: 100,
+                     boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto'
+                   }}>
+                     {sugestoesNome.map((prod) => (
+                       <div 
+                         key={prod.id}
+                         onClick={() => {
+                           if (onSelecionarProduto) onSelecionarProduto(prod); 
+                           setSugestoesNome([]); 
+                         }}
+                         style={{
+                           padding: '10px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
+                           display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                         }}
+                         onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                         onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                       >
+                         <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{prod.nome}</span>
+                         <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                            (Estoque: {prod.estoque})
+                         </span>
+                       </div>
+                     ))}
+                   </div>
+                 )}
+               </div>
 
                <div style={s.row}>
                   <div style={s.col(1)}>
@@ -364,10 +363,10 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
                   <div style={s.col(1)}>
                      <label style={s.label}>Preço de Venda (R$) <span style={{color: 'red'}}>*</span></label>
                      <input 
-                        type="number" 
-                        style={{ ...s.input, fontWeight: 'bold', color: '#166534', borderColor: '#10b981' }} 
-                        value={precoVenda} onChange={e => atualizarPorVenda(Number(e.target.value))} 
-                      />
+                       type="number" 
+                       style={{ ...s.input, fontWeight: 'bold', color: '#166534', borderColor: '#10b981' }} 
+                       value={precoVenda} onChange={e => atualizarPorVenda(Number(e.target.value))} 
+                     />
                   </div>
                </div>
 
@@ -375,9 +374,9 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
                   <div style={{ ...s.col(1), maxWidth: '200px' }}>
                      <label style={s.label}>Estoque Atual <span style={{color: 'red'}}>*</span></label>
                      <input 
-                        type="number" style={s.input} 
-                        value={estoqueAtual} onChange={e => setEstoqueAtual(Number(e.target.value))} 
-                      />
+                       type="number" style={s.input} 
+                       value={estoqueAtual} onChange={e => setEstoqueAtual(Number(e.target.value))} 
+                     />
                   </div>
                    <div style={s.col(1)}>
                     <label style={s.label}>Unidade</label>
@@ -396,6 +395,8 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
               {/* ABA GERAL */}
               {abaAtiva === 'geral' && (
                 <div style={s.card}>
+                  
+                  {/* INPUT NORMAL PARA ABA GERAL */}
                   <div style={s.inputGroup}>
                     <label style={s.label}>Nome do Produto <span style={{color: 'red'}}>*</span></label>
                     <input 
@@ -681,7 +682,7 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
                 nome, codigoBarra, sku, categoria, marca, unidade, estoque: estoqueAtual,
                 precoCusto: precoCustoBase, precoVenda, ncm, fornecedorId
             })} style={s.btnSave}>
-               💾 SALVAR PRODUTO
+                💾 SALVAR PRODUTO
             </button>
           </div>
         </div>
