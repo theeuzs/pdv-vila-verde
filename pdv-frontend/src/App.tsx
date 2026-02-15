@@ -1293,6 +1293,16 @@ async function abrirEmissao(venda: Venda) {
   // 2. Ouve as teclas
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+if (e.key === 'Escape') {
+        e.preventDefault();
+        setModalOrcamento(false);      // Fecha Orçamento
+        setModalResumoCaixa(false);    // Fecha Resumo do Caixa
+        setModalTipoMovimento(null);   // Fecha Sangria/Suprimento
+        // Se tiver outros modais (ex: finalizar venda), adicione aqui:
+        // setModalFinalizarVenda(false); 
+        return;
+      }
+
       const isInputFocado = document.activeElement === inputBuscaRef.current;
 
       // 👇 NOVO: Verifica se o usuário está digitando em QUALQUER input (Modal, Sangria, etc)
@@ -3602,32 +3612,53 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                   Resumo do Pedido
                 </div>
 
-                {/* Lista com Rolagem */}
+               {/* Lista com Rolagem (CORRIGIDA E TURBINADA) */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '10px 20px' }}>
-                  {carrinho.map((item: any, idx) => (
-                    <div key={idx} style={{ 
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '12px 0', borderBottom: '1px dashed #334155', color: '#e2e8f0'
-                    }}>
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                         <span style={{ background: '#334155', color: 'white', fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px' }}>1x</span>
-                         <span style={{ fontSize: '0.95rem' }}>{item.nome}</span>
+                  {carrinho.map((item: any, idx) => {
+                    // 🕵️‍♂️ DETETIVE DE DADOS:
+                    // Procura o nome e preço onde quer que eles estejam escondidos
+                    const nomeReal = item.nome || item.produto?.nome || item.product?.nome || "Item sem nome";
+                    const precoReal = Number(item.precoVenda || item.preco || item.produto?.precoVenda || 0);
+                    const qtdReal = Number(item.quantidade || item.qtd || item.quantity || 1);
+                    const totalItem = precoReal * qtdReal;
+
+                    return (
+                      <div key={idx} style={{ 
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '12px 0', borderBottom: '1px dashed #334155', color: '#e2e8f0'
+                      }}>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                           {/* Mostra a quantidade real agora! */}
+                           <span style={{ background: '#334155', color: 'white', fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px' }}>
+                             {qtdReal}x
+                           </span>
+                           <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.95rem' }}>{nomeReal}</span>
+                              {/* Mostra o unitário pequeno pra conferência */}
+                              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Unit: R$ {precoReal.toFixed(2)}</span>
+                           </div>
+                        </div>
+                        <div style={{ fontWeight: 'bold', color: '#fbbf24' }}>
+                          R$ {totalItem.toFixed(2)}
+                        </div>
                       </div>
-                      <div style={{ fontWeight: 'bold', color: '#fbbf24' }}>
-                        R$ {Number(item.precoVenda || item.preco || 0).toFixed(2)}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
-                {/* Totalizador */}
+                {/* Totalizador (Atualizado para somar certo) */}
                 <div style={{ 
                   padding: '20px', borderTop: '1px solid #334155', background: '#1e293b',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
                   <span style={{ color: '#94a3b8' }}>Total Previsto</span>
                   <span style={{ color: '#4ade80', fontSize: '1.8rem', fontWeight: 'bold' }}>
-                    R$ {carrinho.reduce((acc, i: any) => acc + Number(i.precoVenda || i.preco || 0), 0).toFixed(2)}
+                    {/* Soma inteligente multiplicando pela quantidade */}
+                    R$ {carrinho.reduce((acc, i: any) => {
+                      const preco = Number(i.precoVenda || i.preco || i.produto?.precoVenda || 0);
+                      const qtd = Number(i.quantidade || i.qtd || i.quantity || 1);
+                      return acc + (preco * qtd);
+                    }, 0).toFixed(2)}
                   </span>
                 </div>
 
@@ -3637,7 +3668,7 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
           </div>
         </div>
       )}
-      
+
 {modalProduto && (
   <ModalProdutoPro 
     onClose={() => setModalProduto(false)}
