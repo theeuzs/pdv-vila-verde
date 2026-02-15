@@ -3453,7 +3453,7 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.85)', // Fundo bem escuro pra focar
-          zIndex: 1200, // Z-index MAIOR que o do Resumo do Caixa (importante!)
+          zIndex: 10001, // Z-index MAIOR que o do Resumo do Caixa (importante!)
           display: 'flex', justifyContent: 'center', alignItems: 'center'
         }}>
           <div style={{
@@ -3465,7 +3465,7 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
             boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
           }}>
             <h2 style={{ color: 'white', marginTop: 0, textAlign: 'center' }}>
-              {modalTipoMovimento === 'entrada' ? '🤑 Nova Entrada' : '💸 Nova Sangria'}
+              {modalTipoMovimento === 'entrada' ? 'Nova Entrada' : 'Nova Sangria'}
             </h2>
 
             {/* Input de Valor */}
