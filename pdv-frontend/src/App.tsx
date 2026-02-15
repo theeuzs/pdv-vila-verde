@@ -198,6 +198,9 @@ function verDetalhes(produto: any) {
   const [entregas, setEntregas] = useState<Venda[]>([])
   const [vendedorSelecionadoId, setVendedorSelecionadoId] = useState<any>(''); // Para escolher o vendedor
   const [mostrarComissao, setMostrarComissao] = useState(false); // Para abrir/fechar a aba secreta
+  // --- ADICIONE JUNTO COM OS OUTROS STATES ---
+  const [sku, setSku] = useState('');
+  const [marca, setMarca] = useState('');
   
   
   // ESTADOS DO CAIXA
@@ -789,33 +792,32 @@ imprimirComprovante(
     }
   }
 
-// --- FUNÇÃO DE PREPARAR EDIÇÃO ---
-  function editarProduto(produto: any) {
-    console.log("Carregando para edição:", produto);
+  
 
-    // 1. Identificação (Para saber que é uma atualização e não criar novo)
-    setIdProdutoEmEdicao(produto.id); 
-    
-    // 2. Preenche os campos do formulário (Estados)
+// --- FUNÇÃO PARA ABRIR A EDIÇÃO (PREENCHE TUDO) ---
+  function editarProduto(produto: any) {
+    console.log("Editando:", produto); // Ajuda a ver se clicou certo
+
+    // 1. DEFINE O ID (Isso avisa o botão Salvar que é uma EDIÇÃO/PUT)
+    setIdProdutoEmEdicao(produto.id);
+
+    // 2. PREENCHE OS CAMPOS DO FORMULÁRIO
     setNome(produto.nome || '');
-    setCodigoBarra(produto.codigoBarra || ''); // <--- Isso resolve o código sumindo
     setCategoria(produto.categoria || '');
-    
-    // 3. Números (Convertendo para string para não dar erro no input)
-    setEstoque(produto.estoque ? String(produto.estoque) : '0');
     setUnidade(produto.unidade || 'UN');
+    setCodigoBarra(produto.codigoBarra || '');
+    setSku(produto.sku || '');   // Se tiver esse campo
+    setMarca(produto.marca || ''); // Se tiver esse campo
     
-    setPrecoCusto(produto.precoCusto ? String(produto.precoCusto) : '0');
-    setPrecoVenda(produto.precoVenda ? String(produto.precoVenda) : '0');
-    
-    // 4. Outros campos
+    // Números (convertendo para não dar erro no input)
+    setEstoque(produto.estoque?.toString() || '0');
+    setPrecoCusto(produto.precoCusto?.toString() || '0');
+    setPrecoVenda(produto.precoVenda?.toString() || '0');
     setNcm(produto.ncm || '');
     setFornecedorId(produto.fornecedorId || '');
 
-    // 5. Troca a tela para o formulário
-    // (Ajuste essa linha conforme você troca de tela no seu app: setTela, setAba, etc)
+    // 3. ABRE A JANELA
     setModalProduto(true);
-    // OU se for modal: setMostrarFormulario(true);
   }
 
   async function finalizarVendaComNFCe() {
@@ -1316,6 +1318,10 @@ if (e.key === 'Escape') {
       // 👇👇 ATALHO F3: NOVO PRODUTO 👇👇
       if (e.key === 'F3') {
         e.preventDefault(); // Não deixa abrir a pesquisa do navegador
+        setIdProdutoEmEdicao(null); // 👈 OBRIGATÓRIO: Garante que o salvarProduto use POST
+setNome('');
+setCodigoBarra('');
+setPrecoVenda('');
         
         // Comandos que pegamos da sua imagem:
         setFormProduto({});   // 1. Limpa o formulário
@@ -1760,14 +1766,20 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
         >👁️</button>
 
         <button
-          onClick={(e) => { e.stopPropagation(); if (typeof editarProduto === 'function') editarProduto(p); }}
-          tabIndex={-1}
-          style={{
-            background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '4px',
-            width: '26px', height: '26px', cursor: 'pointer', color: '#fbbf24',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(2px)'
-          }}
-        >✏️</button>
+                    onClick={(e) => {
+                      e.stopPropagation(); // Não deixa clicar no card (não adiciona no carrinho)
+                      editarProduto(p);    // <--- CHAMA A NOSSA FUNÇÃO AQUI
+                    }}
+                    title="Editar Produto"
+                    style={{
+                      /* ... seus estilos existentes ... */
+                      background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '4px',
+                      width: '26px', height: '26px', cursor: 'pointer', color: '#fbbf24',
+                      display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(2px)'
+                    }}
+                  >
+                    ✏️
+                  </button>
       </div>
 
       {/* ÍCONE */}
@@ -2208,6 +2220,10 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
               <h2 style={{ margin: 0, color: '#1e3c72' }}>📦 Produtos</h2>
               <button
                 onClick={() => {
+                  setIdProdutoEmEdicao(null); // 👈 OBRIGATÓRIO: Garante que o salvarProduto use POST
+setNome('');
+setCodigoBarra('');
+setPrecoVenda('');
                   setFormProduto({})
                   setModalProduto(true)
                 }}
