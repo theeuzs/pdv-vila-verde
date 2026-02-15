@@ -3509,61 +3509,135 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
         );
       })()}
 
-      {/* MODAL DE ORÇAMENTO */}
+      {/* MODAL DE ORÇAMENTO (COM CONFERÊNCIA DE ITENS) */}
       {modalOrcamento && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.85)', zIndex: 9999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(3px)'
         }}>
           <div style={{
-            background: '#1e293b', padding: '30px', borderRadius: '12px',
-            width: '400px', border: '1px solid #475569', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+            background: '#1e293b', 
+            borderRadius: '16px',
+            width: '900px', // Aumentei a largura pra caber os dois lados
+            maxWidth: '95vw',
+            border: '1px solid #475569', 
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+            overflow: 'hidden', // Pra borda arredondada funcionar bem
+            display: 'flex', flexDirection: 'column'
           }}>
-            <h2 style={{ color: 'white', marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-              📄 Gerar Orçamento
-            </h2>
             
-            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-              Isso vai gerar um comprovante impresso com os {carrinho.length} itens do carrinho, sem alterar o estoque.
-            </p>
-
-            <div style={{ margin: '20px 0' }}>
-              <label style={{ color: 'white', display: 'block', marginBottom: '5px' }}>Nome do Cliente (Opcional)</label>
-              <input 
-                type="text" 
-                autoFocus
-                placeholder="Ex: Sr. João da Silva"
-                value={clienteOrcamento}
-                onChange={e => setClienteOrcamento(e.target.value)}
-                style={{
-                  width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #475569',
-                  background: '#0f172a', color: 'white', fontSize: '1rem'
-                }}
-              />
+            {/* CABEÇALHO DO MODAL */}
+            <div style={{ 
+              padding: '20px 25px', 
+              borderBottom: '1px solid #334155', 
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              background: '#0f172a'
+            }}>
+              <h2 style={{ color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                📄 Novo Orçamento
+              </h2>
+              <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+                {carrinho.length} itens selecionados
+              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '30px' }}>
-              <button 
-                onClick={() => setModalOrcamento(false)}
-                style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: '#334155', color: 'white' }}
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={imprimirOrcamentoTermico}
-                style={{ 
-                  flex: 1, padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', 
-                  background: '#eab308', color: '#422006', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-                }}
-              >
-                🖨️ IMPRIMIR
-              </button>
+            {/* CORPO DO MODAL (DIVIDIDO EM 2 COLUNAS) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', height: '450px' }}>
+              
+              {/* --- LADO ESQUERDO: FORMULÁRIO --- */}
+              <div style={{ padding: '30px', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                
+                <p style={{ color: '#cbd5e1', marginBottom: '25px', lineHeight: '1.5' }}>
+                  Preencha os dados abaixo para gerar o comprovante. <br/>
+                  <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>* O estoque não será alterado nesta operação.</span>
+                </p>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ color: '#fff', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Nome do Cliente (Opcional)</label>
+                  <input 
+                    type="text" 
+                    autoFocus
+                    placeholder="Ex: Sr. João da Silva"
+                    value={clienteOrcamento}
+                    onChange={e => setClienteOrcamento(e.target.value)}
+                    style={{
+                      width: '100%', padding: '15px', borderRadius: '8px', border: '1px solid #475569',
+                      background: '#0f172a', color: 'white', fontSize: '1.1rem', outline: 'none',
+                      boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginTop: 'auto', display: 'flex', gap: '15px' }}>
+                  <button 
+                    onClick={() => setModalOrcamento(false)}
+                    style={{ 
+                      flex: 1, padding: '15px', borderRadius: '8px', border: 'none', cursor: 'pointer', 
+                      background: '#334155', color: '#cbd5e1', fontWeight: 'bold', transition: '0.2s'
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={imprimirOrcamentoTermico}
+                    style={{ 
+                      flex: 1, padding: '15px', borderRadius: '8px', border: 'none', cursor: 'pointer', 
+                      background: 'linear-gradient(to right, #eab308, #ca8a04)', 
+                      color: '#422006', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      boxShadow: '0 4px 15px rgba(234, 179, 8, 0.3)'
+                    }}
+                  >
+                    🖨️ IMPRIMIR
+                  </button>
+                </div>
+              </div>
+
+              {/* --- LADO DIREITO: LISTA DE CONFERÊNCIA --- */}
+              <div style={{ display: 'flex', flexDirection: 'column', background: '#0f172a' }}>
+                
+                {/* Título da Lista */}
+                <div style={{ padding: '15px 20px', borderBottom: '1px solid #1e293b', color: '#94a3b8', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>
+                  Resumo do Pedido
+                </div>
+
+                {/* Lista com Rolagem */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '10px 20px' }}>
+                  {carrinho.map((item: any, idx) => (
+                    <div key={idx} style={{ 
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '12px 0', borderBottom: '1px dashed #334155', color: '#e2e8f0'
+                    }}>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                         <span style={{ background: '#334155', color: 'white', fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px' }}>1x</span>
+                         <span style={{ fontSize: '0.95rem' }}>{item.nome}</span>
+                      </div>
+                      <div style={{ fontWeight: 'bold', color: '#fbbf24' }}>
+                        R$ {Number(item.precoVenda || item.preco || 0).toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Totalizador */}
+                <div style={{ 
+                  padding: '20px', borderTop: '1px solid #334155', background: '#1e293b',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <span style={{ color: '#94a3b8' }}>Total Previsto</span>
+                  <span style={{ color: '#4ade80', fontSize: '1.8rem', fontWeight: 'bold' }}>
+                    R$ {carrinho.reduce((acc, i: any) => acc + Number(i.precoVenda || i.preco || 0), 0).toFixed(2)}
+                  </span>
+                </div>
+
+              </div>
+
             </div>
           </div>
         </div>
       )}
-
+      
 {modalProduto && (
   <ModalProdutoPro 
     onClose={() => setModalProduto(false)}
