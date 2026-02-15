@@ -540,56 +540,85 @@ imprimirComprovante(
     }
   }
 
-const imprimirOrcamentoTermico = () => {
-    const janela = window.open('', '', 'width=300,height=600');
+// --- FUNÇÃO DE IMPRESSÃO DE ORÇAMENTO (LAYOUT MELHORADO) ---
+  const imprimirOrcamentoTermico = () => {
+    // Abre uma janela um pouco mais larga (290px) para caber melhor o nome longo
+    const janela = window.open('', '', 'width=310,height=600');
     if (!janela) return;
 
-    // 👇 ADICIONEI ": any" AQUI PARA PARAR O ERRO
+    // Calcula o total (mantendo o fix do ": any" para não dar erro)
     const total = carrinho.reduce((acc, item: any) => acc + (Number(item.precoVenda || item.preco || 0) * 1), 0);
     const dataHoje = new Date().toLocaleString('pt-BR');
 
-    // 👇 ADICIONEI ": any" AQUI TAMBÉM
+    // Gera a lista de itens
     const itensHtml = carrinho.map((item: any) => `
-      <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-        <span style="font-size: 11px;">1x ${item.nome ? item.nome.substring(0, 18) : 'Item sem nome'}</span>
-        <span style="font-weight: bold;">R$ ${Number(item.precoVenda || item.preco || 0).toFixed(2)}</span>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 3px; border-bottom: 1px dotted #ccc; padding-bottom: 2px;">
+        <span style="font-size: 11px; flex: 2;">1x ${item.nome ? item.nome.substring(0, 22) : 'Item'}</span>
+        <span style="font-weight: bold; flex: 1; text-align: right;">R$ ${Number(item.precoVenda || item.preco || 0).toFixed(2)}</span>
       </div>
     `).join('');
 
+    // O NOVO HTML DO RECIBO
     const html = `
       <html>
       <head>
         <style>
-          body { font-family: 'Courier New', monospace; font-size: 12px; margin: 0; padding: 5px; width: 280px; }
+          /* CSS para impressora térmica (largura fixa, fonte monoespaçada) */
+          body { font-family: 'Courier New', monospace; font-size: 12px; margin: 0; padding: 2px 5px; width: 290px; color: #000; }
           .center { text-align: center; }
           .bold { font-weight: bold; }
-          .line { border-top: 1px dashed #000; margin: 5px 0; }
-          .big { font-size: 16px; }
+          /* Linha divisória mais bonita */
+          .line { border-top: 1px dashed #000; margin: 8px 0; }
+          
+          /* Estilos do Cabeçalho */
+          .header-title { font-size: 16px; font-weight: bold; margin-bottom: 5px; line-height: 1.1; }
+          .header-info { font-size: 11px; }
+          
+          /* Estilos de Totais */
+          .big-total-label { font-size: 14px; font-weight: bold; }
+          .big-total-value { font-size: 18px; font-weight: bold; }
         </style>
       </head>
       <body>
-        <div class="center bold big">VILA VERDE</div>
-        <div class="center">ORÇAMENTO / PRÉ-VENDA</div>
-        <div class="center" style="font-size: 10px;">NÃO É DOCUMENTO FISCAL</div>
+        <div class="center header-title">MEGA LOJA DA CONSTRUÇÃO<br/>VILA VERDE</div>
+        
+        <div class="center header-info">CNPJ: 12.820.608/0001-41</div> <div class="center header-info">Endereço: Rua Jornalista Rubens Ávila, 530</div> <div class="center header-info">Cidade Industrial - Curitiba/PR</div>
+        <div class="center header-info">Tel/WhatsApp: (41) 98438-7167</div>
+
+        <div class="line"></div>
+
+        <div class="center bold" style="font-size: 14px;">ORÇAMENTO / PRÉ-VENDA</div>
+        <div class="center" style="font-size: 10px;">(NÃO VÁLIDO COMO DOCUMENTO FISCAL)</div>
+
         <div class="line"></div>
         
-        <div><span class="bold">CLIENTE:</span> ${clienteOrcamento || 'Consumidor'}</div>
-        <div><span class="bold">DATA:</span> ${dataHoje}</div>
+        <div><span class="bold">CLIENTE:</span> ${clienteOrcamento.toUpperCase() || 'CONSUMIDOR FINAL'}</div>
+        <div><span class="bold">EMISSÃO:</span> ${dataHoje}</div>
         
         <div class="line"></div>
-        <div style="margin-bottom: 5px; font-weight: bold;">ITENS:</div>
+
+        <div style="margin-bottom: 5px; font-weight: bold;">ITENS DO PEDIDO:</div>
+        <div style="font-size: 11px; margin-bottom: 5px;">Qtd | Descrição | Valor</div>
         ${itensHtml}
         
         <div class="line"></div>
         
-        <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold;">
-          <span>TOTAL:</span>
-          <span>R$ ${total.toFixed(2)}</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+          <span class="big-total-label">TOTAL A PAGAR:</span>
+          <span class="big-total-value">R$ ${total.toFixed(2)}</span>
         </div>
         
+        <div class="line"></div>
+
+        <div class="center" style="font-size: 11px;">
+            Horário de Atendimento:<br/>
+            Seg a Sex: 08:30h às 18h / Sáb: 08:30h às 13h
+        </div>
         <br/>
-        <div class="center" style="font-size: 10px;">Validade: 7 dias</div>
-        <div class="center">.</div>
+        <div class="center bold big" style="font-size: 14px;">OBRIGADO PELA PREFERÊNCIA!</div>
+        <div class="center" style="font-size: 10px; margin-top: 10px;">Orçamento válido por 3 dias. Sujeito a alteração de estoque e valores.</div>
+        
+        <br/><div class="center">.</div>
       </body>
       </html>
     `;
@@ -597,15 +626,17 @@ const imprimirOrcamentoTermico = () => {
     janela.document.write(html);
     janela.document.close();
     
+    // Espera um pouquinho para carregar os estilos antes de imprimir
     setTimeout(() => {
       janela.print();
       janela.close();
-    }, 500);
+    }, 600);
 
+    // Limpa o modal e o nome do cliente
     setModalOrcamento(false);
     setClienteOrcamento('');
   };
-  
+
   // ============================================================================
   // FUNÇÕES DO CARRINHO
   // ============================================================================
