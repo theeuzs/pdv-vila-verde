@@ -540,49 +540,61 @@ imprimirComprovante(
     }
   }
 
-// --- FUNÇÃO DE IMPRESSÃO DE ORÇAMENTO (LAYOUT MELHORADO) ---
+// --- FUNÇÃO DE IMPRESSÃO DE ORÇAMENTO (AGORA COM OS ITENS CERTOS) ---
   const imprimirOrcamentoTermico = () => {
-    // Abre uma janela um pouco mais larga (290px) para caber melhor o nome longo
     const janela = window.open('', '', 'width=310,height=600');
     if (!janela) return;
 
-    // Calcula o total (mantendo o fix do ": any" para não dar erro)
-    const total = carrinho.reduce((acc, item: any) => acc + (Number(item.precoVenda || item.preco || 0) * 1), 0);
+    // 1. CALCULA O TOTAL GERAL (USANDO A LÓGICA DE DETETIVE)
+    const total = carrinho.reduce((acc, item: any) => {
+      const preco = Number(item.precoVenda || item.preco || item.produto?.precoVenda || 0);
+      const qtd = Number(item.quantidade || item.qtd || 1);
+      return acc + (preco * qtd);
+    }, 0);
+    
     const dataHoje = new Date().toLocaleString('pt-BR');
 
-    // Gera a lista de itens
-    const itensHtml = carrinho.map((item: any) => `
-      <div style="display: flex; justify-content: space-between; margin-bottom: 3px; border-bottom: 1px dotted #ccc; padding-bottom: 2px;">
-        <span style="font-size: 11px; flex: 2;">1x ${item.nome ? item.nome.substring(0, 22) : 'Item'}</span>
-        <span style="font-weight: bold; flex: 1; text-align: right;">R$ ${Number(item.precoVenda || item.preco || 0).toFixed(2)}</span>
-      </div>
-    `).join('');
+    // 2. GERA A LISTA DE ITENS HTML (USANDO A LÓGICA DE DETETIVE)
+    const itensHtml = carrinho.map((item: any) => {
+       // 👇 O DETETIVE ENTRA EM AÇÃO AQUI TAMBÉM!
+       const nomeReal = item.nome || item.produto?.nome || item.descricao || "Item sem nome";
+       const precoReal = Number(item.precoVenda || item.preco || item.produto?.precoVenda || 0);
+       const qtdReal = Number(item.quantidade || item.qtd || 1);
+       const totalItem = precoReal * qtdReal;
 
-    // O NOVO HTML DO RECIBO
+       return `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 3px; border-bottom: 1px dotted #ccc; padding-bottom: 2px;">
+          <div style="font-size: 11px; flex: 2; display: flex;">
+            <span style="font-weight: bold; margin-right: 5px;">${qtdReal}x</span>
+            <span>${nomeReal.substring(0, 22)}</span>
+          </div>
+          <div style="font-weight: bold; flex: 1; text-align: right;">
+            R$ ${totalItem.toFixed(2)}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 3. MONTA O RECIBO FINAL
     const html = `
       <html>
       <head>
         <style>
-          /* CSS para impressora térmica (largura fixa, fonte monoespaçada) */
           body { font-family: 'Courier New', monospace; font-size: 12px; margin: 0; padding: 2px 5px; width: 290px; color: #000; }
           .center { text-align: center; }
           .bold { font-weight: bold; }
-          /* Linha divisória mais bonita */
           .line { border-top: 1px dashed #000; margin: 8px 0; }
-          
-          /* Estilos do Cabeçalho */
           .header-title { font-size: 16px; font-weight: bold; margin-bottom: 5px; line-height: 1.1; }
           .header-info { font-size: 11px; }
-          
-          /* Estilos de Totais */
           .big-total-label { font-size: 14px; font-weight: bold; }
           .big-total-value { font-size: 18px; font-weight: bold; }
         </style>
       </head>
       <body>
         <div class="center header-title">MEGA LOJA DA CONSTRUÇÃO<br/>VILA VERDE</div>
-        
-        <div class="center header-info">CNPJ: 12.820.608/0001-41</div> <div class="center header-info">Endereço: Rua Jornalista Rubens Ávila, 530</div> <div class="center header-info">Cidade Industrial - Curitiba/PR</div>
+        <div class="center header-info">CNPJ: 12.820.608/0001-41</div>
+        <div class="center header-info">Endereço: Rua Jornalista Rubens Ávila, 530</div>
+        <div class="center header-info">Cidade Industrial - Curitiba/PR</div>
         <div class="center header-info">Tel/WhatsApp: (41) 98438-7167</div>
 
         <div class="line"></div>
@@ -598,7 +610,7 @@ imprimirComprovante(
         <div class="line"></div>
 
         <div style="margin-bottom: 5px; font-weight: bold;">ITENS DO PEDIDO:</div>
-        <div style="font-size: 11px; margin-bottom: 5px;">Qtd | Descrição | Valor</div>
+        <div style="font-size: 11px; margin-bottom: 5px;">Qtd | Descrição | Valor Total</div>
         ${itensHtml}
         
         <div class="line"></div>
@@ -626,13 +638,11 @@ imprimirComprovante(
     janela.document.write(html);
     janela.document.close();
     
-    // Espera um pouquinho para carregar os estilos antes de imprimir
     setTimeout(() => {
       janela.print();
       janela.close();
     }, 600);
 
-    // Limpa o modal e o nome do cliente
     setModalOrcamento(false);
     setClienteOrcamento('');
   };
@@ -1300,6 +1310,17 @@ if (e.key === 'Escape') {
         setModalTipoMovimento(null);   // Fecha Sangria/Suprimento
         // Se tiver outros modais (ex: finalizar venda), adicione aqui:
         // setModalFinalizarVenda(false); 
+        return;
+      }
+
+      // 👇👇 ATALHO F3: NOVO PRODUTO 👇👇
+      if (e.key === 'F3') {
+        e.preventDefault(); // Não deixa abrir a pesquisa do navegador
+        
+        // Comandos que pegamos da sua imagem:
+        setFormProduto({});   // 1. Limpa o formulário
+        setModalProduto(true); // 2. Abre a tela de cadastro
+        
         return;
       }
 
