@@ -297,17 +297,18 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
                  
                  <input 
                    type="text" 
-                   placeholder="Ex: Cimento Votoran CP-II 50kg (Ou digite para buscar...)"
+                   placeholder="Ex: Cimento Votoran CP-II 50kg (Ou digite código de barras...)"
                    value={nome}
                    autoComplete="off"
                    onChange={(e) => {
                      const texto = e.target.value;
                      setNome(texto);
 
-                     // 👇 AQUI A MÁGICA: Usa a lista 'todosOsProdutos' do App.tsx
-                     if (texto.length > 2 && todosOsProdutos) {
+                     // BUSCA HÍBRIDA: NOME OU CÓDIGO DE BARRAS
+                     if (texto.length > 1 && todosOsProdutos) {
                        const encontrados = todosOsProdutos.filter((p: any) => 
-                         p.nome.toLowerCase().includes(texto.toLowerCase())
+                         p.nome.toLowerCase().includes(texto.toLowerCase()) ||
+                         (p.codigoBarra && p.codigoBarra.includes(texto))
                        );
                        setSugestoesNome(encontrados);
                      } else {
@@ -320,13 +321,13 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
                    }}
                  />
 
-                 {/* LISTINHA DE SUGESTÕES */}
+                 {/* LISTINHA DE SUGESTÕES (ESTILIZADA) */}
                  {sugestoesNome.length > 0 && (
                    <div style={{
                      position: 'absolute', top: '100%', left: 0, right: 0,
-                     background: 'white', border: '1px solid #cbd5e1',
+                     backgroundColor: 'white', border: '1px solid #cbd5e1',
                      borderRadius: '0 0 8px 8px', zIndex: 100,
-                     boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto'
+                     boxShadow: '0 4px 15px rgba(0,0,0,0.15)', maxHeight: '250px', overflowY: 'auto'
                    }}>
                      {sugestoesNome.map((prod) => (
                        <div 
@@ -336,16 +337,27 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
                            setSugestoesNome([]); 
                          }}
                          style={{
-                           padding: '10px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
+                           padding: '12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                          }}
-                         onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                         onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f9ff'}
+                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                        >
                          <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{prod.nome}</span>
-                         <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                            (Estoque: {prod.estoque})
-                         </span>
+                         
+                         {/* LADO DIREITO: CÓDIGO E ESTOQUE COLORIDO */}
+                         <div style={{ textAlign: 'right' }}>
+                            {prod.codigoBarra && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{prod.codigoBarra}</div>}
+                            <div style={{ 
+                                fontSize: '0.75rem', 
+                                color: prod.estoque > 0 ? '#166534' : '#dc2626', 
+                                fontWeight: 'bold',
+                                background: prod.estoque > 0 ? '#dcfce7' : '#fee2e2',
+                                padding: '2px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '2px'
+                            }}>
+                              Estoque: {prod.estoque} {prod.unidade}
+                            </div>
+                         </div>
                        </div>
                      ))}
                    </div>
@@ -396,14 +408,73 @@ export default function ModalProdutoPro({ onClose, onSave, produto, todosOsProdu
               {abaAtiva === 'geral' && (
                 <div style={s.card}>
                   
-                  {/* INPUT NORMAL PARA ABA GERAL */}
-                  <div style={s.inputGroup}>
+                  {/* --- CAMPO DE NOME COM BUSCA HÍBRIDA (MODO DETALHADO) --- */}
+                  <div style={{ ...s.inputGroup, position: 'relative' }}>
                     <label style={s.label}>Nome do Produto <span style={{color: 'red'}}>*</span></label>
+                    
                     <input 
                       style={{ ...s.input, fontSize: '1.1rem', padding: '12px' }} 
-                      value={nome} onChange={e => setNome(e.target.value)} 
-                      placeholder="Ex: Cimento Votoran CP-II 50kg" 
+                      value={nome} 
+                      autoComplete="off"
+                      placeholder="Ex: Cimento Votoran CP-II 50kg (Digite nome ou código...)" 
+                      onChange={(e) => {
+                        const texto = e.target.value;
+                        setNome(texto);
+
+                        // BUSCA HÍBRIDA: NOME OU CÓDIGO DE BARRAS
+                        if (texto.length > 1 && todosOsProdutos) {
+                          const encontrados = todosOsProdutos.filter((p: any) => 
+                            p.nome.toLowerCase().includes(texto.toLowerCase()) ||
+                            (p.codigoBarra && p.codigoBarra.includes(texto))
+                          );
+                          setSugestoesNome(encontrados);
+                        } else {
+                          setSugestoesNome([]);
+                        }
+                      }}
                     />
+
+                    {/* LISTA DE SUGESTÕES (ESTILIZADA) */}
+                    {sugestoesNome.length > 0 && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0,
+                        backgroundColor: 'white', border: '1px solid #cbd5e1',
+                        borderRadius: '0 0 8px 8px', zIndex: 100,
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.15)', maxHeight: '250px', overflowY: 'auto'
+                      }}>
+                        {sugestoesNome.map((prod) => (
+                          <div 
+                            key={prod.id}
+                            onClick={() => {
+                              if (onSelecionarProduto) onSelecionarProduto(prod); 
+                              setSugestoesNome([]); 
+                            }}
+                            style={{
+                              padding: '12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f9ff'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                          >
+                            <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{prod.nome}</span>
+                            
+                             {/* LADO DIREITO: CÓDIGO E ESTOQUE COLORIDO */}
+                             <div style={{ textAlign: 'right' }}>
+                                {prod.codigoBarra && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{prod.codigoBarra}</div>}
+                                <div style={{ 
+                                    fontSize: '0.75rem', 
+                                    color: prod.estoque > 0 ? '#166534' : '#dc2626', 
+                                    fontWeight: 'bold',
+                                    background: prod.estoque > 0 ? '#dcfce7' : '#fee2e2',
+                                    padding: '2px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '2px'
+                                }}>
+                                  Estoque: {prod.estoque} {prod.unidade}
+                                </div>
+                             </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div style={s.row}>
