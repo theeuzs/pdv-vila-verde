@@ -1092,12 +1092,7 @@ async function abrirEmissao(venda: Venda) {
     }
   }
 
-  // ============================================================================
-  // RENDERIZAÇÃO - LOGIN
-  // ============================================================================
 
-  if (!usuarioLogado) {
-return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
 
   // ============================================================================
   // RENDERIZAÇÃO - SISTEMA
@@ -1256,6 +1251,13 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
     setValorMovimento('');
     setDescMovimento('');
   }
+
+  // ============================================================================
+  // RENDERIZAÇÃO - LOGIN
+  // ============================================================================
+
+  if (!usuarioLogado) {
+return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
 
   return (
     <div style={{ 
