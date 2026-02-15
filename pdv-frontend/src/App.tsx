@@ -101,6 +101,61 @@ const API_URL = 'https://api-vila-verde.onrender.com'
 // COMPONENTE PRINCIPAL
 // ============================================================================
 
+// --- FUNÇÃO DE IMPRESSÃO TÉRMICA ---
+const imprimirComprovante = (tipo: string, valor: number, motivo: string, usuario: string) => {
+  const janelaImpressao = window.open('', '', 'width=300,height=400');
+  
+  if (!janelaImpressao) return; // Bloqueador de popup impediu
+
+  const dataHora = new Date().toLocaleString('pt-BR');
+  
+  const conteudo = `
+    <html>
+      <head>
+        <title>Comprovante</title>
+        <style>
+          body { font-family: 'Courier New', monospace; font-size: 12px; margin: 0; padding: 5px; width: 280px; }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .line { border-top: 1px dashed #000; margin: 5px 0; }
+          .big { font-size: 16px; }
+        </style>
+      </head>
+      <body>
+        <div class="center bold big">VILA VERDE</div>
+        <div class="center">COMPROVANTE DE CAIXA</div>
+        <div class="line"></div>
+        
+        <div><span class="bold">TIPO:</span> ${tipo.toUpperCase()}</div>
+        <div><span class="bold">DATA:</span> ${dataHora}</div>
+        <div><span class="bold">RESP:</span> ${usuario}</div>
+        
+        <div class="line"></div>
+        
+        <div class="center bold big">R$ ${valor.toFixed(2)}</div>
+        
+        <div class="line"></div>
+        
+        <div><span class="bold">MOTIVO/OBS:</span></div>
+        <div>${motivo || 'Sem descrição'}</div>
+        
+        <br/><br/>
+        <div class="center">.</div>
+      </body>
+    </html>
+  `;
+
+  janelaImpressao.document.write(conteudo);
+  janelaImpressao.document.close();
+  
+  // Espera carregar e imprime
+  janelaImpressao.focus();
+  setTimeout(() => {
+    janelaImpressao.print();
+    janelaImpressao.close();
+  }, 500);
+};
+
 export function App() {
 
   const inputBuscaRef = useRef<HTMLInputElement>(null); // 👈 CRIE ISSO
@@ -415,6 +470,13 @@ const [produtoDetalhes, setProdutoDetalhes] = useState<any>(null);
         })
       })
       
+imprimirComprovante(
+        'ABERTURA DE CAIXA',
+        Number(valorAbertura), 
+        'Saldo Inicial do Dia', 
+        usuarioLogado?.nome || 'Balcão'
+    );
+
       if (res.ok) {
         const caixa = await res.json()
         setCaixaAberto(caixa)
@@ -1236,13 +1298,8 @@ async function abrirEmissao(venda: Venda) {
     // AQUI VOCÊ CONECTA COM SEU BACKEND DEPOIS
     console.log(`Salvando ${tipo}: R$ ${valor} - Motivo: ${descMovimento}`);
 
-    // Exemplo de como seria a chamada pro servidor:
-    /*
-    await fetch('https://api-vila-verde.onrender.com/caixa/movimento', {
-        method: 'POST',
-        body: JSON.stringify({ tipo, valor, descricao: descMovimento, usuario: 'Matheus' })
-    });
-    */
+    // 👇👇 ADICIONE ISSO AQUI PARA IMPRIMIR 👇👇
+    imprimirComprovante(tipo, valor, descMovimento, usuarioLogado?.nome || 'Balcão');
 
     alert(`${tipo} de R$ ${valor} realizada com sucesso!`);
     
