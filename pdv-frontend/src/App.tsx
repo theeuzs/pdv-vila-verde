@@ -727,11 +727,10 @@ imprimirComprovante(
     setValorPagamento('')
   }
 
-// --- FUNÇÃO FINALIZAR VENDA (CORRIGIDA E BLINDADA) ---
+// --- FUNÇÃO FINALIZAR VENDA (CORRIGIDA) ---
   async function finalizarVendaNormal() {
     if (processandoVenda) return; 
 
-    // Ajuste aqui se sua variável de caixa for diferente
     if (!caixaAberto) {
       alert('⚠️ Caixa fechado! Abra o caixa para continuar.');
       return;
@@ -742,29 +741,27 @@ imprimirComprovante(
       return;
     }
 
-    // Se tiver validação de "falta pagar", mantenha. Se der erro, pode remover esse bloco IF.
-    // if (faltaPagar > 0.01) { return alert('Falta pagar!'); }
-
     setProcessandoVenda(true);
     setMensagemLoading('Processando venda...');
 
     try {
-      // 👇 AQUI O PULO DO GATO: (item: any) para o erro sumir
+      // 1. Monta os itens corretamente pegando de item.produto
       const itensPayload = carrinho.map((item: any) => ({
-        produtoId: item.id, // Agora ele não reclama do ID
-        quantidade: Number(item.quantidade || item.qtd || 1),
-        precoVenda: Number(item.precoVenda || item.preco || 0),
-        total: Number(item.quantidade || 1) * Number(item.precoVenda || 0)
+        produtoId: item.produto ? item.produto.id : item.id,
+        quantidade: Number(item.quantidade || 1),
+        precoVenda: Number(item.produto ? item.produto.precoVenda : item.precoVenda),
+        total: Number(item.quantidade || 1) * Number(item.produto ? item.produto.precoVenda : item.precoVenda)
       }));
 
+      // 2. Monta o corpo da venda
       const bodyDados = {
-        total: totalCarrinho, // Se der erro aqui, troque por: carrinho.reduce(...)
-        desconto: desconto || 0,
-        formaPagamento: formaPagamento, 
-        // 👇 Cast "as any" para garantir que o ID seja lido
-        clienteId: clienteSelecionado ? (clienteSelecionado as any).id : null,
-        caixaId: (caixaAberto as any).id,
-        usuarioId: (usuarioLogado as any)?.id, 
+        total: totalCarrinho,
+        desconto: Number(desconto) || 0,
+        formaPagamento: formaPagamento,
+        // Converte o ID do cliente pra número ou null se estiver vazio
+        clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
+        caixaId: caixaAberto.id,
+        usuarioId: usuarioLogado?.id, // Garante que vai o ID do usuário logado
         itens: itensPayload
       };
 
@@ -779,27 +776,24 @@ imprimirComprovante(
       if (res.ok) {
         // --- SUCESSO! ---
         
-        // Chama a impressão (Certifique-se que colou a função imprimirReciboVenda no App.tsx!)
+        // 3. Imprime o Recibo
         imprimirReciboVenda(
             dadosVenda.id, 
             carrinho, 
             totalComDesconto, 
-            (clienteSelecionado as any)?.nome, 
-            (usuarioLogado as any)?.nome
+            clientes.find(c => String(c.id) === String(clienteSelecionado))?.nome, 
+            usuarioLogado?.nome
         );
 
         alert(`✅ Venda #${dadosVenda.id} realizada!`);
         
-        // Limpeza
-        setCarrinho([]);
-        
-        // Se 'setTotalCarrinho' der erro, apague essa linha (o total costuma ser calculado sozinho)
-        // setTotalCarrinho(0); 
-        
-        setClienteSelecionado(null);
-        
-        // 👇 CORRIGIDO: O nome certo do seu modal parece ser este
+        // 4. Limpeza (Sem usar sets que não existem)
+        limparCarrinho(); // Usa sua função auxiliar que já limpa tudo
         setModalPagamento(false); 
+        
+        // Atualiza dados
+        carregarDados();
+        buscarCaixaAberto();
 
       } else {
         alert('Erro ao finalizar: ' + (dadosVenda.error || 'Erro desconhecido'));
@@ -809,12 +803,13 @@ imprimirComprovante(
       console.error(error);
       alert('Erro de conexão.');
     } finally {
+      // 5. Destrava a tela
       setProcessandoVenda(false);
       setMensagemLoading('');
     }
   }
 
-  // --- COLE ISSO NO SEU CÓDIGO PARA O ERRO SUMIR ---
+  // --- FUNÇÃO DE IMPRESSÃO DE RECIBO DE VENDA ---
   const imprimirReciboVenda = (idVenda: any, listaItens: any[], valorTotal: number, nomeCliente?: string, nomeVendedor?: string) => {
     const janela = window.open('', '', 'width=310,height=600');
     if (!janela) return;
@@ -822,27 +817,49 @@ imprimirComprovante(
     const dataHoje = new Date().toLocaleString('pt-BR');
 
     const itensHtml = listaItens.map((item: any) => {
-       const nome = item.nome || item.produto?.nome || 'Item';
-       const qtd = Number(item.quantidade || item.qtd || 1);
-       const preco = Number(item.precoVenda || item.preco || 0);
-       return `<div>${qtd}x ${nome.substring(0,20)} <div style="text-align:right">R$ ${(qtd*preco).toFixed(2)}</div></div><hr style="border: 0; border-top: 1px dotted #ccc; margin: 2px 0;" />`;
+       // Tenta pegar o nome dentro de produto ou direto (compatibilidade)
+       const nome = item.produto ? item.produto.nome : (item.nome || 'Item');
+       const qtd = Number(item.quantidade || 1);
+       const preco = Number(item.produto ? item.produto.precoVenda : (item.precoVenda || 0));
+       
+       return `
+        <div style="margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 2px;">
+          <div style="font-size: 11px; font-weight: bold;">${qtd}x ${nome.substring(0,25)}</div>
+          <div style="display: flex; justify-content: space-between; font-size: 10px;">
+             <span>Unit: R$ ${preco.toFixed(2)}</span>
+             <span style="font-weight: bold;">R$ ${(qtd*preco).toFixed(2)}</span>
+          </div>
+        </div>`;
     }).join('');
 
     const html = `
       <html>
-      <body style="font-family: monospace; width: 280px; font-size: 12px;">
-        <div style="text-align:center; font-weight:bold;">VILA VERDE CONSTRUCAO</div>
-        <div style="text-align:center;">Recibo #${idVenda} (Sem Valor Fiscal)</div>
-        <br/>
-        <div>Data: ${dataHoje}</div>
-        <div>Vendedor: ${nomeVendedor || 'Balcao'}</div>
-        ${nomeCliente ? `<div>Cliente: ${nomeCliente}</div>` : ''}
-        <br/>
-        <div style="font-weight:bold;">ITENS:</div>
+      <body style="font-family: monospace; width: 280px; font-size: 12px; margin: 0; padding: 5px;">
+        <div style="text-align:center; font-weight:bold; font-size: 14px;">VILA VERDE</div>
+        <div style="text-align:center;">MATERIAIS DE CONSTRUCAO</div>
+        <div style="text-align:center; font-size: 10px;">(41) 98438-7167</div>
+        <hr style="border: 1px dashed #000;" />
+        
+        <div style="text-align:center; font-weight:bold;">VENDA #${idVenda}</div>
+        <div style="text-align:center; font-size: 10px;">NAO FISCAL</div>
+        
+        <hr style="border: 1px dashed #000;" />
+        <div>DATA: ${dataHoje}</div>
+        <div>VEND: ${nomeVendedor || 'Balcao'}</div>
+        ${nomeCliente ? `<div>CLI: ${nomeCliente.substring(0,25)}</div>` : ''}
+        
+        <hr style="border: 1px dashed #000;" />
+        <div style="font-weight:bold; margin-bottom: 5px;">ITENS:</div>
         ${itensHtml}
+        
+        <hr style="border: 1px dashed #000;" />
+        <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold;">
+          <span>TOTAL:</span>
+          <span>R$ ${Number(valorTotal).toFixed(2)}</span>
+        </div>
         <br/>
-        <div style="font-size:16px; font-weight:bold; text-align:right;">TOTAL: R$ ${Number(valorTotal).toFixed(2)}</div>
-        <br/><div style="text-align:center;">Obrigado!</div>
+        <div style="text-align:center; font-size: 10px;">Obrigado pela preferencia!</div>
+        <br/>.
       </body>
       </html>
     `;
