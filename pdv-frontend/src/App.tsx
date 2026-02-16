@@ -364,13 +364,14 @@ const [produtoDetalhes, setProdutoDetalhes] = useState<any>(null);
 
   async function carregarDados() {
     try {
-      const [resProdutos, resClientes, resVendas, resOrcamentos, resContas, resEntregas] = await Promise.all([
+      const [resProdutos, resClientes, resVendas, resOrcamentos, resContas, resEntregas, resMov] = await Promise.all([
         fetch(`${API_URL}/produtos`),
         fetch(`${API_URL}/clientes`),
         fetch(`${API_URL}/vendas`),
         fetch(`${API_URL}/orcamentos`),
         fetch(`${API_URL}/contas-receber`),
-        fetch(`${API_URL}/entregas`)
+        fetch(`${API_URL}/entregas`),
+        fetch(`${API_URL}/caixa/movimentacoes`) // <--- NOVA LINHA
       ])
 
       if (resProdutos.ok) setProdutos(await resProdutos.json())
@@ -380,7 +381,10 @@ const [produtoDetalhes, setProdutoDetalhes] = useState<any>(null);
       if (resContas.ok) setContasReceber(await resContas.json())
       if (resEntregas.ok) setEntregas(await resEntregas.json())
       
-      // Não carrega o caixa aqui, use buscarCaixaAberto() separadamente
+      // Carrega as movimentações (Se der erro, inicia vazio)
+      if (resMov.ok) setMovimentacoes(await resMov.json())
+      else setMovimentacoes([])
+
     } catch (e) {
       console.error('Erro ao carregar dados:', e)
     }
@@ -3682,23 +3686,30 @@ setPrecoVenda('');
         </div>
       )}
 
-     {/* MODAL: RESUMO DO CAIXA (DESIGN ORIGINAL + LÓGICA CORRIGIDA) */}
+     {/* MODAL: RESUMO DO CAIXA (CORRIGIDO) */}
       {modalResumoCaixa && caixaAberto && (() => {
         
-        // 1. FILTRO DE VENDAS (Blindado: Converte tudo pra String pra não falhar)
+        // 1. FILTRO BLINDADO (IGUAL AO DO BOTÃO)
+        // O segredo é o "|| ''" que evita erro se o ID vier nulo
         const vendasDoCaixa = vendas.filter(v => 
-            String(v.caixaId) === String(caixaAberto.id) && !v.nota_cancelada
+            String(v.caixaId || '') === String(caixaAberto.id || '') && 
+            !v.nota_cancelada
         );
         
         const vendasCanceladas = vendas.filter(v => 
-            String(v.caixaId) === String(caixaAberto.id) && v.nota_cancelada
+            String(v.caixaId || '') === String(caixaAberto.id || '') && 
+            v.nota_cancelada
+        );
+
+        // 2. Filtra Movimentações deste caixa específico
+        const movsDoCaixa = movimentacoes.filter(m => 
+            String(m.caixaId || '') === String(caixaAberto.id || '')
         );
         
-        // 2. CÁLCULO POR FORMA DE PAGAMENTO
+        // 3. CÁLCULOS FINANCEIROS
         let totDinheiro = 0, totPix = 0, totCartao = 0, totPrazo = 0;
         
         vendasDoCaixa.forEach(v => {
-          // Lógica híbrida: suporta array de pagamentos ou venda simples antiga
           if (v.pagamentos && v.pagamentos.length > 0) {
              v.pagamentos.forEach(p => {
                const val = Number(p.valor);
@@ -3718,16 +3729,20 @@ setPrecoVenda('');
           }
         });
 
-        // 3. CÁLCULO DE MOVIMENTAÇÕES (Suprimentos e Sangrias)
-        // Nota: Idealmente isso viria do backend, mas aqui usamos o estado local atualizado
-        const totalSuprimentos = movimentacoes.filter(m => m.tipo === 'SUPRIMENTO').reduce((acc, m) => acc + Number(m.valor), 0);
-        const totalSangrias = movimentacoes.filter(m => m.tipo === 'SANGRIA').reduce((acc, m) => acc + Number(m.valor), 0);
+        // 4. Soma Suprimentos e Sangrias
+        const totalSuprimentos = movsDoCaixa
+            .filter(m => m.tipo === 'SUPRIMENTO')
+            .reduce((acc, m) => acc + Number(m.valor), 0);
+            
+        const totalSangrias = movsDoCaixa
+            .filter(m => m.tipo === 'SANGRIA')
+            .reduce((acc, m) => acc + Number(m.valor), 0);
 
-        // 4. TOTAIS FINAIS
-        const totalMovimentado = totDinheiro + totPix + totCartao + totPrazo;
+        // 5. Totais Finais
+        const totalVendido = totDinheiro + totPix + totCartao + totPrazo;
         // Dinheiro na Gaveta = Inicial + Vendas(Dinheiro) + Entradas - Saídas
         const dinheiroGaveta = Number(caixaAberto.saldoInicial) + totDinheiro + totalSuprimentos - totalSangrias;
-        const ticketMedio = vendasDoCaixa.length > 0 ? (totalMovimentado / vendasDoCaixa.length) : 0;
+        const ticketMedio = vendasDoCaixa.length > 0 ? (totalVendido / vendasDoCaixa.length) : 0;
 
         return (
           <div style={{
@@ -3746,13 +3761,11 @@ setPrecoVenda('');
                 <button onClick={() => setModalResumoCaixa(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>✕</button>
               </div>
 
-              {/* GRID DE 3 COLUNAS (LAYOUT RESTAURADO) */}
+              {/* GRID DE 3 COLUNAS */}
               <div style={{ display: 'grid', gridTemplateColumns: '300px 300px 1fr', gap: '20px', overflowY: 'auto', paddingBottom: '10px' }}>
                 
-                {/* === COLUNA 1: FINANCEIRO === */}
+                {/* COLUNA 1: FINANCEIRO */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  
-                  {/* Movimento Geral */}
                   <div style={{ background: 'white', padding: '15px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
                     <h4 style={{ margin: '0 0 10px 0', color: '#475569' }}>Movimento Geral</h4>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '0.9rem' }}>
@@ -3762,11 +3775,10 @@ setPrecoVenda('');
                         <span>À prazo</span><b style={{ color: '#3b82f6' }}>R$ {totPrazo.toFixed(2)}</b>
                     </div>
                     <div style={{ borderTop: '1px dashed #cbd5e1', marginTop: '10px', paddingTop: '5px', display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem' }}>
-                        <b>Total Movimentado</b><b>R$ {totalMovimentado.toFixed(2)}</b>
+                        <b>Total Movimentado</b><b>R$ {totalVendido.toFixed(2)}</b>
                     </div>
                   </div>
 
-                  {/* Formas de Pagamento */}
                   <div style={{ background: 'white', padding: '15px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
                     <h4 style={{ margin: '0 0 10px 0', color: '#475569' }}>Formas de Pagamento</h4>
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px', background: '#f1f5f9', marginBottom: '5px', borderRadius: '5px' }}>
@@ -3780,7 +3792,7 @@ setPrecoVenda('');
                     </div>
                   </div>
 
-                  {/* Dinheiro na Gaveta (Box Amarelo) */}
+                  {/* Dinheiro na Gaveta */}
                   <div style={{ background: '#fefce8', padding: '15px', borderRadius: '10px', border: '2px solid #fde047' }}>
                     <h4 style={{ margin: '0 0 10px 0', color: '#854d0e' }}>Dinheiro na Gaveta</h4>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '4px' }}>
@@ -3789,53 +3801,41 @@ setPrecoVenda('');
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '4px' }}>
                         <span>+ Vendas (Dinheiro)</span><b style={{color:'#16a34a'}}>R$ {totDinheiro.toFixed(2)}</b>
                     </div>
-                    {totalSuprimentos > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '4px' }}>
-                            <span>+ Suprimentos</span><b style={{color:'#16a34a'}}>R$ {totalSuprimentos.toFixed(2)}</b>
-                        </div>
-                    )}
-                    {totalSangrias > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '4px' }}>
-                            <span>- Sangrias</span><b style={{color:'#dc2626'}}>R$ {totalSangrias.toFixed(2)}</b>
-                        </div>
-                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '4px' }}>
+                        <span>+ Suprimentos</span><b style={{color:'#16a34a'}}>R$ {totalSuprimentos.toFixed(2)}</b>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '4px' }}>
+                        <span>- Sangrias</span><b style={{color:'#dc2626'}}>R$ {totalSangrias.toFixed(2)}</b>
+                    </div>
                     <div style={{ borderTop: '2px dashed #fde047', marginTop: '10px', paddingTop: '5px', display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', color: '#713f12' }}>
                         <b>EM ESPÉCIE =</b><b>R$ {dinheiroGaveta.toFixed(2)}</b>
                     </div>
                   </div>
-
                 </div>
 
-                {/* === COLUNA 2: INFO + OPERAÇÕES === */}
+                {/* COLUNA 2: INFO + OPERAÇÕES */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  
-                  {/* Informativo */}
                   <div style={{ background: 'white', padding: '15px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
                     <h4 style={{ margin: '0 0 10px 0', color: '#475569' }}>Informativo</h4>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                         <span>Qtd Vendas</span><b>{vendasDoCaixa.length}</b>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                        <span>Vendas Canceladas</span><b style={{color:'#dc2626'}}>{vendasCanceladas.length}</b>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                        <span>Valor Cancelado</span><b style={{color:'#dc2626'}}>R$ {vendasCanceladas.reduce((a,b)=>a+Number(b.total),0).toFixed(2)}</b>
+                        <span>Canceladas</span><b style={{color:'#dc2626'}}>{vendasCanceladas.length}</b>
                     </div>
                     <div style={{ marginTop: '10px', background: '#f8fafc', padding: '8px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}>
                         <span>Ticket Médio</span><b>R$ {ticketMedio.toFixed(2)}</b>
                     </div>
                   </div>
 
-                  {/* Operador */}
                   <div style={{ background: '#e0f2fe', padding: '15px', borderRadius: '10px', border: '1px solid #bae6fd', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.8rem', color: '#0369a1' }}>Operador do Caixa</div>
+                    <div style={{ fontSize: '0.8rem', color: '#0369a1' }}>Operador</div>
                     <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#0c4a6e' }}>{usuarioLogado.nome}</div>
                     <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '5px' }}>
-                        Aberto em: {new Date(caixaAberto.dataAbertura).toLocaleString([], {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})}
+                        Aberto: {new Date(caixaAberto.dataAbertura).toLocaleTimeString()}
                     </div>
                   </div>
 
-                  {/* Botões Grandes de Operação */}
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button onClick={() => setModalTipoMovimento('entrada')} style={{ flex: 1, background: '#16a34a', color: 'white', border: 'none', padding: '15px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                         ➕ Suprimento
@@ -3845,45 +3845,36 @@ setPrecoVenda('');
                     </button>
                   </div>
 
-                  {/* Botão Encerrar */}
                   <button 
-                    onClick={() => {
-                        setModalResumoCaixa(false);
-                        if (typeof fecharCaixa === 'function') fecharCaixa();
-                    }} 
+                    onClick={() => { setModalResumoCaixa(false); if (typeof fecharCaixa === 'function') fecharCaixa(); }} 
                     style={{ marginTop: 'auto', background: 'linear-gradient(135deg, #ef4444, #b91c1c)', color: 'white', border: 'none', padding: '15px', borderRadius: '8px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 6px rgba(220, 38, 38, 0.3)' }}
                   >
                     🔒 ENCERRAR CAIXA
                   </button>
-
                 </div>
 
-                {/* === COLUNA 3: EXTRATO (LOG) === */}
+                {/* COLUNA 3: EXTRATO COMPLETO */}
                 <div style={{ background: 'white', padding: '20px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '600px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
-                    <h4 style={{ margin: 0, color: '#475569' }}>Extrato de Caixa</h4>
-                    <button style={{ background: 'white', border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>🖨️ Imprimir</button>
+                    <h4 style={{ margin: 0, color: '#475569' }}>Extrato Detalhado</h4>
+                    <button onClick={() => alert("Imprimir extrato")} style={{ background: 'white', border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>🖨️ Imprimir</button>
                   </div>
 
                   <div style={{ flex: 1, overflowY: 'auto', fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                    
-                    {/* Abertura */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dotted #e2e8f0' }}>
-                        <span style={{ color: '#059669' }}>{new Date(caixaAberto.dataAbertura).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} ABERTURA</span>
-                        <b style={{ color: '#059669' }}>+ R$ {Number(caixaAberto.saldoInicial).toFixed(2)}</b>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px dotted #e2e8f0' }}>
+                        <span>ABERTURA</span> <b>+ R$ {Number(caixaAberto.saldoInicial).toFixed(2)}</b>
                     </div>
 
-                    {/* Lista Mesclada de Vendas e Movimentações */}
                     {[
                         ...vendasDoCaixa.map(v => ({ ...v, tipoItem: 'VENDA', dateSort: new Date(v.data) })),
-                        ...movimentacoes.map(m => ({ ...m, tipoItem: 'MOV', dateSort: new Date(m.data || new Date()) }))
+                        ...movsDoCaixa.map(m => ({ ...m, tipoItem: 'MOV', dateSort: new Date(m.data || new Date()) }))
                     ]
-                    .sort((a: any, b: any) => a.dateSort - b.dateSort) // Ordena cronologicamente
+                    .sort((a: any, b: any) => a.dateSort - b.dateSort) // Ordena por data
                     .map((item: any, idx) => {
                         if (item.tipoItem === 'VENDA') {
                             return (
-                                <div key={'v'+item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dotted #e2e8f0' }}>
-                                    <span style={{ color: '#1e3c72' }}>{new Date(item.data).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} VENDA #{item.id}</span>
+                                <div key={'v'+idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dotted #e2e8f0' }}>
+                                    <span style={{ color: '#1e3c72' }}>VENDA #{item.id}</span>
                                     <b style={{ color: '#1e3c72' }}>+ R$ {Number(item.total).toFixed(2)}</b>
                                 </div>
                             );
@@ -3892,7 +3883,7 @@ setPrecoVenda('');
                             return (
                                 <div key={'m'+idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dotted #e2e8f0', background: isSup ? '#f0fdf4' : '#fef2f2' }}>
                                     <span style={{ color: isSup ? '#166534' : '#991b1b' }}>
-                                        {item.tipo.substring(0,3)}: {item.descricao}
+                                        {isSup ? 'SUPRIMENTO' : 'SANGRIA'}
                                     </span>
                                     <b style={{ color: isSup ? '#166534' : '#991b1b' }}>
                                         {isSup ? '+' : '-'} R$ {Number(item.valor).toFixed(2)}
