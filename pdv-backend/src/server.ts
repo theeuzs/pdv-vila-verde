@@ -1397,6 +1397,17 @@ app.post('/finalizar-venda', async (request: any, reply: any) => {
         where: { id: caixaAberto.id },
         data: { saldoAtual: { increment: Number(total) } }
       });
+
+      // 💰 CRIA REGISTRO NO EXTRATO (MOVIMENTAÇÃO)
+      await tx.movimentacaoCaixa.create({
+        data: {
+          caixaId: caixaAberto.id,
+          tipo: 'ENTRADA',
+          valor: Number(total),
+          descricao: `Venda #${novaVenda.id}`,
+          formaPagamento: pagamento || 'Dinheiro'
+        }
+      });
       
       return novaVenda;
     });
