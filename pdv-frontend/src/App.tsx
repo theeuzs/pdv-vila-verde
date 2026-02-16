@@ -727,24 +727,23 @@ imprimirComprovante(
     setValorPagamento('')
   }
 
- // --- FUNÇÃO QUE FALTAVA: IMPRIMIR RECIBO DE VENDA ---
+ // --- FUNÇÃO DE IMPRESSÃO QUE FALTAVA ---
   const imprimirReciboVenda = (idVenda: any, listaItens: any[], valorTotal: number, nomeCliente?: string, nomeVendedor?: string) => {
     const janela = window.open('', '', 'width=310,height=600');
     if (!janela) return;
 
     const dataHoje = new Date().toLocaleString('pt-BR');
 
-    // Mapeia os itens corretamente para o HTML
     const itensHtml = listaItens.map((item: any) => {
-       // Garante que pega os dados do lugar certo (item.produto ou item direto)
-       const prod = item.produto || item;
-       const nome = prod.nome || 'Item sem nome';
+       // Proteção para não quebrar se vier item.produto ou item direto
+       const produto = item.produto || item; 
+       const nome = produto.nome || 'Item sem nome';
        const qtd = Number(item.quantidade || item.qtd || 1);
-       const preco = Number(prod.precoVenda || prod.preco || 0);
+       const preco = Number(produto.precoVenda || item.precoUnit || 0);
        
        return `
         <div style="margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 2px;">
-          <div style="font-size: 11px; font-weight: bold;">${qtd}x ${nome.substring(0,22)}</div>
+          <div style="font-size: 11px; font-weight: bold;">${qtd}x ${nome.substring(0,25)}</div>
           <div style="display: flex; justify-content: space-between; font-size: 10px;">
              <span>Unit: R$ ${preco.toFixed(2)}</span>
              <span style="font-weight: bold;">R$ ${(qtd*preco).toFixed(2)}</span>
@@ -756,10 +755,10 @@ imprimirComprovante(
       <html>
       <body style="font-family: monospace; width: 280px; font-size: 12px; margin: 0; padding: 5px;">
         <div style="text-align:center; font-weight:bold; font-size: 14px;">VILA VERDE</div>
-        <div style="text-align:center; font-size: 10px;">MATERIAIS DE CONSTRUCAO</div>
+        <div style="text-align:center; font-size: 10px;">(41) 98438-7167</div>
         <hr style="border: 1px dashed #000;" />
-        <div style="text-align:center; font-weight:bold;">RECIBO SIMPLES #${idVenda}</div>
-        <div style="text-align:center; font-size: 10px;">NAO VALIDO COMO FISCAL</div>
+        <div style="text-align:center; font-weight:bold;">RECIBO #${idVenda}</div>
+        <div style="text-align:center; font-size: 10px;">NAO FISCAL</div>
         <hr style="border: 1px dashed #000;" />
         <div>DATA: ${dataHoje}</div>
         <div>VEND: ${nomeVendedor || 'Balcao'}</div>
@@ -782,7 +781,7 @@ imprimirComprovante(
     setTimeout(() => { janela.print(); janela.close(); }, 500);
   };
 
-// --- FUNÇÃO FINALIZAR VENDA (CORRIGIDA) ---
+// --- FUNÇÃO FINALIZAR VENDA (CORRIGIDA PARA NÃO TRAVAR O BACKEND) ---
   async function finalizarVendaNormal() {
     if (processandoVenda) return; 
 
@@ -800,23 +799,31 @@ imprimirComprovante(
     setMensagemLoading('Processando venda...');
 
     try {
-      // 1. CORREÇÃO CRÍTICA: Pega o ID de dentro de 'item.produto'
-      // O erro 500 acontecia porque estavamos enviando ID undefined
+      // 1. ARRUMANDO OS ITENS (O erro do map vinha daqui ou dos pagamentos)
+      // O seu carrinho tem o produto dentro da propriedade .produto
       const itensPayload = carrinho.map((item: any) => ({
-        produtoId: item.produto ? item.produto.id : item.id,
+        produtoId: item.produto ? item.produto.id : item.id, // Garante ID
         quantidade: Number(item.quantidade),
-        precoVenda: Number(item.produto ? item.produto.precoVenda : item.precoVenda),
-        total: Number(item.quantidade) * Number(item.produto ? item.produto.precoVenda : item.precoVenda)
+        precoUnit: Number(item.produto ? item.produto.precoVenda : item.precoVenda) // Nome que o back costuma usar
       }));
 
-      // 2. Monta o corpo da venda
+      // 2. ARRUMANDO PAGAMENTO (Para o backend não dar erro de map)
+      // Se a lista de pagamentos estiver vazia, cria uma com o valor total
+      let pagamentosPayload = listaPagamentos;
+      if (pagamentosPayload.length === 0) {
+        pagamentosPayload = [{ forma: formaPagamento, valor: totalComDesconto }];
+      }
+
+      // 3. Monta o corpo da venda BLINDADO
       const bodyDados = {
         total: totalCarrinho,
         desconto: Number(desconto) || 0,
-        formaPagamento: formaPagamento,
+        // Envia tanto o formato simples quanto o array para garantir compatibilidade
+        formaPagamento: formaPagamento, 
+        pagamentos: pagamentosPayload, 
         clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
         caixaId: caixaAberto.id,
-        usuarioId: usuarioLogado.id, // Envia o ID correto do vendedor
+        usuarioId: usuarioLogado?.id,
         itens: itensPayload
       };
 
@@ -829,34 +836,38 @@ imprimirComprovante(
       const dadosVenda = await res.json();
 
       if (res.ok) {
-        // 3. Imprime o Recibo Automaticamente
+        // --- SUCESSO! ---
+        
+        // Imprime o Recibo
         imprimirReciboVenda(
             dadosVenda.id, 
             carrinho, 
             totalComDesconto, 
-            // Busca o nome do cliente na lista se tiver ID selecionado
+            // Tenta achar o nome do cliente na lista
             clientes.find(c => String(c.id) === String(clienteSelecionado))?.nome, 
-            usuarioLogado.nome
+            usuarioLogado?.nome
         );
 
         alert(`✅ Venda #${dadosVenda.id} realizada!`);
         
-        // 4. Limpeza e Atualização
+        // Limpeza
         limparCarrinho();
         setModalPagamento(false); 
         
+        // Atualiza dados
         carregarDados();
         buscarCaixaAberto();
 
       } else {
-        alert('Erro ao finalizar: ' + (dadosVenda.error || 'Erro desconhecido'));
+        console.error("Erro Back:", dadosVenda);
+        alert('Erro ao finalizar: ' + (dadosVenda.error || dadosVenda.erro || 'Erro desconhecido no servidor'));
       }
 
     } catch (error) {
       console.error(error);
-      alert('Erro de conexão. Verifique se o servidor está rodando.');
+      alert('Erro de conexão. Verifique se o backend está rodando.');
     } finally {
-      // 5. Destrava a tela (Isso resolve o "carregando eternamente")
+      // ISSO GARANTE QUE O LOADING PARE DE GIRAR
       setProcessandoVenda(false);
       setMensagemLoading('');
     }
