@@ -264,12 +264,13 @@ app.get('/vendas', async () => {
   })
 })
 
-// CANCELAR VENDA (CORRIGIDO PARA NÚMERO)
- app.delete('/vendas/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const idVenda = Number(id);
+// CANCELAR VENDA (CORRIGIDO PARA FAZER A FAXINA COMPLETA)
+app.delete('/vendas/:id', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const idVenda = Number(id);
 
-    // 1. Busca a venda com seus itens
+  try {
+    // 1. Busca a venda para saber o valor e o caixa
     const venda = await prisma.venda.findUnique({
       where: { id: idVenda },
       include: { itens: true }
@@ -281,7 +282,31 @@ app.get('/vendas', async () => {
 
     console.log(`🗑️ Iniciando cancelamento da Venda #${idVenda}...`);
 
-    // 2. DEVOLVE OS PRODUTOS PARA O ESTOQUE
+    // 2. ESTORNA O DINHEIRO DO CAIXA (Se tiver caixa vinculado)
+    if (venda.caixaId) {
+      console.log(`💰 Estornando R$ ${venda.total} do caixa #${venda.caixaId}`);
+      
+      // A) Subtrai do saldo atual do caixa
+      await prisma.caixa.update({
+        where: { id: venda.caixaId },
+        data: { 
+          saldoAtual: { decrement: Number(venda.total) } 
+        }
+      });
+
+      // B) Apaga o registro visual do extrato (Movimentação)
+      // Procura a movimentação que tem o mesmo valor e data próxima, ou pela descrição
+      // Dica: O ideal seria ter o ID da venda na movimentação, mas vamos tentar apagar pelo contexto
+      await prisma.movimentacaoCaixa.deleteMany({
+        where: {
+          caixaId: venda.caixaId,
+          descricao: `Venda #${venda.id}`, // Procura pela descrição exata que criamos ao vender
+          valor: Number(venda.total)
+        }
+      });
+    }
+
+    // 3. DEVOLVE OS PRODUTOS PARA O ESTOQUE
     for (const item of venda.itens) {
       await prisma.produto.update({
         where: { id: item.produtoId },
@@ -291,38 +316,19 @@ app.get('/vendas', async () => {
       });
     }
 
-    // 3. TIRA O DINHEIRO DO CAIXA ABERTO (Se houver caixa aberto)
-    const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } });
-
-    if (caixaAberto) {
-      console.log(`💰 Estornando R$ ${venda.total} do caixa #${caixaAberto.id}`);
-      await prisma.caixa.update({
-        where: { id: caixaAberto.id },
-        data: { 
-          saldoAtual: { decrement: Number(venda.total) } 
-        }
-      });
-    }
-
-    // 👇👇 AQUI ESTÁ A SOLUÇÃO DO ERRO 500 👇👇
-    // 4. LIMPEZA DOS "FILHOS" (Itens e Pagamentos) ANTES DE APAGAR O "PAI"
-    try {
-        // Tenta apagar os itens associados a essa venda
-        await prisma.itemVenda.deleteMany({ where: { vendaId: idVenda } });
-        
-        // Tenta apagar os pagamentos associados (se existirem)
-        // OBS: Se sua tabela chamar 'PagamentoVenda', troque o nome aqui embaixo
-        await prisma.pagamento.deleteMany({ where: { vendaId: idVenda } });
-        
-    } catch (err) {
-        console.log("⚠️ Aviso: Erro ao limpar itens/pagamentos (talvez já estejam limpos). Seguindo...");
-    }
-
-    // 5. AGORA SIM, PODEMOS APAGAR A VENDA SEM O BANCO RECLAMAR
+    // 4. LIMPEZA FINAL: Apaga itens, pagamentos e a venda
+    await prisma.itemVenda.deleteMany({ where: { vendaId: idVenda } });
+    await prisma.pagamento.deleteMany({ where: { vendaId: idVenda } });
     await prisma.venda.delete({ where: { id: idVenda } });
 
-    return reply.send({ message: "Venda cancelada e limpa com sucesso!" });
-  });
+    console.log("✅ Venda cancelada, dinheiro devolvido e estoque reposto!");
+    return reply.send({ message: "Venda cancelada com sucesso!" });
+
+  } catch (error) {
+    console.error("Erro ao cancelar:", error);
+    return reply.status(500).send({ error: "Erro ao cancelar venda" });
+  }
+});
 
 // --- CLIENTES ---
 app.get('/clientes', async () => {
