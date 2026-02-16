@@ -745,12 +745,12 @@ imprimirComprovante(
     setMensagemLoading('Processando venda...');
 
     try {
-      // 1. Monta os itens corretamente pegando de item.produto
+      // 1. CORREÇÃO CRÍTICA: Pegar o ID de dentro do objeto 'produto'
       const itensPayload = carrinho.map((item: any) => ({
         produtoId: item.produto ? item.produto.id : item.id,
-        quantidade: Number(item.quantidade || 1),
-        precoVenda: Number(item.produto ? item.produto.precoVenda : item.precoVenda),
-        total: Number(item.quantidade || 1) * Number(item.produto ? item.produto.precoVenda : item.precoVenda)
+        quantidade: Number(item.quantidade),
+        precoVenda: Number(item.produto.precoVenda),
+        total: Number(item.quantidade) * Number(item.produto.precoVenda)
       }));
 
       // 2. Monta o corpo da venda
@@ -758,10 +758,9 @@ imprimirComprovante(
         total: totalCarrinho,
         desconto: Number(desconto) || 0,
         formaPagamento: formaPagamento,
-        // Converte o ID do cliente pra número ou null se estiver vazio
         clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
         caixaId: caixaAberto.id,
-        usuarioId: usuarioLogado?.id, // Garante que vai o ID do usuário logado
+        usuarioId: usuarioLogado.id, // Envia o ID correto do vendedor
         itens: itensPayload
       };
 
@@ -774,24 +773,22 @@ imprimirComprovante(
       const dadosVenda = await res.json();
 
       if (res.ok) {
-        // --- SUCESSO! ---
-        
-        // 3. Imprime o Recibo
+        // 3. Imprime o Recibo Automaticamente
         imprimirReciboVenda(
             dadosVenda.id, 
             carrinho, 
             totalComDesconto, 
+            // Busca o nome do cliente na lista se tiver ID selecionado
             clientes.find(c => String(c.id) === String(clienteSelecionado))?.nome, 
-            usuarioLogado?.nome
+            usuarioLogado.nome
         );
 
         alert(`✅ Venda #${dadosVenda.id} realizada!`);
         
-        // 4. Limpeza (Sem usar sets que não existem)
-        limparCarrinho(); // Usa sua função auxiliar que já limpa tudo
+        // 4. Limpeza e Atualização
+        limparCarrinho();
         setModalPagamento(false); 
         
-        // Atualiza dados
         carregarDados();
         buscarCaixaAberto();
 
@@ -801,9 +798,9 @@ imprimirComprovante(
 
     } catch (error) {
       console.error(error);
-      alert('Erro de conexão.');
+      alert('Erro de conexão. Verifique se o servidor está rodando.');
     } finally {
-      // 5. Destrava a tela
+      // 5. Destrava a tela (Isso resolve o "carregando eternamente")
       setProcessandoVenda(false);
       setMensagemLoading('');
     }
@@ -817,10 +814,11 @@ imprimirComprovante(
     const dataHoje = new Date().toLocaleString('pt-BR');
 
     const itensHtml = listaItens.map((item: any) => {
-       // Tenta pegar o nome dentro de produto ou direto (compatibilidade)
-       const nome = item.produto ? item.produto.nome : (item.nome || 'Item');
-       const qtd = Number(item.quantidade || 1);
-       const preco = Number(item.produto ? item.produto.precoVenda : (item.precoVenda || 0));
+       // Garante que pega o nome e preço correto, seja do carrinho ou do histórico
+       const produto = item.produto || item; 
+       const nome = produto.nome || 'Item';
+       const qtd = Number(item.quantidade || item.qtd || 1);
+       const preco = Number(produto.precoVenda || item.precoUnit || 0);
        
        return `
         <div style="margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 2px;">
@@ -836,12 +834,12 @@ imprimirComprovante(
       <html>
       <body style="font-family: monospace; width: 280px; font-size: 12px; margin: 0; padding: 5px;">
         <div style="text-align:center; font-weight:bold; font-size: 14px;">VILA VERDE</div>
-        <div style="text-align:center;">MATERIAIS DE CONSTRUCAO</div>
+        <div style="text-align:center; font-size: 10px;">MATERIAIS DE CONSTRUCAO</div>
         <div style="text-align:center; font-size: 10px;">(41) 98438-7167</div>
         <hr style="border: 1px dashed #000;" />
         
         <div style="text-align:center; font-weight:bold;">VENDA #${idVenda}</div>
-        <div style="text-align:center; font-size: 10px;">NAO FISCAL</div>
+        <div style="text-align:center; font-size: 10px;">RECIBO SIMPLES</div>
         
         <hr style="border: 1px dashed #000;" />
         <div>DATA: ${dataHoje}</div>
