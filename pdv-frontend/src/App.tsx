@@ -1750,7 +1750,9 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(74, 222, 128, 0.3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(74, 222, 128, 0.2)'}
               >
-                <div>MEU CAIXA - R$ {Number(caixaAberto.saldoAtual).toFixed(2)}</div>               
+                {/* 👇 AQUI ESTÁ A MÁGICA: USA O SALDO CALCULADO, NÃO O DO BANCO */}
+                <div>MEU CAIXA - R$ {saldoEmTempoReal.toFixed(2)}</div>
+                
                 <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
                   📊 Clique para Resumo
                 </div>
