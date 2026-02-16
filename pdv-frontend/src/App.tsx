@@ -900,8 +900,7 @@ imprimirComprovante(
       const dadosVenda = await res.json();
 
       if (res.ok) {
-        buscarCaixaAberto()
-        // --- SUCESSO! ---
+await buscarCaixaAberto();        // --- SUCESSO! ---
         
         // Imprime o Recibo
         imprimirReciboVenda(
@@ -1387,28 +1386,25 @@ async function abrirEmissao(venda: Venda) {
     }
   }
 
- // --- FUNÇÃO CANCELAR (ATUALIZA O BOTÃO NA HORA) ---
-  async function cancelarVendaSimples(id: number) {
-    if (!confirm('⚠️ Tem certeza? O valor será estornado do caixa.')) return;
+ async function cancelarVendaSimples(id: number) {
+  if (!confirm('⚠️ Tem certeza? O valor será estornado do caixa.')) return;
 
-    // 1. Remove da tela IMEDIATAMENTE (Visual)
-    setVendas(listaAtual => listaAtual.filter(v => v.id !== id));
+  try {
+    const res = await fetch(`${API_URL}/vendas/${id}`, { method: 'DELETE' });
 
-    try {
-      // 2. Avisa o servidor para apagar do banco
-      const res = await fetch(`${API_URL}/vendas/${id}`, { method: 'DELETE' });
-      
-      if (res.ok) {
-        // 3. Busca o saldo atualizado do banco (pra garantir)
-        await buscarCaixaAberto();
-        alert('✅ Venda cancelada com sucesso!');
-      } else {
-        alert('Venda cancelada visualmente, mas houve erro no servidor.');
-      }
-    } catch (e) {
-      console.error(e);
+    if (res.ok) {
+      alert('✅ Venda cancelada com sucesso!');
+      await carregarDados();      // Atualiza a tabela
+      await buscarCaixaAberto();  // ATUALIZA O SALDO LÁ EM CIMA
+    } else {
+      const erro = await res.json();
+      alert('Erro ao cancelar: ' + (erro.error || 'Erro desconhecido'));
     }
+  } catch (e) {
+    console.error(e);
+    alert('Erro de conexão ao cancelar.');
   }
+}
 
   // ============================================================================
   // FUNÇÕES DE ENTREGAS
@@ -1593,7 +1589,6 @@ setPrecoVenda('');
     }
   }, [indexSelecionado]); // Executa sempre que a seleção muda
 
-  // --- FUNÇÃO DE MOVIMENTAÇÃO (CORRIGIDA) ---
   async function confirmarMovimentacao() {
     if (!valorMovimento || Number(valorMovimento) <= 0) {
       return alert("Digite um valor válido!");
@@ -1602,7 +1597,9 @@ setPrecoVenda('');
     const tipo = modalTipoMovimento === 'entrada' ? 'SUPRIMENTO' : 'SANGRIA';
     const valor = Number(valorMovimento.replace(',', '.'));
     
-    // 1. Salva no Backend
+    // Texto padrão se não digitar nada (pra não ir vazio pro banco)
+    const obsFinal = descMovimento || (tipo === 'SUPRIMENTO' ? 'Suprimento de Caixa' : 'Sangria de Caixa');
+
     try {
       const res = await fetch(`${API_URL}/caixa/movimentacao`, {
         method: 'POST',
@@ -1611,38 +1608,32 @@ setPrecoVenda('');
            caixaId: caixaAberto?.id,
            tipo,
            valor,
-           observacao: descMovimento || (tipo === 'SUPRIMENTO' ? 'Suprimento' : 'Sangria'),
+           observacao: obsFinal, // Garante que nunca vai vazio
            usuarioId: usuarioLogado.id
         })
       });
 
       if (res.ok) {
-        // 2. SUCESSO: Atualiza a lista local E recarrega o caixa do banco!
-        const novaMov = {
-            id: Date.now(), 
-            tipo, valor, 
-            descricao: descMovimento || tipo, 
-            data: new Date().toISOString()
-        };
-        setMovimentacoes([...movimentacoes, novaMov]);
+        // Atualiza tudo
+        await carregarDados(); 
+        await buscarCaixaAberto(); // Atualiza o botão lá em cima
         
-        await buscarCaixaAberto(); // <--- ISSO AQUI ATUALIZA O BOTÃO LÁ EM CIMA
-        
-        imprimirComprovante(tipo, valor, descMovimento, usuarioLogado?.nome || 'Balcão');
+        imprimirComprovante(tipo, valor, obsFinal, usuarioLogado?.nome);
         alert(`✅ ${tipo} realizado com sucesso!`);
+        
+        // Fecha modal
+        setModalTipoMovimento(null);
+        setValorMovimento('');
+        setDescMovimento('');
       } else {
-        alert("Erro ao salvar movimentação no servidor.");
+        const erro = await res.json();
+        alert("Erro no servidor: " + (erro.erro || "Verifique o console do backend"));
       }
 
     } catch (e) {
       console.error(e);
-      alert("Erro de conexão.");
+      alert("Erro de conexão com o servidor.");
     }
-
-    // Limpa e fecha
-    setModalTipoMovimento(null);
-    setValorMovimento('');
-    setDescMovimento('');
   }
 
   // --- CÁLCULO DE SALDO COMPLETO (Vendas + Suprimentos - Sangrias) ---
@@ -1731,7 +1722,10 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
           {caixaAberto ? (
             <>
               <button 
-                onClick={() => setModalResumoCaixa(true)}
+                onClick={() => {
+                    setModalResumoCaixa(true);
+                    buscarCaixaAberto(); // <--- O SEGREDO: Atualiza o saldo ao clicar
+                }}
                 style={{ 
                   background: 'rgba(74, 222, 128, 0.2)',
                   padding: '8px 20px',
@@ -1749,8 +1743,8 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(74, 222, 128, 0.3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(74, 222, 128, 0.2)'}
               >
-                {/* 👇 AQUI ESTÁ A MÁGICA: USA O SALDO CALCULADO, NÃO O DO BANCO */}
-                <div>MEU CAIXA - R$ {saldoEmTempoReal.toFixed(2)}</div>
+                {/* LÊ DIRETO DO BANCO DE DADOS */}
+                <div>MEU CAIXA - R$ {Number(caixaAberto?.saldoAtual || 0).toFixed(2)}</div>
                 
                 <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
                   📊 Clique para Resumo
