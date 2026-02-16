@@ -727,58 +727,117 @@ imprimirComprovante(
     setValorPagamento('')
   }
 
- // --- FUNÇÃO DE IMPRESSÃO QUE FALTAVA ---
+ // --- FUNÇÃO DE IMPRESSÃO REESTRUTURADA (MODELO PROFISSIONAL) ---
   const imprimirReciboVenda = (idVenda: any, listaItens: any[], valorTotal: number, nomeCliente?: string, nomeVendedor?: string) => {
-    const janela = window.open('', '', 'width=310,height=600');
+    const janela = window.open('', '', 'width=300,height=600');
     if (!janela) return;
 
-    const dataHoje = new Date().toLocaleString('pt-BR');
+    const dataCompleta = new Date();
+    const dataHoje = dataCompleta.toLocaleDateString('pt-BR');
+    const horaHoje = dataCompleta.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-    const itensHtml = listaItens.map((item: any) => {
-       // Proteção para não quebrar se vier item.produto ou item direto
-       const produto = item.produto || item; 
-       const nome = produto.nome || 'Item sem nome';
-       const qtd = Number(item.quantidade || item.qtd || 1);
-       const preco = Number(produto.precoVenda || item.precoUnit || 0);
+    // 1. Calcula o Subtotal (soma dos itens sem desconto) para exibir corretamente
+    const subtotalGeral = listaItens.reduce((acc: number, item: any) => {
+        const prod = item.produto || item;
+        const qtd = Number(item.quantidade || item.qtd || 1);
+        const preco = Number(prod.precoVenda || item.precoUnit || 0);
+        return acc + (qtd * preco);
+    }, 0);
+
+    const valorDesconto = subtotalGeral - valorTotal;
+    // Verifica se houve desconto (com pequena margem para erro de arredondamento)
+    const temDesconto = valorDesconto > 0.01;
+
+    // 2. Monta a lista de itens com layout mais limpo
+    const itensHtml = listaItens.map((item: any, index: number) => {
+       const produto = item.produto || item;
+       const nome = produto.nome ? produto.nome.toUpperCase() : 'ITEM SEM NOME';
        
+       let qtd = Number(item.quantidade || item.qtd);
+       if (isNaN(qtd) || qtd <= 0) qtd = 1;
+
+       const precoUnit = Number(produto.precoVenda || item.precoUnit || 0);
+       const totalItem = qtd * precoUnit;
+
+       // Formata a quantidade: se for inteiro mostra "2", se for decimal mostra "1.5"
+       const qtdFormatada = Number.isInteger(qtd) ? qtd.toString() : qtd.toFixed(2).replace('.',',');
+
        return `
-        <div style="margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 2px;">
-          <div style="font-size: 11px; font-weight: bold;">${qtd}x ${nome.substring(0,25)}</div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px;">
-             <span>Unit: R$ ${preco.toFixed(2)}</span>
-             <span style="font-weight: bold;">R$ ${(qtd*preco).toFixed(2)}</span>
+        <div style="margin-bottom: 4px;">
+          <div style="font-size: 11px; font-weight: bold;">
+            Letra ${index + 1}. ${nome.substring(0,25)}
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; padding-left: 10px;">
+             <div>${qtdFormatada} UN x R$ ${precoUnit.toFixed(2)}</div>
+             <div style="font-weight: bold;">R$ ${totalItem.toFixed(2)}</div>
           </div>
         </div>`;
     }).join('');
 
+    // 3. Estilo CSS para impressão térmica
+    const estiloHr = 'border: 0; border-top: 1px dashed #000; margin: 5px 0;';
+    const estiloBody = 'font-family: "Courier New", Courier, monospace; width: 280px; font-size: 12px; margin: 0; padding: 5px 5px 20px 5px; color: #000; background-color: #fff;';
+
     const html = `
       <html>
-      <body style="font-family: monospace; width: 280px; font-size: 12px; margin: 0; padding: 5px;">
-        <div style="text-align:center; font-weight:bold; font-size: 14px;">VILA VERDE</div>
-        <div style="text-align:center; font-size: 10px;">(41) 98438-7167</div>
-        <hr style="border: 1px dashed #000;" />
-        <div style="text-align:center; font-weight:bold;">RECIBO #${idVenda}</div>
-        <div style="text-align:center; font-size: 10px;">NAO FISCAL</div>
-        <hr style="border: 1px dashed #000;" />
-        <div>DATA: ${dataHoje}</div>
-        <div>VEND: ${nomeVendedor || 'Balcao'}</div>
-        ${nomeCliente ? `<div>CLI: ${nomeCliente.substring(0,25)}</div>` : ''}
-        <hr style="border: 1px dashed #000;" />
-        <div style="font-weight:bold; margin-bottom: 5px;">ITENS:</div>
+      <head><title>Recibo #${idVenda}</title></head>
+      <body style="${estiloBody}">
+        
+        <div style="text-align:center; font-weight:bold; font-size: 16px; margin-bottom: 2px;">VILA VERDE</div>
+        <div style="text-align:center; font-size: 12px;">MATERIAIS DE CONSTRUCAO</div>
+        <div style="text-align:center; font-size: 11px; margin-top: 2px;">Tel/WhatsApp: (41) 98438-7167</div>
+        
+        <hr style="${estiloHr}" />
+        
+        <div style="text-align:center; font-weight:bold; font-size: 13px;">*** RECIBO NÃO FISCAL ***</div>
+        <div style="text-align:center; font-weight:bold; font-size: 14px; margin: 5px 0;">VENDA NÚMERO: #${idVenda}</div>
+        
+        <div style="display: flex; justify-content: space-between; font-size: 11px;">
+            <span>DATA: ${dataHoje}</span>
+            <span>HORA: ${horaHoje}</span>
+        </div>
+        
+        <hr style="${estiloHr}" />
+        
+        <div style="font-size: 11px;">VENDEDOR: ${nomeVendedor ? nomeVendedor.toUpperCase().substring(0,20) : 'BALCAO'}</div>
+        ${nomeCliente ? `<div style="font-size: 11px;">CLIENTE: ${nomeCliente.toUpperCase().substring(0,25)}</div>` : ''}
+        
+        <hr style="${estiloHr}" />
+        
+        <div style="font-weight:bold; margin-bottom: 5px; font-size: 12px;">DESCRIÇÃO DOS ITENS:</div>
         ${itensHtml}
-        <hr style="border: 1px dashed #000;" />
-        <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold;">
-          <span>TOTAL:</span>
+        
+        <hr style="${estiloHr}" />
+        
+        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+          <span>SUBTOTAL:</span>
+          <span>R$ ${subtotalGeral.toFixed(2)}</span>
+        </div>
+        
+        ${temDesconto ? `
+        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+          <span>DESCONTO APLICADO:</span>
+          <span>- R$ ${valorDesconto.toFixed(2)}</span>
+        </div>
+        <hr style="${estiloHr}" />
+        ` : ''}
+
+        <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; margin-top: 8px;">
+          <span>TOTAL A PAGAR:</span>
           <span>R$ ${Number(valorTotal).toFixed(2)}</span>
         </div>
-        <br/>
-        <div style="text-align:center; font-size: 10px;">Obrigado pela preferencia!</div>
+        
+        <hr style="${estiloHr}" />
+        
+        <div style="text-align:center; font-size: 11px; margin-top: 10px;">Obrigado pela preferência!</div>
+        <div style="text-align:center; font-size: 11px;">Volte sempre.</div>
         <br/>.
       </body>
       </html>
     `;
     janela.document.write(html);
-    setTimeout(() => { janela.print(); janela.close(); }, 500);
+    janela.document.close(); // Importante para alguns navegadores terminarem de carregar
+    setTimeout(() => { janela.focus(); janela.print(); janela.close(); }, 500);
   };
 
 // --- FUNÇÃO FINALIZAR VENDA (CORRIGIDA PARA NÃO TRAVAR O BACKEND) ---
@@ -3466,25 +3525,43 @@ setPrecoVenda('');
         </div>
       )}
 
-      {/* MODAL: RESUMO DO CAIXA (RAIO-X) */}
+      {/* MODAL: RESUMO DO CAIXA (CORRIGIDO) */}
       {modalResumoCaixa && caixaAberto && (() => {
-        // MATEMÁTICA DO CAIXA
-        const vendasDoCaixa = vendas.filter(v => v.caixaId === caixaAberto.id && !v.nota_cancelada);
-        const vendasCanceladas = vendas.filter(v => v.caixaId === caixaAberto.id && v.nota_cancelada);
+        // MATEMÁTICA DO CAIXA (CORRIGIDA PARA COMPARAR TEXTO COM TEXTO)
+        const vendasDoCaixa = vendas.filter(v => 
+            String(v.caixaId) === String(caixaAberto.id) && !v.nota_cancelada
+        );
+        
+        const vendasCanceladas = vendas.filter(v => 
+            String(v.caixaId) === String(caixaAberto.id) && v.nota_cancelada
+        );
         
         let totDinheiro = 0, totPix = 0, totCartao = 0, totPrazo = 0;
         
         vendasDoCaixa.forEach(v => {
-          v.pagamentos?.forEach(p => {
-            if (p.forma === 'Dinheiro') totDinheiro += Number(p.valor);
-            else if (p.forma === 'Pix') totPix += Number(p.valor);
-            else if (p.forma.includes('Cartão')) totCartao += Number(p.valor);
-            else totPrazo += Number(p.valor);
-          });
+          // Se pagamentos for nulo (vendas antigas), tenta usar o total e formaPagamento
+          if (!v.pagamentos || v.pagamentos.length === 0) {
+             const valor = Number(v.total);
+             const forma = v['formaPagamento'] || 'Dinheiro'; // fallback
+             
+             if (forma === 'Dinheiro') totDinheiro += valor;
+             else if (forma === 'Pix') totPix += valor;
+             else if (forma.includes('Cartão')) totCartao += valor;
+             else totPrazo += valor;
+          } else {
+             // Vendas novas com array de pagamentos
+             v.pagamentos.forEach(p => {
+               const val = Number(p.valor);
+               if (p.forma === 'Dinheiro') totDinheiro += val;
+               else if (p.forma === 'Pix') totPix += val;
+               else if (p.forma.includes('Cartão')) totCartao += val;
+               else totPrazo += val;
+             });
+          }
         });
 
         const totalVendidoAcesso = totDinheiro + totPix + totCartao + totPrazo;
-        const totalGaveta = Number(caixaAberto.saldoInicial) + totDinheiro; // Aqui você pode subtrair sangrias futuramente
+        const totalGaveta = Number(caixaAberto.saldoInicial) + totDinheiro; 
         const ticketMedio = vendasDoCaixa.length > 0 ? (totalVendidoAcesso / vendasDoCaixa.length) : 0;
 
         return (
@@ -3494,18 +3571,18 @@ setPrecoVenda('');
           }}>
             <div style={{
               background: '#f1f5f9', borderRadius: '15px', padding: '25px', width: '1100px', maxWidth: '95vw',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column'
+              boxShadow: '0 10px 25px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', maxHeight: '90vh'
             }}>
               {/* CABEÇALHO */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #cbd5e1', paddingBottom: '10px' }}>
                 <h2 style={{ margin: 0, color: '#1e3c72', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  📊 Resumo Financeiro do Caixa
+                  📊 Resumo Financeiro do Caixa #{caixaAberto.id}
                 </h2>
                 <button onClick={() => setModalResumoCaixa(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>✕</button>
               </div>
 
               {/* CORPO DO CAIXA - 3 COLUNAS */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '20px', overflowY: 'auto' }}>
                 
                 {/* COLUNA 1: MOVIMENTAÇÃO E FORMAS */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -3562,7 +3639,7 @@ setPrecoVenda('');
                     </div>
                   </div>
 
-                  {/* 👇👇 NOVOS BOTÕES: SUPRIMENTO E SANGRIA 👇👇 */}
+                  {/* BOTÕES: SUPRIMENTO E SANGRIA */}
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button
                       onClick={() => setModalTipoMovimento('entrada')}
@@ -3586,14 +3663,14 @@ setPrecoVenda('');
                     </button>
                   </div>
 
-                  {/* BOTÃO DE FECHAR CAIXA (Mantido no final) */}
+                  {/* BOTÃO DE FECHAR CAIXA */}
                   <button
                     onClick={() => {
                       setModalResumoCaixa(false);
                       if (typeof fecharCaixa === 'function') fecharCaixa();
                     }}
                     style={{
-                      marginTop: 'auto', // Empurra pro final se sobrar espaço
+                      marginTop: 'auto',
                       background: 'linear-gradient(135deg, #ef4444, #dc2626)',
                       color: 'white', border: 'none', padding: '15px', borderRadius: '8px',
                       fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer',
@@ -3608,10 +3685,10 @@ setPrecoVenda('');
                 </div>
 
                 {/* COLUNA 3: EXTRATO (LOG) */}
-                <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', height: '500px' }}>
+                <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '500px' }}>
                   <h4 style={{ margin: '0 0 10px 0', color: '#475569', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px', display: 'flex', justifyContent: 'space-between' }}>
                     <span>Extrato de Caixa</span>
-                    <button style={{ fontSize: '0.75rem', padding: '2px 8px', cursor: 'pointer' }}>🖨️ Imprimir</button>
+                    <button onClick={() => alert("Função de imprimir extrato em breve!")} style={{ fontSize: '0.75rem', padding: '2px 8px', cursor: 'pointer' }}>🖨️ Imprimir</button>
                   </h4>
                   
                   <div style={{ flex: 1, overflowY: 'auto', fontFamily: 'monospace', fontSize: '0.85rem', paddingRight: '5px' }}>
