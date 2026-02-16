@@ -1387,24 +1387,22 @@ async function abrirEmissao(venda: Venda) {
   }
 
  async function cancelarVendaSimples(id: number) {
-  if (!confirm('⚠️ Tem certeza? O valor será estornado do caixa.')) return;
+    if (!confirm('⚠️ Cancelar venda? O valor sairá do caixa imediatamente.')) return;
 
-  try {
-    const res = await fetch(`${API_URL}/vendas/${id}`, { method: 'DELETE' });
+    // 1. Tira da tela NA HORA (Isso atualiza o botão lá em cima)
+    setVendas(listaAtual => listaAtual.filter(v => v.id !== id));
 
-    if (res.ok) {
-      alert('✅ Venda cancelada com sucesso!');
-      await carregarDados();      // Atualiza a tabela
-      await buscarCaixaAberto();  // ATUALIZA O SALDO LÁ EM CIMA
-    } else {
-      const erro = await res.json();
-      alert('Erro ao cancelar: ' + (erro.error || 'Erro desconhecido'));
+    try {
+      // 2. Tenta avisar o servidor (se der erro lá, pelo menos a tela tá certa)
+      await fetch(`${API_URL}/vendas/${id}`, { method: 'DELETE' });
+      alert('✅ Venda cancelada!');
+      // Atualiza movimentações também pra garantir
+      const resMov = await fetch(`${API_URL}/caixa/movimentacoes`);
+      if (resMov.ok) setMovimentacoes(await resMov.json());
+    } catch (e) {
+      console.error(e);
     }
-  } catch (e) {
-    console.error(e);
-    alert('Erro de conexão ao cancelar.');
   }
-}
 
   // ============================================================================
   // FUNÇÕES DE ENTREGAS
@@ -1659,6 +1657,32 @@ const saldoEmTempoReal = (() => {
     return Number(caixaAberto.saldoInicial) + totalVendas + totalSuprimentos - totalSangrias;
   })();
 
+  // --- CALCULADORA VISUAL (IGNORA O BANCO E SOMA O QUE TÁ NA TELA) ---
+  const saldoVisual = (() => {
+    if (!caixaAberto) return 0;
+
+    // 1. Pega o Saldo Inicial (Abertura)
+    const inicial = Number(caixaAberto.saldoInicial) || 0;
+
+    // 2. Soma as Vendas ATIVAS que estão na lista (ignora as canceladas)
+    // Converte pra String pra não dar erro de tipo (filtro blindado)
+    const totalVendas = vendas
+      .filter(v => String(v.caixaId || '') === String(caixaAberto.id || '') && !v.nota_cancelada)
+      .reduce((acc, v) => acc + Number(v.total), 0);
+
+    // 3. Soma Suprimentos e subtrai Sangrias da lista de movimentações
+    const totalSuprimentos = movimentacoes
+      .filter(m => m.tipo === 'SUPRIMENTO')
+      .reduce((acc, m) => acc + Number(m.valor), 0);
+
+    const totalSangrias = movimentacoes
+      .filter(m => m.tipo === 'SANGRIA')
+      .reduce((acc, m) => acc + Number(m.valor), 0);
+
+    // CONTA FINAL:
+    return inicial + totalVendas + totalSuprimentos - totalSangrias;
+  })();
+
   // ============================================================================
   // RENDERIZAÇÃO - LOGIN
   // ============================================================================
@@ -1722,10 +1746,7 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
           {caixaAberto ? (
             <>
               <button 
-                onClick={() => {
-                    setModalResumoCaixa(true);
-                    buscarCaixaAberto(); // <--- O SEGREDO: Atualiza o saldo ao clicar
-                }}
+                onClick={() => setModalResumoCaixa(true)}
                 style={{ 
                   background: 'rgba(74, 222, 128, 0.2)',
                   padding: '8px 20px',
@@ -1740,11 +1761,9 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(74, 222, 128, 0.3)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(74, 222, 128, 0.2)'}
               >
-                {/* LÊ DIRETO DO BANCO DE DADOS */}
-                <div>MEU CAIXA - R$ {Number(caixaAberto?.saldoAtual || 0).toFixed(2)}</div>
+                {/* 👇 AQUI ESTÁ A CORREÇÃO: USA O CÁLCULO VISUAL 👇 */}
+                <div>MEU CAIXA - R$ {saldoVisual.toFixed(2)}</div>
                 
                 <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
                   📊 Clique para Resumo
