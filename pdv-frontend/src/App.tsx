@@ -1387,27 +1387,26 @@ async function abrirEmissao(venda: Venda) {
     }
   }
 
-  // --- FUNÇÃO PARA CANCELAR VENDA NORMAL (SEM NOTA) ---
+ // --- FUNÇÃO CANCELAR (ATUALIZA O BOTÃO NA HORA) ---
   async function cancelarVendaSimples(id: number) {
-    if (!confirm('⚠️ Tem certeza? Isso irá cancelar a venda e devolver os itens ao estoque.')) return;
+    if (!confirm('⚠️ Tem certeza? O valor será estornado do caixa.')) return;
+
+    // 1. Remove da tela IMEDIATAMENTE (Visual)
+    setVendas(listaAtual => listaAtual.filter(v => v.id !== id));
 
     try {
-      // Tenta usar o método DELETE na rota de vendas
-      const res = await fetch(`${API_URL}/vendas/${id}`, {
-        method: 'DELETE'
-      });
-
+      // 2. Avisa o servidor para apagar do banco
+      const res = await fetch(`${API_URL}/vendas/${id}`, { method: 'DELETE' });
+      
       if (res.ok) {
-        alert('✅ Venda cancelada e estoque estornado!');
-        carregarDados(); // Atualiza a tabela
-        buscarCaixaAberto(); // Atualiza o saldo do caixa
+        // 3. Busca o saldo atualizado do banco (pra garantir)
+        await buscarCaixaAberto();
+        alert('✅ Venda cancelada com sucesso!');
       } else {
-        const erro = await res.json();
-        alert('Erro ao cancelar: ' + (erro.error || 'Erro desconhecido'));
+        alert('Venda cancelada visualmente, mas houve erro no servidor.');
       }
     } catch (e) {
       console.error(e);
-      alert('Erro de conexão ao cancelar venda.');
     }
   }
 
@@ -1647,25 +1646,25 @@ setPrecoVenda('');
   }
 
   // --- CÁLCULO DE SALDO COMPLETO (Vendas + Suprimentos - Sangrias) ---
-  const saldoEmTempoReal = (() => {
+const saldoEmTempoReal = (() => {
     if (!caixaAberto) return 0;
 
-    // 1. Soma das Vendas (Blindada contra erro de tipo)
+    // 1. Soma Vendas Ativas
     const totalVendas = vendas
-      .filter(v => String(v.caixaId || '') === String(caixaAberto.id || '') && !v.nota_cancelada)
+      .filter(v => String(v.caixaId) === String(caixaAberto.id) && !v.nota_cancelada)
       .reduce((acc, v) => acc + Number(v.total), 0);
 
-    // 2. Soma dos Suprimentos (Entradas)
+    // 2. Soma Suprimentos
     const totalSuprimentos = movimentacoes
-      .filter(m => m.tipo === 'SUPRIMENTO')
+      .filter(m => String(m.caixaId || caixaAberto.id) === String(caixaAberto.id) && m.tipo === 'SUPRIMENTO')
       .reduce((acc, m) => acc + Number(m.valor), 0);
 
-    // 3. Soma das Sangrias (Saídas)
+    // 3. Soma Sangrias
     const totalSangrias = movimentacoes
-      .filter(m => m.tipo === 'SANGRIA')
+      .filter(m => String(m.caixaId || caixaAberto.id) === String(caixaAberto.id) && m.tipo === 'SANGRIA')
       .reduce((acc, m) => acc + Number(m.valor), 0);
 
-    // 4. Conta Final: Inicial + Vendas + Entradas - Saídas
+    // 4. Saldo Inicial + Vendas + Entradas - Saídas
     return Number(caixaAberto.saldoInicial) + totalVendas + totalSuprimentos - totalSangrias;
   })();
 
