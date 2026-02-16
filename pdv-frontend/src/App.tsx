@@ -727,7 +727,7 @@ imprimirComprovante(
     setValorPagamento('')
   }
 
-// --- FUNÇÃO FINALIZAR VENDA (CORRIGIDA) ---
+// --- FUNÇÃO CORRIGIDA E BLINDADA ---
   async function finalizarVendaNormal() {
     if (processandoVenda) return; 
 
@@ -741,26 +741,30 @@ imprimirComprovante(
       return;
     }
 
+    // Trava a tela
     setProcessandoVenda(true);
     setMensagemLoading('Processando venda...');
 
     try {
-      // 1. CORREÇÃO CRÍTICA: Pegar o ID de dentro do objeto 'produto'
-      const itensPayload = carrinho.map((item: any) => ({
-        produtoId: item.produto ? item.produto.id : item.id,
-        quantidade: Number(item.quantidade),
-        precoVenda: Number(item.produto.precoVenda),
-        total: Number(item.quantidade) * Number(item.produto.precoVenda)
-      }));
+      // 1. CORREÇÃO CRÍTICA: Pega o ID e Preço de dentro de 'item.produto'
+      // Isso resolve o erro "Cannot read properties of undefined" no backend
+      const itensPayload = carrinho.map((item: any) => {
+        const prod = item.produto || item; // Garante que temos o produto
+        return {
+          produtoId: prod.id, 
+          quantidade: Number(item.quantidade || 1),
+          precoVenda: Number(prod.precoVenda || 0),
+          total: Number(item.quantidade || 1) * Number(prod.precoVenda || 0)
+        };
+      });
 
-      // 2. Monta o corpo da venda
       const bodyDados = {
         total: totalCarrinho,
         desconto: Number(desconto) || 0,
         formaPagamento: formaPagamento,
         clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
         caixaId: caixaAberto.id,
-        usuarioId: usuarioLogado.id, // Envia o ID correto do vendedor
+        usuarioId: usuarioLogado?.id, // Garante que o vendedor não fica como "Sistema"
         itens: itensPayload
       };
 
@@ -773,22 +777,22 @@ imprimirComprovante(
       const dadosVenda = await res.json();
 
       if (res.ok) {
-        // 3. Imprime o Recibo Automaticamente
+        // 2. Imprime o recibo agora que a função existe
         imprimirReciboVenda(
             dadosVenda.id, 
             carrinho, 
             totalComDesconto, 
-            // Busca o nome do cliente na lista se tiver ID selecionado
             clientes.find(c => String(c.id) === String(clienteSelecionado))?.nome, 
-            usuarioLogado.nome
+            usuarioLogado?.nome
         );
 
         alert(`✅ Venda #${dadosVenda.id} realizada!`);
         
-        // 4. Limpeza e Atualização
+        // 3. Limpeza segura
         limparCarrinho();
         setModalPagamento(false); 
         
+        // Atualiza dados de fundo
         carregarDados();
         buscarCaixaAberto();
 
@@ -798,31 +802,32 @@ imprimirComprovante(
 
     } catch (error) {
       console.error(error);
-      alert('Erro de conexão. Verifique se o servidor está rodando.');
+      alert('Erro de conexão. Verifique o servidor.');
     } finally {
-      // 5. Destrava a tela (Isso resolve o "carregando eternamente")
+      // 4. Garante que o loading sempre para, mesmo com erro
       setProcessandoVenda(false);
       setMensagemLoading('');
     }
   }
 
-  // --- FUNÇÃO DE IMPRESSÃO DE RECIBO DE VENDA ---
+  // --- FUNÇÃO QUE FALTAVA: IMPRIMIR RECIBO DE VENDA ---
   const imprimirReciboVenda = (idVenda: any, listaItens: any[], valorTotal: number, nomeCliente?: string, nomeVendedor?: string) => {
     const janela = window.open('', '', 'width=310,height=600');
     if (!janela) return;
 
     const dataHoje = new Date().toLocaleString('pt-BR');
 
+    // Mapeia os itens corretamente para o HTML
     const itensHtml = listaItens.map((item: any) => {
-       // Garante que pega o nome e preço correto, seja do carrinho ou do histórico
-       const produto = item.produto || item; 
-       const nome = produto.nome || 'Item';
+       // Garante que pega os dados do lugar certo (item.produto ou item direto)
+       const prod = item.produto || item;
+       const nome = prod.nome || 'Item sem nome';
        const qtd = Number(item.quantidade || item.qtd || 1);
-       const preco = Number(produto.precoVenda || item.precoUnit || 0);
+       const preco = Number(prod.precoVenda || prod.preco || 0);
        
        return `
         <div style="margin-bottom: 5px; border-bottom: 1px dotted #ccc; padding-bottom: 2px;">
-          <div style="font-size: 11px; font-weight: bold;">${qtd}x ${nome.substring(0,25)}</div>
+          <div style="font-size: 11px; font-weight: bold;">${qtd}x ${nome.substring(0,22)}</div>
           <div style="display: flex; justify-content: space-between; font-size: 10px;">
              <span>Unit: R$ ${preco.toFixed(2)}</span>
              <span style="font-weight: bold;">R$ ${(qtd*preco).toFixed(2)}</span>
@@ -835,21 +840,16 @@ imprimirComprovante(
       <body style="font-family: monospace; width: 280px; font-size: 12px; margin: 0; padding: 5px;">
         <div style="text-align:center; font-weight:bold; font-size: 14px;">VILA VERDE</div>
         <div style="text-align:center; font-size: 10px;">MATERIAIS DE CONSTRUCAO</div>
-        <div style="text-align:center; font-size: 10px;">(41) 98438-7167</div>
         <hr style="border: 1px dashed #000;" />
-        
-        <div style="text-align:center; font-weight:bold;">VENDA #${idVenda}</div>
-        <div style="text-align:center; font-size: 10px;">RECIBO SIMPLES</div>
-        
+        <div style="text-align:center; font-weight:bold;">RECIBO SIMPLES #${idVenda}</div>
+        <div style="text-align:center; font-size: 10px;">NAO VALIDO COMO FISCAL</div>
         <hr style="border: 1px dashed #000;" />
         <div>DATA: ${dataHoje}</div>
         <div>VEND: ${nomeVendedor || 'Balcao'}</div>
         ${nomeCliente ? `<div>CLI: ${nomeCliente.substring(0,25)}</div>` : ''}
-        
         <hr style="border: 1px dashed #000;" />
         <div style="font-weight:bold; margin-bottom: 5px;">ITENS:</div>
         ${itensHtml}
-        
         <hr style="border: 1px dashed #000;" />
         <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold;">
           <span>TOTAL:</span>
