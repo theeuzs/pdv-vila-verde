@@ -1611,6 +1611,23 @@ setPrecoVenda('');
     setDescMovimento('');
   }
 
+  // --- CÁLCULO DE SALDO EM TEMPO REAL (Para atualizar topo ao cancelar) ---
+  const saldoEmTempoReal = (() => {
+    if (!caixaAberto) return 0;
+
+    // 1. Filtra apenas as vendas deste caixa que estão ativas
+    const vendasAtivas = vendas.filter(v => 
+      String(v.caixaId) === String(caixaAberto.id) && 
+      !v.nota_cancelada
+    );
+
+    // 2. Soma o total dessas vendas
+    const totalVendas = vendasAtivas.reduce((acc, v) => acc + Number(v.total), 0);
+
+    // 3. Soma com o saldo inicial (Abertura)
+    return Number(caixaAberto.saldoInicial) + totalVendas;
+  })();
+
   // ============================================================================
   // RENDERIZAÇÃO - LOGIN
   // ============================================================================
@@ -1692,8 +1709,7 @@ return <TelaLogin onLoginSucesso={handleLoginSucesso} />  }
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(74, 222, 128, 0.3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(74, 222, 128, 0.2)'}
               >
-                <div>MEU CAIXA - R$ {Number(caixaAberto.saldoAtual || caixaAberto.saldoInicial).toFixed(2)}</div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+<div>MEU CAIXA - R$ {saldoEmTempoReal.toFixed(2)}</div>                <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
                   📊 Clique para Resumo
                 </div>
               </button>
