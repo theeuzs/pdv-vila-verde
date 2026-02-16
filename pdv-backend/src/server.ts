@@ -695,6 +695,59 @@ app.post('/caixa/fechar', async (request: any, reply: any) => {
   }
 })
 
+// --- ROTA DE MOVIMENTAÇÃO (SUPRIMENTO / SANGRIA) ---
+app.post('/caixa/movimentacao', async (request: any, reply: any) => {
+  const { caixaId, tipo, valor, observacao, usuarioId } = request.body;
+
+  try {
+    // 1. Cria o registro histórico
+    const mov = await prisma.movimentacaoCaixa.create({
+      data: {
+        caixaId: Number(caixaId),
+        tipo: tipo, // 'SUPRIMENTO' ou 'SANGRIA'
+        valor: Number(valor),
+        descricao: observacao
+      }
+    });
+
+    // 2. Atualiza o saldo do caixa
+    if (tipo === 'SUPRIMENTO') {
+      await prisma.caixa.update({
+        where: { id: Number(caixaId) },
+        data: { saldoAtual: { increment: Number(valor) } }
+      });
+    } else if (tipo === 'SANGRIA') {
+      await prisma.caixa.update({
+        where: { id: Number(caixaId) },
+        data: { saldoAtual: { decrement: Number(valor) } }
+      });
+    }
+
+    return reply.send(mov);
+  } catch (error) {
+    console.error("Erro movimentação:", error);
+    return reply.status(500).send({ erro: "Erro ao salvar movimentação" });
+  }
+});
+
+// --- ROTA PARA LISTAR MOVIMENTAÇÕES DO CAIXA ABERTO ---
+app.get('/caixa/movimentacoes', async (req, reply) => {
+  // Pega o caixa aberto
+  const caixaAberto = await prisma.caixa.findFirst({ where: { status: 'ABERTO' } });
+  
+  if (!caixaAberto) return [];
+
+  // Retorna todas as movimentações dele (exceto vendas automáticas, se quiser filtrar)
+  // Aqui pegamos tudo que não seja venda automática pra mostrar na lista de suprim/sangria
+  const movs = await prisma.movimentacaoCaixa.findMany({
+    where: { 
+        caixaId: caixaAberto.id,
+        tipo: { in: ['SUPRIMENTO', 'SANGRIA', 'ABERTURA'] }
+    }
+  });
+  return reply.send(movs);
+});
+
 // --- ROTA DO DASHBOARD (ESTATÍSTICAS) ---
 app.get('/dashboard', async () => {
   const hoje = new Date();
