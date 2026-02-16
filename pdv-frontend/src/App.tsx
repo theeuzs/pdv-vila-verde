@@ -1611,20 +1611,20 @@ setPrecoVenda('');
     setDescMovimento('');
   }
 
-  // --- CÁLCULO DE SALDO EM TEMPO REAL (Para atualizar topo ao cancelar) ---
+  // --- CÁLCULO DE SALDO EM TEMPO REAL (CORRIGIDO PARA TIPOS) ---
   const saldoEmTempoReal = (() => {
     if (!caixaAberto) return 0;
 
-    // 1. Filtra apenas as vendas deste caixa que estão ativas
+    // Filtra vendas deste caixa (comparando como String pra evitar erro numérico)
     const vendasAtivas = vendas.filter(v => 
       String(v.caixaId) === String(caixaAberto.id) && 
       !v.nota_cancelada
     );
 
-    // 2. Soma o total dessas vendas
+    // Soma o total dessas vendas
     const totalVendas = vendasAtivas.reduce((acc, v) => acc + Number(v.total), 0);
 
-    // 3. Soma com o saldo inicial (Abertura)
+    // Soma com o saldo inicial
     return Number(caixaAberto.saldoInicial) + totalVendas;
   })();
 
