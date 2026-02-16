@@ -1381,6 +1381,30 @@ async function abrirEmissao(venda: Venda) {
     }
   }
 
+  // --- FUNÇÃO PARA CANCELAR VENDA NORMAL (SEM NOTA) ---
+  async function cancelarVendaSimples(id: number) {
+    if (!confirm('⚠️ Tem certeza? Isso irá cancelar a venda e devolver os itens ao estoque.')) return;
+
+    try {
+      // Tenta usar o método DELETE na rota de vendas
+      const res = await fetch(`${API_URL}/vendas/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        alert('✅ Venda cancelada e estoque estornado!');
+        carregarDados(); // Atualiza a tabela
+        buscarCaixaAberto(); // Atualiza o saldo do caixa
+      } else {
+        const erro = await res.json();
+        alert('Erro ao cancelar: ' + (erro.error || 'Erro desconhecido'));
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro de conexão ao cancelar venda.');
+    }
+  }
+
   // ============================================================================
   // FUNÇÕES DE ENTREGAS
   // ============================================================================
@@ -2752,11 +2776,90 @@ setPrecoVenda('');
                           : <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>SEM NOTA</span>
                         }
                       </td>
-                      <td style={{ padding: '15px', display: 'flex', gap: '10px' }}>
-                         {/* Seus botões de Emitir e Cancelar continuam aqui */}
-                         <button onClick={() => abrirEmissao(v)} disabled={v.nota_emitida || v.nota_cancelada} style={{ padding: '6px 12px', background: v.nota_emitida ? '#cbd5e1' : '#dcfce7', color: v.nota_emitida ? 'white' : '#166534', border: '1px solid #86efac', borderRadius: '6px', cursor: v.nota_emitida ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>📄 Emitir NFC-e</button>
-                         <button onClick={() => cancelarNota(v.id)} style={{ padding: '6px 12px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>✖ Cancelar</button>
-                      </td>
+                     <td style={{ padding: '15px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+  
+  {/* 1. BOTÃO REIMPRIMIR RECIBO (CORRIGIDO) */}
+  <button
+    onClick={() => {
+      // 👇 O TRUQUE: (v as any) permite checar .produtos sem dar erro vermelho
+      const listaItens = v.itens || (v as any).produtos || (v as any).VendaItem || [];
+      
+      imprimirReciboVenda(
+        v.id, 
+        listaItens, 
+        v.total, 
+        v.cliente?.nome, 
+        v.usuario?.nome
+      );
+    }}
+    title="Reimprimir Recibo"
+    style={{
+      padding: '6px 10px', 
+      background: 'white', 
+      border: '1px solid #cbd5e1', 
+      borderRadius: '6px', 
+      cursor: 'pointer',
+      fontSize: '1.1rem'
+    }}
+  >
+    🖨️
+  </button>
+
+  {/* 2. BOTÃO EMITIR NFC-E */}
+  <button 
+    onClick={() => abrirEmissao(v)} 
+    disabled={v.nota_emitida || v.nota_cancelada} 
+    style={{ 
+      padding: '6px 12px', 
+      background: v.nota_emitida ? '#cbd5e1' : '#dcfce7', 
+      color: v.nota_emitida ? 'white' : '#166534', 
+      border: '1px solid #86efac', 
+      borderRadius: '6px', 
+      cursor: v.nota_emitida ? 'not-allowed' : 'pointer', 
+      fontWeight: 'bold', 
+      fontSize: '0.85rem' 
+    }}
+  >
+    📄 Emitir NFC-e
+  </button>
+
+  {/* 3. BOTÃO CANCELAR INTELIGENTE */}
+  {v.nota_emitida ? (
+    <button 
+      onClick={() => cancelarNota(v.id)} 
+      disabled={v.nota_cancelada}
+      style={{ 
+        padding: '6px 12px', 
+        background: '#fee2e2', 
+        color: '#991b1b', 
+        border: '1px solid #fca5a5', 
+        borderRadius: '6px', 
+        cursor: v.nota_cancelada ? 'not-allowed' : 'pointer', 
+        fontWeight: 'bold', 
+        fontSize: '0.85rem' 
+      }}
+    >
+      ❌ Cancelar NF
+    </button>
+  ) : (
+    <button 
+      onClick={() => cancelarVendaSimples(v.id)} 
+      style={{ 
+        padding: '6px 12px', 
+        background: '#fff1f2', 
+        color: '#be123c', 
+        border: '1px solid #fda4af', 
+        borderRadius: '6px', 
+        cursor: 'pointer', 
+        fontWeight: 'bold', 
+        fontSize: '0.85rem' 
+      }}
+    >
+      🗑️ Cancelar
+    </button>
+  )}
+
+</td>
                     </tr>
                 ))}
               </tbody>
