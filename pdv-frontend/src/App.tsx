@@ -727,90 +727,7 @@ imprimirComprovante(
     setValorPagamento('')
   }
 
-// --- FUNÇÃO CORRIGIDA E BLINDADA ---
-  async function finalizarVendaNormal() {
-    if (processandoVenda) return; 
-
-    if (!caixaAberto) {
-      alert('⚠️ Caixa fechado! Abra o caixa para continuar.');
-      return;
-    }
-
-    if (carrinho.length === 0) {
-      alert('⚠️ Carrinho vazio!');
-      return;
-    }
-
-    // Trava a tela
-    setProcessandoVenda(true);
-    setMensagemLoading('Processando venda...');
-
-    try {
-      // 1. CORREÇÃO CRÍTICA: Pega o ID e Preço de dentro de 'item.produto'
-      // Isso resolve o erro "Cannot read properties of undefined" no backend
-      const itensPayload = carrinho.map((item: any) => {
-        const prod = item.produto || item; // Garante que temos o produto
-        return {
-          produtoId: prod.id, 
-          quantidade: Number(item.quantidade || 1),
-          precoVenda: Number(prod.precoVenda || 0),
-          total: Number(item.quantidade || 1) * Number(prod.precoVenda || 0)
-        };
-      });
-
-      const bodyDados = {
-        total: totalCarrinho,
-        desconto: Number(desconto) || 0,
-        formaPagamento: formaPagamento,
-        clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
-        caixaId: caixaAberto.id,
-        usuarioId: usuarioLogado?.id, // Garante que o vendedor não fica como "Sistema"
-        itens: itensPayload
-      };
-
-      const res = await fetch(`${API_URL}/vendas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyDados)
-      });
-
-      const dadosVenda = await res.json();
-
-      if (res.ok) {
-        // 2. Imprime o recibo agora que a função existe
-        imprimirReciboVenda(
-            dadosVenda.id, 
-            carrinho, 
-            totalComDesconto, 
-            clientes.find(c => String(c.id) === String(clienteSelecionado))?.nome, 
-            usuarioLogado?.nome
-        );
-
-        alert(`✅ Venda #${dadosVenda.id} realizada!`);
-        
-        // 3. Limpeza segura
-        limparCarrinho();
-        setModalPagamento(false); 
-        
-        // Atualiza dados de fundo
-        carregarDados();
-        buscarCaixaAberto();
-
-      } else {
-        alert('Erro ao finalizar: ' + (dadosVenda.error || 'Erro desconhecido'));
-      }
-
-    } catch (error) {
-      console.error(error);
-      alert('Erro de conexão. Verifique o servidor.');
-    } finally {
-      // 4. Garante que o loading sempre para, mesmo com erro
-      setProcessandoVenda(false);
-      setMensagemLoading('');
-    }
-  }
-
-  // --- FUNÇÃO QUE FALTAVA: IMPRIMIR RECIBO DE VENDA ---
+ // --- FUNÇÃO QUE FALTAVA: IMPRIMIR RECIBO DE VENDA ---
   const imprimirReciboVenda = (idVenda: any, listaItens: any[], valorTotal: number, nomeCliente?: string, nomeVendedor?: string) => {
     const janela = window.open('', '', 'width=310,height=600');
     if (!janela) return;
@@ -864,7 +781,86 @@ imprimirComprovante(
     janela.document.write(html);
     setTimeout(() => { janela.print(); janela.close(); }, 500);
   };
-  
+
+// --- FUNÇÃO FINALIZAR VENDA (CORRIGIDA) ---
+  async function finalizarVendaNormal() {
+    if (processandoVenda) return; 
+
+    if (!caixaAberto) {
+      alert('⚠️ Caixa fechado! Abra o caixa para continuar.');
+      return;
+    }
+
+    if (carrinho.length === 0) {
+      alert('⚠️ Carrinho vazio!');
+      return;
+    }
+
+    setProcessandoVenda(true);
+    setMensagemLoading('Processando venda...');
+
+    try {
+      // 1. CORREÇÃO CRÍTICA: Pega o ID de dentro de 'item.produto'
+      // O erro 500 acontecia porque estavamos enviando ID undefined
+      const itensPayload = carrinho.map((item: any) => ({
+        produtoId: item.produto ? item.produto.id : item.id,
+        quantidade: Number(item.quantidade),
+        precoVenda: Number(item.produto ? item.produto.precoVenda : item.precoVenda),
+        total: Number(item.quantidade) * Number(item.produto ? item.produto.precoVenda : item.precoVenda)
+      }));
+
+      // 2. Monta o corpo da venda
+      const bodyDados = {
+        total: totalCarrinho,
+        desconto: Number(desconto) || 0,
+        formaPagamento: formaPagamento,
+        clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
+        caixaId: caixaAberto.id,
+        usuarioId: usuarioLogado.id, // Envia o ID correto do vendedor
+        itens: itensPayload
+      };
+
+      const res = await fetch(`${API_URL}/vendas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyDados)
+      });
+
+      const dadosVenda = await res.json();
+
+      if (res.ok) {
+        // 3. Imprime o Recibo Automaticamente
+        imprimirReciboVenda(
+            dadosVenda.id, 
+            carrinho, 
+            totalComDesconto, 
+            // Busca o nome do cliente na lista se tiver ID selecionado
+            clientes.find(c => String(c.id) === String(clienteSelecionado))?.nome, 
+            usuarioLogado.nome
+        );
+
+        alert(`✅ Venda #${dadosVenda.id} realizada!`);
+        
+        // 4. Limpeza e Atualização
+        limparCarrinho();
+        setModalPagamento(false); 
+        
+        carregarDados();
+        buscarCaixaAberto();
+
+      } else {
+        alert('Erro ao finalizar: ' + (dadosVenda.error || 'Erro desconhecido'));
+      }
+
+    } catch (error) {
+      console.error(error);
+      alert('Erro de conexão. Verifique se o servidor está rodando.');
+    } finally {
+      // 5. Destrava a tela (Isso resolve o "carregando eternamente")
+      setProcessandoVenda(false);
+      setMensagemLoading('');
+    }
+  }
 
 // --- FUNÇÃO PARA ABRIR A EDIÇÃO (PREENCHE TUDO) ---
   function editarProduto(produto: any) {
